@@ -6,6 +6,7 @@ import { Registrar } from "./pages/Registrar";
 import { Dashboard } from "./pages/Dashboard";
 import { Usuarios } from "./pages/Usuarios";
 import { UsuarioForm } from "./pages/UsuarioForm";
+import { StyleGuide } from "./pages/StyleGuide";
 import "./App.css";
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/registrar" element={<Registrar />} />
+          <Route path="/style-guide" element={<StyleGuide />} />
           <Route
             path="/"
             element={
