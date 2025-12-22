@@ -6,6 +6,14 @@ import { Registrar } from "./pages/Registrar";
 import { Dashboard } from "./pages/Dashboard";
 import { Usuarios } from "./pages/Usuarios";
 import { UsuarioForm } from "./pages/UsuarioForm";
+import { Lojas } from "./pages/Lojas";
+import { LojaForm } from "./pages/LojaForm";
+import { LojaDetalhes } from "./pages/LojaDetalhes";
+import { Maquinas } from "./pages/Maquinas";
+import { MaquinaForm } from "./pages/MaquinaForm";
+import { Produtos } from "./pages/Produtos";
+import { ProdutoForm } from "./pages/ProdutoForm";
+import { Movimentacoes } from "./pages/Movimentacoes";
 import { StyleGuide } from "./pages/StyleGuide";
 import "./App.css";
 
@@ -46,6 +54,94 @@ function App() {
             element={
               <PrivateRoute adminOnly>
                 <UsuarioForm />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/lojas"
+            element={
+              <PrivateRoute>
+                <Lojas />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/lojas/:id"
+            element={
+              <PrivateRoute>
+                <LojaDetalhes />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/lojas/nova"
+            element={
+              <PrivateRoute adminOnly>
+                <LojaForm />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/lojas/:id/editar"
+            element={
+              <PrivateRoute adminOnly>
+                <LojaForm />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/maquinas"
+            element={
+              <PrivateRoute>
+                <Maquinas />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/maquinas/nova"
+            element={
+              <PrivateRoute adminOnly>
+                <MaquinaForm />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/maquinas/:id/editar"
+            element={
+              <PrivateRoute adminOnly>
+                <MaquinaForm />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/produtos"
+            element={
+              <PrivateRoute>
+                <Produtos />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/produtos/novo"
+            element={
+              <PrivateRoute adminOnly>
+                <ProdutoForm />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/produtos/:id/editar"
+            element={
+              <PrivateRoute adminOnly>
+                <ProdutoForm />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/movimentacoes"
+            element={
+              <PrivateRoute>
+                <Movimentacoes />
               </PrivateRoute>
             }
           />
