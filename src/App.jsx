@@ -14,6 +14,7 @@ import { MaquinaForm } from "./pages/MaquinaForm";
 import { Produtos } from "./pages/Produtos";
 import { ProdutoForm } from "./pages/ProdutoForm";
 import { Movimentacoes } from "./pages/Movimentacoes";
+import { Graficos } from "./pages/Graficos";
 import { StyleGuide } from "./pages/StyleGuide";
 import "./App.css";
 
@@ -142,6 +143,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Movimentacoes />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/graficos"
+            element={
+              <PrivateRoute>
+                <Graficos />
               </PrivateRoute>
             }
           />
