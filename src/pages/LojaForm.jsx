@@ -183,17 +183,33 @@ export function LojaForm() {
       setSalvandoEstoque(true);
       setError("");
 
-      // Preparar dados no formato que o backend espera
-      const estoques = estoque
-        .filter((item) => item.quantidade > 0 || item.estoqueMinimo > 0)
-        .map((item) => ({
-          produtoId: item.produtoId,
-          quantidade: item.quantidade || 0,
-          estoqueMinimo: item.estoqueMinimo || 0,
-        }));
+      // Filtrar apenas itens com quantidade ou estoque mínimo > 0
+      const itensParaSalvar = estoque.filter(
+        (item) => item.quantidade > 0 || item.estoqueMinimo > 0
+      );
 
-      // Usar a rota de atualização em lote
-      await api.put(`/estoque-lojas/${id}/varios`, { estoques });
+      // Atualizar ou criar cada item individualmente
+      for (const item of itensParaSalvar) {
+        try {
+          if (item.id) {
+            // Atualizar item existente
+            await api.put(`/estoque-lojas/${id}/${item.id}`, {
+              quantidade: item.quantidade || 0,
+              estoqueMinimo: item.estoqueMinimo || 0,
+            });
+          } else {
+            // Criar novo item
+            await api.post(`/estoque-lojas/${id}`, {
+              produtoId: item.produtoId,
+              quantidade: item.quantidade || 0,
+              estoqueMinimo: item.estoqueMinimo || 0,
+            });
+          }
+        } catch (itemError) {
+          console.error(`Erro ao salvar produto ${item.produtoId}:`, itemError);
+          // Continuar com os próximos itens mesmo se um falhar
+        }
+      }
 
       setSuccess("Estoque atualizado com sucesso!");
       await carregarEstoque();

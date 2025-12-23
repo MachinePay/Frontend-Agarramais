@@ -139,12 +139,17 @@ export function Dashboard() {
       const alertasTodasLojas = await Promise.all(alertasPromises);
 
       // Agrupar todos os alertas
-      const todosAlertas = alertasTodasLojas.flatMap((lojaAlertas) =>
-        lojaAlertas.alertas.map((alerta) => ({
+      const todosAlertas = alertasTodasLojas.flatMap((lojaAlertas) => {
+        // Garantir que alertas seja um array
+        const alertasArray = Array.isArray(lojaAlertas.alertas)
+          ? lojaAlertas.alertas
+          : [];
+
+        return alertasArray.map((alerta) => ({
           ...alerta,
           lojaNome: lojaAlertas.lojaNome,
-        }))
-      );
+        }));
+      });
 
       setAlertasEstoqueLoja(todosAlertas);
       console.log("Alertas de estoque de lojas:", todosAlertas);
