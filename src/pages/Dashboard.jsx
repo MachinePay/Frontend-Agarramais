@@ -1153,7 +1153,7 @@ export function Dashboard() {
         {/* Ação Rápida com design destacado */}
         <div className="mt-8 flex justify-center">
           <Link
-            to="/movimentacoes/nova"
+            to="/movimentacoes?nova=true"
             className="btn-primary text-lg px-10 py-4 flex items-center gap-3 shadow-2xl"
           >
             <svg
