@@ -13,6 +13,11 @@ export function LojaDetalhes() {
   const [maquinas, setMaquinas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [maquinaSelecionada, setMaquinaSelecionada] = useState(null);
+  const [movimentacoes, setMovimentacoes] = useState([]);
+  const [loadingMovimentacoes, setLoadingMovimentacoes] = useState(false);
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
 
   useEffect(() => {
     carregarDados();
@@ -27,7 +32,7 @@ export function LojaDetalhes() {
         api.get(`/maquinas`),
       ]);
       setLoja(lojaRes.data);
-      setMaquinas(maquinasRes.data.filter((m) => m.loja_id === parseInt(id)));
+      setMaquinas(maquinasRes.data.filter((m) => m.lojaId === id));
     } catch (error) {
       setError(
         "Erro ao carregar dados: " +
@@ -35,6 +40,29 @@ export function LojaDetalhes() {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const carregarMovimentacoes = async (maquinaId) => {
+    try {
+      setLoadingMovimentacoes(true);
+      const movRes = await api.get(`/movimentacoes?maquinaId=${maquinaId}`);
+      setMovimentacoes(movRes.data || []);
+    } catch (error) {
+      console.error("Erro ao carregar movimentações:", error);
+      setMovimentacoes([]);
+    } finally {
+      setLoadingMovimentacoes(false);
+    }
+  };
+
+  const handleSelecionarMaquina = (maquina) => {
+    if (maquinaSelecionada?.id === maquina.id) {
+      setMaquinaSelecionada(null);
+      setMovimentacoes([]);
+    } else {
+      setMaquinaSelecionada(maquina);
+      carregarMovimentacoes(maquina.id);
     }
   };
 
@@ -53,11 +81,11 @@ export function LojaDetalhes() {
 
   const maquinasAtivas = maquinas.filter((m) => m.ativo).length;
   const capacidadeTotal = maquinas.reduce(
-    (sum, m) => sum + (m.capacidade || 0),
+    (sum, m) => sum + (m.capacidadePadrao || 0),
     0
   );
   const estoqueTotal = maquinas.reduce(
-    (sum, m) => sum + (m.estoque_atual || 0),
+    (sum, m) => sum + (m.estoqueAtual || 0),
     0
   );
   const ocupacaoMedia =
@@ -111,7 +139,7 @@ export function LojaDetalhes() {
                   Status
                 </label>
                 <div className="mt-1">
-                  <Badge type={loja.ativo ? "success" : "error"}>
+                  <Badge variant={loja.ativo ? "success" : "danger"}>
                     {loja.ativo ? "Ativa" : "Inativa"}
                   </Badge>
                 </div>
@@ -205,78 +233,253 @@ export function LojaDetalhes() {
           </div>
 
           {maquinas.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {maquinas.map((maquina) => {
-                const ocupacao =
-                  maquina.capacidade > 0
-                    ? Math.round(
-                        (maquina.estoque_atual / maquina.capacidade) * 100
-                      )
-                    : 0;
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                {maquinas.map((maquina) => {
+                  // Estoque calculado a partir de movimentações, não está no objeto máquina
+                  const estoqueAtual = maquina.estoqueAtual || 0;
+                  const ocupacao =
+                    maquina.capacidadePadrao > 0
+                      ? Math.round(
+                          (estoqueAtual / maquina.capacidadePadrao) * 100
+                        )
+                      : 0;
+                  const isSelected = maquinaSelecionada?.id === maquina.id;
 
-                return (
-                  <div
-                    key={maquina.id}
-                    className="p-4 bg-white rounded-lg border-2 border-gray-200 hover:border-primary transition-all cursor-pointer"
-                    onClick={() => navigate(`/maquinas/${maquina.id}/editar`)}
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <h4 className="font-bold text-gray-900">
-                          {maquina.nome}
-                        </h4>
-                        <p className="text-sm text-gray-500">
-                          {maquina.codigo}
+                  return (
+                    <div
+                      key={maquina.id}
+                      className={`p-4 bg-white rounded-lg border-2 transition-all ${
+                        isSelected
+                          ? "border-primary shadow-lg"
+                          : "border-gray-200 hover:border-primary"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div
+                          className="flex-1 cursor-pointer"
+                          onClick={() => handleSelecionarMaquina(maquina)}
+                        >
+                          <h4 className="font-bold text-gray-900">
+                            {maquina.nome}
+                          </h4>
+                          <p className="text-sm text-gray-500">
+                            {maquina.codigo}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={maquina.ativo ? "success" : "danger"}>
+                            {maquina.ativo ? "Ativa" : "Inativa"}
+                          </Badge>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/maquinas/${maquina.id}/editar`);
+                            }}
+                            className="text-primary hover:text-primary-dark"
+                            title="Editar máquina"
+                          >
+                            ✏️
+                          </button>
+                        </div>
+                      </div>
+
+                      <div
+                        className="space-y-2 cursor-pointer"
+                        onClick={() => handleSelecionarMaquina(maquina)}
+                      >
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Capacidade:</span>
+                          <span className="font-semibold">
+                            {maquina.capacidadePadrao || 0}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Estoque:</span>
+                          <span className="font-semibold">{estoqueAtual}</span>
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="text-gray-600">Ocupação:</span>
+                            <span className="font-semibold">{ocupacao}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full transition-all ${
+                                ocupacao < 30
+                                  ? "bg-red-500"
+                                  : ocupacao < 60
+                                  ? "bg-yellow-500"
+                                  : "bg-green-500"
+                              }`}
+                              style={{ width: `${Math.min(ocupacao, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {maquina.modelo && (
+                        <p className="text-xs text-gray-500 mt-3">
+                          Modelo: {maquina.modelo}
                         </p>
-                      </div>
-                      <Badge type={maquina.ativo ? "success" : "error"}>
-                        {maquina.ativo ? "Ativa" : "Inativa"}
-                      </Badge>
+                      )}
+
+                      {isSelected && (
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <p className="text-xs text-primary font-medium">
+                            👇 Ver histórico abaixo
+                          </p>
+                        </div>
+                      )}
                     </div>
+                  );
+                })}
+              </div>
 
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Capacidade:</span>
-                        <span className="font-semibold">
-                          {maquina.capacidade}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Estoque:</span>
-                        <span className="font-semibold">
-                          {maquina.estoque_atual}
-                        </span>
-                      </div>
+              {/* Histórico de Movimentações */}
+              {maquinaSelecionada && (
+                <div className="card mt-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span className="text-2xl">🔄</span>
+                    Histórico de Movimentações - {maquinaSelecionada.nome}
+                  </h3>
 
+                  {/* Filtros de Data */}
+                  <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="text-gray-600">Ocupação:</span>
-                          <span className="font-semibold">{ocupacao}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className={`h-2 rounded-full transition-all ${
-                              ocupacao < 30
-                                ? "bg-red-500"
-                                : ocupacao < 60
-                                ? "bg-yellow-500"
-                                : "bg-green-500"
-                            }`}
-                            style={{ width: `${Math.min(ocupacao, 100)}%` }}
-                          />
-                        </div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          📅 Data Inicial
+                        </label>
+                        <input
+                          type="date"
+                          value={dataInicio}
+                          onChange={(e) => setDataInicio(e.target.value)}
+                          className="input-field w-full"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          📅 Data Final
+                        </label>
+                        <input
+                          type="date"
+                          value={dataFim}
+                          onChange={(e) => setDataFim(e.target.value)}
+                          className="input-field w-full"
+                        />
                       </div>
                     </div>
-
-                    {maquina.modelo && (
-                      <p className="text-xs text-gray-500 mt-3">
-                        Modelo: {maquina.modelo}
-                      </p>
+                    {(dataInicio || dataFim) && (
+                      <button
+                        onClick={() => {
+                          setDataInicio("");
+                          setDataFim("");
+                        }}
+                        className="mt-2 text-sm text-primary hover:text-primary-dark flex items-center gap-1"
+                      >
+                        ✕ Limpar filtros
+                      </button>
                     )}
                   </div>
-                );
-              })}
-            </div>
+
+                  {loadingMovimentacoes ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+                      <p className="text-gray-600 mt-4">
+                        Carregando movimentações...
+                      </p>
+                    </div>
+                  ) : movimentacoes.length > 0 ? (
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {movimentacoes
+                        .filter((mov) => {
+                          const movData = new Date(mov.createdAt);
+                          const inicio = dataInicio
+                            ? new Date(dataInicio)
+                            : null;
+                          const fim = dataFim
+                            ? new Date(dataFim + "T23:59:59")
+                            : null;
+
+                          if (inicio && movData < inicio) return false;
+                          if (fim && movData > fim) return false;
+                          return true;
+                        })
+                        .map((mov) => (
+                          <div
+                            key={mov.id}
+                            className="p-4 border border-gray-200 rounded-lg bg-white hover:bg-gray-50"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm text-gray-600">
+                                {new Date(mov.createdAt).toLocaleDateString(
+                                  "pt-BR"
+                                )}{" "}
+                                às{" "}
+                                {new Date(mov.createdAt).toLocaleTimeString(
+                                  "pt-BR"
+                                )}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-5 gap-4 mt-3 text-sm">
+                              <div>
+                                <p className="text-gray-600">Total Pré</p>
+                                <p className="font-semibold">
+                                  {mov.totalPre || 0}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-gray-600">Saíram</p>
+                                <p className="font-semibold text-red-600">
+                                  {mov.sairam || 0}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-gray-600">Abastecidas</p>
+                                <p className="font-semibold text-green-600">
+                                  {mov.abastecidas || 0}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-gray-600 flex items-center gap-1">
+                                  <span>📦</span> Total Atual
+                                </p>
+                                <p className="font-semibold text-purple-600">
+                                  {(mov.totalPre || 0) +
+                                    (mov.abastecidas || 0) -
+                                    (mov.sairam || 0)}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-gray-600 flex items-center gap-1">
+                                  <span>🎫</span> Fichas
+                                </p>
+                                <p className="font-semibold text-blue-600">
+                                  {mov.fichas || 0}
+                                </p>
+                              </div>
+                            </div>
+                            {mov.observacoes && (
+                              <p className="text-sm text-gray-600 mt-3 italic">
+                                💬 {mov.observacoes}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <p className="text-6xl mb-4">📭</p>
+                      <p className="text-gray-600">
+                        Nenhuma movimentação registrada para esta máquina
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           ) : (
             <EmptyState
               icon="🎰"

@@ -64,11 +64,29 @@ export function LojaForm() {
     setLoading(true);
 
     try {
+      // Validação
+      if (!formData.nome || formData.nome.trim() === "") {
+        setError("Por favor, informe o nome da loja");
+        setLoading(false);
+        return;
+      }
+
+      const data = {
+        nome: formData.nome.trim(),
+        endereco: formData.endereco.trim(),
+        cidade: formData.cidade.trim(),
+        estado: formData.estado,
+        cep: formData.cep?.trim() || null,
+        telefone: formData.telefone.trim(),
+        responsavel: formData.responsavel?.trim() || null,
+        ativo: formData.ativo,
+      };
+
       if (isEdit) {
-        await api.put(`/lojas/${id}`, formData);
+        await api.put(`/lojas/${id}`, data);
         setSuccess("Loja atualizada com sucesso!");
       } else {
-        await api.post("/lojas", formData);
+        await api.post("/lojas", data);
         setSuccess("Loja criada com sucesso!");
       }
 

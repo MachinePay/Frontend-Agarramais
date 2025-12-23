@@ -19,21 +19,29 @@ export function Maquinas() {
   const [lojas, setLojas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState(null);
+  const [maquinaParaDeletar, setMaquinaParaDeletar] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [filtroLoja, setFiltroLoja] = useState("");
+  const [mostrarInativas, setMostrarInativas] = useState(false);
 
   useEffect(() => {
     carregarDados();
-  }, []);
+  }, [mostrarInativas]); // Recarrega quando o filtro muda
 
   const carregarDados = async () => {
     try {
       setLoading(true);
+      const urlMaquinas = mostrarInativas
+        ? "/maquinas?incluirInativas=true"
+        : "/maquinas";
+
       const [maquinasRes, lojasRes] = await Promise.all([
-        api.get("/maquinas"),
+        api.get(urlMaquinas),
         api.get("/lojas"),
       ]);
+      console.log("Máquinas recebidas:", maquinasRes.data);
+      console.log("Lojas recebidas:", lojasRes.data);
       setMaquinas(maquinasRes.data);
       setLojas(lojasRes.data);
     } catch (error) {
@@ -48,100 +56,116 @@ export function Maquinas() {
 
   const handleDelete = async () => {
     try {
-      await api.delete(`/maquinas/${deleteId}`);
-      setSuccess("Máquina excluída com sucesso!");
+      const response = await api.delete(`/maquinas/${deleteId}`);
+
+      // Verificar se foi soft delete ou hard delete
+      if (response.data.permanentDelete) {
+        setSuccess("✅ Máquina excluída permanentemente com sucesso!");
+      } else {
+        setSuccess(
+          "⚠️ Máquina desativada! Clique novamente em excluir para deletar permanentemente."
+        );
+      }
+
       carregarDados();
       setDeleteId(null);
+      setMaquinaParaDeletar(null);
     } catch (error) {
       setError(
         "Erro ao excluir máquina: " +
           (error.response?.data?.error || error.message)
       );
       setDeleteId(null);
+      setMaquinaParaDeletar(null);
     }
   };
 
+  const handleAbrirDialogDeletar = (maquina) => {
+    setDeleteId(maquina.id);
+    setMaquinaParaDeletar(maquina);
+  };
+
+  // Filtro por loja (backend já filtra por ativo/inativo)
   const maquinasFiltradas = filtroLoja
-    ? maquinas.filter((m) => m.loja_id === parseInt(filtroLoja))
+    ? maquinas.filter((m) => m.lojaId === filtroLoja)
     : maquinas;
 
   const stats = [
     {
-      title: "Total de Máquinas",
+      label: "Total de Máquinas",
       value: maquinas.length,
       icon: "🎰",
-      color: "primary",
+      gradient: "bg-gradient-to-br from-purple-500 to-purple-600",
     },
     {
-      title: "Máquinas Ativas",
+      label: "Máquinas Ativas",
       value: maquinas.filter((m) => m.ativo).length,
       icon: "✅",
-      color: "success",
+      gradient: "bg-gradient-to-br from-green-500 to-green-600",
     },
     {
-      title: "Capacidade Total",
-      value: maquinas.reduce((sum, m) => sum + (m.capacidade || 0), 0),
+      label: "Capacidade Total",
+      value: maquinas.reduce((sum, m) => sum + (m.capacidadePadrao || 0), 0),
       icon: "📦",
-      color: "secondary",
+      gradient: "bg-gradient-to-br from-blue-500 to-blue-600",
     },
     {
-      title: "Estoque Total",
-      value: maquinas.reduce((sum, m) => sum + (m.estoque_atual || 0), 0),
-      icon: "🧸",
-      color: "yellow",
+      label: "Valor Médio Ficha",
+      value:
+        maquinas.length > 0
+          ? `R$ ${(
+              maquinas.reduce((sum, m) => sum + (m.valorFicha || 0), 0) /
+              maquinas.length
+            ).toFixed(2)}`
+          : "R$ 0,00",
+      icon: "💰",
+      gradient: "bg-gradient-to-br from-yellow-500 to-yellow-600",
     },
   ];
 
   const columns = [
-    { key: "codigo", label: "Código" },
-    { key: "nome", label: "Nome" },
+    {
+      key: "codigo",
+      label: "Código",
+      render: (maquina) => maquina.codigo || "-",
+    },
+    {
+      key: "nome",
+      label: "Nome",
+      render: (maquina) => maquina.nome || "-",
+    },
     {
       key: "loja",
       label: "Loja",
       render: (maquina) => {
-        const loja = lojas.find((l) => l.id === maquina.loja_id);
-        return loja ? loja.nome : "N/A";
+        console.log("Buscando loja para máquina:", maquina.lojaId, "em", lojas);
+        const loja = lojas.find((l) => l.id === maquina.lojaId);
+        return loja ? loja.nome : `N/A (ID: ${maquina.lojaId})`;
       },
     },
-    { key: "capacidade", label: "Capacidade" },
-    { key: "estoque_atual", label: "Estoque Atual" },
     {
-      key: "ocupacao",
-      label: "Ocupação",
+      key: "tipo",
+      label: "Tipo",
+      render: (maquina) => maquina.tipo || "-",
+    },
+    {
+      key: "capacidadePadrao",
+      label: "Capacidade",
+      render: (maquina) => maquina.capacidadePadrao || 0,
+    },
+    {
+      key: "valorFicha",
+      label: "Valor Ficha",
       render: (maquina) => {
-        const percent =
-          maquina.capacidade > 0
-            ? Math.round((maquina.estoque_atual / maquina.capacidade) * 100)
-            : 0;
-
-        let color = "success";
-        if (percent < 30) color = "error";
-        else if (percent < 60) color = "warning";
-
-        return (
-          <div className="flex items-center gap-2">
-            <div className="flex-1 bg-gray-200 rounded-full h-2 max-w-[100px]">
-              <div
-                className={`h-2 rounded-full ${
-                  color === "error"
-                    ? "bg-red-500"
-                    : color === "warning"
-                    ? "bg-yellow-500"
-                    : "bg-green-500"
-                }`}
-                style={{ width: `${Math.min(percent, 100)}%` }}
-              />
-            </div>
-            <span className="text-sm font-semibold">{percent}%</span>
-          </div>
-        );
+        const valor = parseFloat(maquina.valorFicha);
+        return !isNaN(valor) && valor > 0 ? `R$ ${valor.toFixed(2)}` : "-";
       },
     },
     {
       key: "ativo",
       label: "Status",
       render: (maquina) => (
-        <Badge type={maquina.ativo ? "success" : "error"}>
+        <Badge variant={maquina.ativo ? "success" : "danger"}>
           {maquina.ativo ? "Ativa" : "Inativa"}
         </Badge>
       ),
@@ -159,11 +183,15 @@ export function Maquinas() {
             ✏️
           </button>
           <button
-            onClick={() => setDeleteId(maquina.id)}
-            className="text-red-600 hover:text-red-800 font-semibold"
-            title="Excluir"
+            onClick={() => handleAbrirDialogDeletar(maquina)}
+            className={`font-semibold ${
+              maquina.ativo
+                ? "text-orange-600 hover:text-orange-800"
+                : "text-red-600 hover:text-red-800"
+            }`}
+            title={maquina.ativo ? "Desativar" : "Excluir Permanentemente"}
           >
-            🗑️
+            {maquina.ativo ? "⚠️" : "🗑️"}
           </button>
         </div>
       ),
@@ -202,26 +230,42 @@ export function Maquinas() {
 
         <div className="card-gradient">
           {/* Filtros */}
-          <div className="mb-6">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Filtrar por Loja
-            </label>
-            <select
-              value={filtroLoja}
-              onChange={(e) => setFiltroLoja(e.target.value)}
-              className="select-field max-w-xs"
-            >
-              <option value="">Todas as Lojas</option>
-              {lojas.map((loja) => (
-                <option key={loja.id} value={loja.id}>
-                  {loja.nome}
-                </option>
-              ))}
-            </select>
+          <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Filtrar por Loja
+              </label>
+              <select
+                value={filtroLoja}
+                onChange={(e) => setFiltroLoja(e.target.value)}
+                className="select-field"
+              >
+                <option value="">Todas as Lojas</option>
+                {lojas.map((loja) => (
+                  <option key={loja.id} value={loja.id}>
+                    {loja.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-end">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={mostrarInativas}
+                  onChange={(e) => setMostrarInativas(e.target.checked)}
+                  className="w-5 h-5 text-primary rounded focus:ring-2 focus:ring-primary"
+                />
+                <span className="text-sm font-semibold text-gray-700">
+                  Mostrar máquinas inativas
+                </span>
+              </label>
+            </div>
           </div>
 
           {maquinasFiltradas.length > 0 ? (
-            <DataTable columns={columns} data={maquinasFiltradas} />
+            <DataTable headers={columns} data={maquinasFiltradas} />
           ) : (
             <EmptyState
               icon="🎰"
@@ -244,10 +288,21 @@ export function Maquinas() {
 
       <ConfirmDialog
         isOpen={deleteId !== null}
-        onClose={() => setDeleteId(null)}
+        onClose={() => {
+          setDeleteId(null);
+          setMaquinaParaDeletar(null);
+        }}
         onConfirm={handleDelete}
-        title="Excluir Máquina"
-        message="Tem certeza que deseja excluir esta máquina? Esta ação não pode ser desfeita."
+        title={
+          maquinaParaDeletar?.ativo
+            ? "Desativar Máquina"
+            : "Excluir Permanentemente"
+        }
+        message={
+          maquinaParaDeletar?.ativo
+            ? "🛡️ A máquina será DESATIVADA e não aparecerá mais nas listagens ativas. Os dados serão preservados e você poderá reativá-la editando-a. Para excluir permanentemente, clique em excluir novamente."
+            : "⚠️ ATENÇÃO: Esta ação é PERMANENTE e IRREVERSÍVEL! A máquina e todo seu histórico serão deletados do banco de dados. Tem certeza absoluta?"
+        }
       />
     </div>
   );

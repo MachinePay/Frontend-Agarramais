@@ -63,7 +63,18 @@ export function ProdutoForm() {
     try {
       setLoadingData(true);
       const response = await api.get(`/produtos/${id}`);
-      setFormData(response.data);
+      setFormData({
+        codigo: response.data.codigo || "",
+        nome: response.data.nome || "",
+        categoria: response.data.categoria || "",
+        preco: response.data.preco || "",
+        custo: response.data.custo || "",
+        descricao: response.data.descricao || "",
+        emoji: response.data.emoji || "🧸",
+        estoque_minimo: response.data.estoque_minimo || "",
+        estoque_atual: response.data.estoque_atual || "",
+        ativo: response.data.ativo !== undefined ? response.data.ativo : true,
+      });
     } catch (error) {
       setError(
         "Erro ao carregar produto: " +
@@ -89,16 +100,34 @@ export function ProdutoForm() {
     setLoading(true);
 
     try {
+      // Validação
+      if (!formData.codigo || formData.codigo.trim() === "") {
+        setError("Por favor, informe o código do produto");
+        setLoading(false);
+        return;
+      }
+
+      if (!formData.nome || formData.nome.trim() === "") {
+        setError("Por favor, informe o nome do produto");
+        setLoading(false);
+        return;
+      }
+
       const data = {
-        ...formData,
+        codigo: formData.codigo.trim(),
+        nome: formData.nome.trim(),
+        categoria: formData.categoria.trim(),
         preco: parseFloat(formData.preco),
         custo: formData.custo ? parseFloat(formData.custo) : null,
+        emoji: formData.emoji,
         estoque_minimo: formData.estoque_minimo
           ? parseInt(formData.estoque_minimo)
           : null,
         estoque_atual: formData.estoque_atual
           ? parseInt(formData.estoque_atual)
           : 0,
+        descricao: formData.descricao?.trim() || null,
+        ativo: formData.ativo,
       };
 
       if (isEdit) {

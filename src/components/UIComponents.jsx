@@ -11,7 +11,17 @@ export function PageHeader({ title, subtitle, icon, action }) {
         </h1>
         {subtitle && <p className="text-gray-600 text-lg">{subtitle}</p>}
       </div>
-      {action && <div>{action}</div>}
+      {action && (
+        <div>
+          {typeof action === "object" && action.label ? (
+            <button onClick={action.onClick} className="btn-primary">
+              {action.label}
+            </button>
+          ) : (
+            action
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -55,7 +65,18 @@ export function DataTable({
   data,
   emptyMessage = "Nenhum dado encontrado",
 }) {
-  if (!data || data.length === 0) {
+  // Proteção contra dados inválidos
+  if (!headers || !Array.isArray(headers) || headers.length === 0) {
+    console.error("DataTable: headers inválido", headers);
+    return (
+      <div className="card text-center py-12">
+        <div className="text-6xl mb-4">⚠️</div>
+        <p className="text-gray-600">Configuração de tabela inválida</p>
+      </div>
+    );
+  }
+
+  if (!data || !Array.isArray(data) || data.length === 0) {
     return (
       <div className="card text-center py-12">
         <div className="text-6xl mb-4">📊</div>

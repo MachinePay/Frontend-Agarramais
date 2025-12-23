@@ -4,6 +4,7 @@ import api from "../services/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { PageLoader } from "../components/Loading";
+import { Badge } from "../components/UIComponents";
 
 export function Dashboard() {
   const [stats, setStats] = useState({
@@ -12,27 +13,187 @@ export function Dashboard() {
     loading: true,
   });
 
+  // Estados para busca e navegação
+  const [searchTerm, setSearchTerm] = useState("");
+  const [lojas, setLojas] = useState([]);
+  const [maquinas, setMaquinas] = useState([]);
+  const [movimentacoes, setMovimentacoes] = useState([]);
+  const [lojaSelecionada, setLojaSelecionada] = useState(null);
+  const [maquinaSelecionada, setMaquinaSelecionada] = useState(null);
+  const [loadingMaquina, setLoadingMaquina] = useState(false);
+  const [mostrarDetalhesProdutos, setMostrarDetalhesProdutos] = useState(false);
+  const [vendasPorProduto, setVendasPorProduto] = useState([]);
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
+
   useEffect(() => {
     carregarDados();
   }, []);
 
   const carregarDados = async () => {
     try {
-      const [alertasRes, balancoRes] = await Promise.all([
-        api.get("/relatorios/alertas-estoque"),
-        api.get("/relatorios/balanco-semanal"),
-      ]);
+      const [alertasRes, balancoRes, lojasRes, maquinasRes] = await Promise.all(
+        [
+          api.get("/relatorios/alertas-estoque"),
+          api.get("/relatorios/balanco-semanal"),
+          api.get("/lojas"),
+          api.get("/maquinas"),
+        ]
+      );
+
+      console.log("Lojas carregadas:", lojasRes.data);
+      console.log("Máquinas carregadas:", maquinasRes.data);
 
       setStats({
         alertas: alertasRes.data.alertas || [],
         balanco: balancoRes.data,
         loading: false,
       });
+      setLojas(lojasRes.data || []);
+      setMaquinas(maquinasRes.data || []);
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
-      setStats({ ...stats, loading: false });
+      setStats({ alertas: [], balanco: null, loading: false });
+      setLojas([]);
+      setMaquinas([]);
     }
   };
+
+  const carregarDetalhesMaquina = async (maquinaId) => {
+    try {
+      setLoadingMaquina(true);
+      const movRes = await api.get(`/movimentacoes?maquinaId=${maquinaId}`);
+      setMovimentacoes(movRes.data || []);
+    } catch (error) {
+      console.error("Erro ao carregar movimentações:", error);
+      setMovimentacoes([]);
+    } finally {
+      setLoadingMaquina(false);
+    }
+  };
+
+  const carregarVendasPorProduto = async () => {
+    try {
+      // Buscar todos os dados necessários
+      const [movRes, produtosRes, lojasRes, maquinasRes] = await Promise.all([
+        api.get("/movimentacoes"),
+        api.get("/produtos"),
+        api.get("/lojas"),
+        api.get("/maquinas"),
+      ]);
+
+      const movimentacoes = movRes.data || [];
+      const produtosData = produtosRes.data || [];
+      const lojasData = lojasRes.data || [];
+      const maquinasData = maquinasRes.data || [];
+
+      console.log("Movimentações:", movimentacoes);
+      console.log("Produtos:", produtosData);
+      console.log("Lojas:", lojasData);
+      console.log("Máquinas:", maquinasData);
+
+      // Agrupar vendas por produto
+      const produtosMap = {};
+
+      movimentacoes.forEach((mov) => {
+        if (mov.detalhesProdutos && Array.isArray(mov.detalhesProdutos)) {
+          mov.detalhesProdutos.forEach((detalhe) => {
+            const produtoId = detalhe.produtoId;
+            const quantidadeSaiu = detalhe.quantidadeSaiu || 0;
+
+            // Buscar o produto no array de produtos
+            const produto = produtosData.find((p) => p.id === produtoId);
+            const produtoNome = produto?.nome || `Produto ${produtoId}`;
+
+            if (!produtosMap[produtoId]) {
+              produtosMap[produtoId] = {
+                id: produtoId,
+                nome: produtoNome,
+                emoji: produto?.emoji || "🧸",
+                totalVendido: 0,
+                vendasPorLoja: {},
+              };
+            }
+
+            produtosMap[produtoId].totalVendido += quantidadeSaiu;
+
+            // Buscar a máquina e depois a loja
+            const maquina =
+              maquinasData.find((m) => m.id === mov.maquinaId) || mov.maquina;
+            let lojaNome = "Loja não identificada";
+
+            if (maquina) {
+              // Se a máquina tem loja como objeto
+              if (maquina.loja?.nome) {
+                lojaNome = maquina.loja.nome;
+              }
+              // Se a máquina tem lojaId
+              else if (maquina.lojaId) {
+                const loja = lojasData.find((l) => l.id === maquina.lojaId);
+                lojaNome = loja?.nome || lojaNome;
+              }
+            }
+
+            if (!produtosMap[produtoId].vendasPorLoja[lojaNome]) {
+              produtosMap[produtoId].vendasPorLoja[lojaNome] = 0;
+            }
+            produtosMap[produtoId].vendasPorLoja[lojaNome] += quantidadeSaiu;
+          });
+        }
+      });
+
+      // Converter para array e ordenar por total vendido
+      const produtosArray = Object.values(produtosMap)
+        .filter((p) => p.totalVendido > 0)
+        .sort((a, b) => b.totalVendido - a.totalVendido);
+
+      console.log("Produtos agrupados:", produtosArray);
+      setVendasPorProduto(produtosArray);
+    } catch (error) {
+      console.error("Erro ao carregar vendas por produto:", error);
+      setVendasPorProduto([]);
+    }
+  };
+
+  const toggleDetalhesProdutos = () => {
+    if (!mostrarDetalhesProdutos && vendasPorProduto.length === 0) {
+      carregarVendasPorProduto();
+    }
+    setMostrarDetalhesProdutos(!mostrarDetalhesProdutos);
+  };
+
+  const handleSelecionarLoja = (loja) => {
+    setLojaSelecionada(loja);
+    setMaquinaSelecionada(null);
+    setMovimentacoes([]);
+    setSearchTerm("");
+  };
+
+  const handleSelecionarMaquina = (maquina) => {
+    setMaquinaSelecionada(maquina);
+    carregarDetalhesMaquina(maquina.id);
+  };
+
+  const handleVoltar = () => {
+    if (maquinaSelecionada) {
+      setMaquinaSelecionada(null);
+      setMovimentacoes([]);
+    } else if (lojaSelecionada) {
+      setLojaSelecionada(null);
+    }
+  };
+
+  // Filtrar lojas conforme busca
+  const lojasFiltradas = lojas.filter(
+    (loja) =>
+      loja.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      loja.endereco?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Máquinas da loja selecionada
+  const maquinasDaLoja = lojaSelecionada
+    ? maquinas.filter((m) => m.lojaId === lojaSelecionada.id)
+    : [];
 
   if (stats.loading) {
     return <PageLoader />;
@@ -54,7 +215,7 @@ export function Dashboard() {
         </div>
 
         {/* Cards de Resumo com design moderno */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <div className="stat-card bg-gradient-to-br from-primary to-accent-yellow">
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-2">
@@ -87,7 +248,7 @@ export function Dashboard() {
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-medium opacity-90">
-                  Total de Fichas
+                  Fichas Inseridas
                 </h3>
                 <svg
                   className="w-8 h-8 opacity-80"
@@ -106,7 +267,34 @@ export function Dashboard() {
               <p className="text-3xl font-bold">
                 {stats.balanco?.totais?.totalFichas || 0}
               </p>
-              <p className="text-xs opacity-75 mt-1">🎫 Fichas inseridas</p>
+              <p className="text-xs opacity-75 mt-1">🎫 Fichas que entraram</p>
+            </div>
+          </div>
+
+          <div className="stat-card bg-gradient-to-br from-indigo-500 to-indigo-600">
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium opacity-90">
+                  Fichas Vendidas
+                </h3>
+                <svg
+                  className="w-8 h-8 opacity-80"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+                  />
+                </svg>
+              </div>
+              <p className="text-3xl font-bold">
+                {stats.balanco?.totais?.totalFichasVendidas || 0}
+              </p>
+              <p className="text-xs opacity-75 mt-1">💰 Fichas vendidas</p>
             </div>
           </div>
 
@@ -161,6 +349,516 @@ export function Dashboard() {
               <p className="text-xs opacity-75 mt-1">⚠️ Requer atenção</p>
             </div>
           </div>
+        </div>
+
+        {/* Estatísticas de Produtos Totais */}
+        {stats.balanco?.distribuicaoLojas?.length > 0 && (
+          <div className="card-gradient mb-8 border-l-4 border-pink-500">
+            <div
+              className="flex items-center justify-between cursor-pointer hover:bg-pink-50/50 transition-colors rounded-xl p-2 -m-2"
+              onClick={toggleDetalhesProdutos}
+            >
+              <div>
+                <h2 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+                  <span className="bg-gradient-to-br from-pink-500 to-pink-600 p-3 rounded-xl text-white">
+                    🎁
+                  </span>
+                  Total de Produtos Vendidos
+                </h2>
+                <p className="text-gray-600">
+                  Soma de todas as lojas no período
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-5xl font-bold text-gradient">
+                    {stats.balanco.distribuicaoLojas.reduce(
+                      (total, loja) =>
+                        total + (loja.produtosVendidos || loja.sairam || 0),
+                      0
+                    )}
+                  </span>
+                  <span className="text-2xl text-gray-600">unidades</span>
+                </div>
+                <p className="text-sm text-gray-500 mt-2">
+                  📊 {stats.balanco.distribuicaoLojas.length}{" "}
+                  {stats.balanco.distribuicaoLojas.length === 1
+                    ? "loja"
+                    : "lojas"}{" "}
+                  ativas
+                </p>
+                <button className="mt-2 text-xs text-pink-600 font-semibold hover:text-pink-700 flex items-center gap-1">
+                  {mostrarDetalhesProdutos ? "▼ Ocultar" : "▶ Ver detalhes"}
+                </button>
+              </div>
+            </div>
+
+            {/* Detalhes de Vendas por Produto */}
+            {mostrarDetalhesProdutos && (
+              <div className="mt-6 pt-6 border-t-2 border-pink-200">
+                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <span className="text-2xl">📦</span>
+                  Vendas Detalhadas por Produto
+                </h3>
+
+                {vendasPorProduto.length > 0 ? (
+                  <div className="space-y-4">
+                    {vendasPorProduto.map((produto) => (
+                      <div
+                        key={produto.id}
+                        className="bg-gradient-to-r from-pink-50 to-purple-50 p-5 rounded-xl border-2 border-pink-200 hover:shadow-md transition-all"
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-lg font-bold text-gray-900 flex items-center gap-3">
+                            <span className="bg-pink-500 text-white w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold">
+                              {produto.totalVendido}
+                            </span>
+                            <span className="text-2xl">{produto.emoji}</span>
+                            <span>{produto.nome}</span>
+                          </h4>
+                          <span className="badge bg-pink-100 text-pink-700 border-pink-300 text-base px-4 py-2">
+                            {produto.totalVendido}{" "}
+                            {produto.totalVendido === 1
+                              ? "unidade vendida"
+                              : "unidades vendidas"}
+                          </span>
+                        </div>
+
+                        {/* Vendas por Loja */}
+                        <div className="mt-3 pl-10">
+                          <p className="text-sm font-semibold text-gray-700 mb-2">
+                            📍 Vendas por loja:
+                          </p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {Object.entries(produto.vendasPorLoja).map(
+                              ([loja, quantidade]) => (
+                                <div
+                                  key={loja}
+                                  className="bg-white px-3 py-2 rounded-lg border border-pink-200 flex items-center justify-between"
+                                >
+                                  <span className="text-sm text-gray-700">
+                                    {loja}
+                                  </span>
+                                  <span className="text-sm font-bold text-pink-600">
+                                    {quantidade}
+                                  </span>
+                                </div>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
+                    <p className="text-gray-600">
+                      Carregando detalhes dos produtos...
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Busca de Lojas e Máquinas */}
+        <div className="card-gradient mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <span className="text-3xl">🔍</span>
+            Buscar Lojas e Máquinas
+          </h2>
+
+          {/* Breadcrumb de Navegação */}
+          {(lojaSelecionada || maquinaSelecionada) && (
+            <div className="mb-6 flex items-center gap-2 text-sm">
+              <button
+                onClick={handleVoltar}
+                className="text-primary hover:text-primary/80 font-semibold flex items-center gap-1"
+              >
+                ← Voltar
+              </button>
+              <span className="text-gray-400">/</span>
+              {lojaSelecionada && (
+                <>
+                  <span className="text-gray-700 font-semibold">
+                    {lojaSelecionada.nome}
+                  </span>
+                  {maquinaSelecionada && (
+                    <>
+                      <span className="text-gray-400">/</span>
+                      <span className="text-gray-700 font-semibold">
+                        {maquinaSelecionada.codigo} - {maquinaSelecionada.nome}
+                      </span>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Barra de Pesquisa - Visível apenas quando não há seleção */}
+          {!lojaSelecionada && !maquinaSelecionada && (
+            <div className="relative mb-6">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Digite o nome da loja ou endereço..."
+                className="w-full input-field pl-12 text-lg"
+              />
+              <svg
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            </div>
+          )}
+
+          {/* Lista de Lojas Filtradas */}
+          {!lojaSelecionada && !maquinaSelecionada && (
+            <div className="space-y-3">
+              {lojasFiltradas.length > 0 ? (
+                lojasFiltradas.map((loja) => {
+                  const qtdMaquinas = maquinas.filter(
+                    (m) => m.lojaId === loja.id
+                  ).length;
+                  return (
+                    <div
+                      key={loja.id}
+                      onClick={() => handleSelecionarLoja(loja)}
+                      className="p-5 border-2 border-gray-200 rounded-xl hover:border-primary hover:shadow-lg transition-all cursor-pointer bg-white"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-bold text-gray-900 mb-1">
+                            🏪 {loja.nome}
+                          </h3>
+                          <p className="text-sm text-gray-600">
+                            📍 {loja.endereco || "Endereço não cadastrado"}
+                          </p>
+                          <div className="flex items-center gap-4 mt-2">
+                            <span className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-semibold">
+                              {qtdMaquinas}{" "}
+                              {qtdMaquinas === 1 ? "máquina" : "máquinas"}
+                            </span>
+                            {loja.ativo && (
+                              <Badge variant="success">Ativa</Badge>
+                            )}
+                          </div>
+                        </div>
+                        <svg
+                          className="w-6 h-6 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-6xl mb-4">🔍</p>
+                  <p className="text-gray-600">
+                    {searchTerm
+                      ? "Nenhuma loja encontrada"
+                      : "Digite para buscar lojas"}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Lista de Máquinas da Loja */}
+          {lojaSelecionada && !maquinaSelecionada && (
+            <div className="space-y-3">
+              {maquinasDaLoja.length > 0 ? (
+                maquinasDaLoja.map((maquina) => (
+                  <div
+                    key={maquina.id}
+                    onClick={() => handleSelecionarMaquina(maquina)}
+                    className="p-5 border-2 border-gray-200 rounded-xl hover:border-primary hover:shadow-lg transition-all cursor-pointer bg-white"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold text-gray-900 mb-1">
+                          🎰 {maquina.codigo} - {maquina.nome}
+                        </h3>
+                        <div className="flex items-center gap-4 mt-2">
+                          {maquina.tipo && (
+                            <span className="text-xs text-gray-600">
+                              Tipo: {maquina.tipo}
+                            </span>
+                          )}
+                          <span className="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-semibold">
+                            Capacidade: {maquina.capacidadePadrao || 0}
+                          </span>
+                          {maquina.ativo && (
+                            <Badge variant="success">Ativa</Badge>
+                          )}
+                        </div>
+                      </div>
+                      <svg
+                        className="w-6 h-6 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-6xl mb-4">🎰</p>
+                  <p className="text-gray-600">
+                    Nenhuma máquina cadastrada nesta loja
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Detalhes da Máquina Selecionada */}
+          {maquinaSelecionada && (
+            <div className="space-y-6">
+              {/* Informações da Máquina */}
+              <div className="bg-gradient-to-br from-primary/10 to-secondary/10 p-6 rounded-xl">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">
+                  📊 Informações da Máquina
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-600">Código</p>
+                    <p className="text-lg font-semibold">
+                      {maquinaSelecionada.codigo}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Nome</p>
+                    <p className="text-lg font-semibold">
+                      {maquinaSelecionada.nome}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Tipo</p>
+                    <p className="text-lg font-semibold">
+                      {maquinaSelecionada.tipo || "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Capacidade</p>
+                    <p className="text-lg font-semibold">
+                      {maquinaSelecionada.capacidadePadrao || 0}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Estoque Atual</p>
+                    <p className="text-lg font-semibold">
+                      {maquinaSelecionada.estoqueAtual || 0}
+                    </p>
+                  </div>
+                  {maquinaSelecionada.valorFicha && (
+                    <div>
+                      <p className="text-sm text-gray-600">Valor da Ficha</p>
+                      <p className="text-lg font-semibold">
+                        R${" "}
+                        {parseFloat(maquinaSelecionada.valorFicha).toFixed(2)}
+                      </p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-sm text-gray-600">Status</p>
+                    <p className="text-lg font-semibold">
+                      {maquinaSelecionada.ativo ? (
+                        <Badge variant="success">Ativa</Badge>
+                      ) : (
+                        <Badge variant="danger">Inativa</Badge>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                {maquinaSelecionada.localizacao && (
+                  <div className="mt-4">
+                    <p className="text-sm text-gray-600">Localização</p>
+                    <p className="text-base text-gray-800">
+                      {maquinaSelecionada.localizacao}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Movimentações */}
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <span className="text-2xl">🔄</span>
+                  Histórico de Movimentações
+                </h3>
+
+                {/* Filtros de Data */}
+                <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        📅 Data Inicial
+                      </label>
+                      <input
+                        type="date"
+                        value={dataInicio}
+                        onChange={(e) => setDataInicio(e.target.value)}
+                        className="input-field w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        📅 Data Final
+                      </label>
+                      <input
+                        type="date"
+                        value={dataFim}
+                        onChange={(e) => setDataFim(e.target.value)}
+                        className="input-field w-full"
+                      />
+                    </div>
+                  </div>
+                  {(dataInicio || dataFim) && (
+                    <button
+                      onClick={() => {
+                        setDataInicio("");
+                        setDataFim("");
+                      }}
+                      className="mt-2 text-sm text-primary hover:text-primary-dark flex items-center gap-1"
+                    >
+                      ✕ Limpar filtros
+                    </button>
+                  )}
+                </div>
+                {loadingMaquina ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+                    <p className="text-gray-600 mt-4">
+                      Carregando movimentações...
+                    </p>
+                  </div>
+                ) : movimentacoes.length > 0 ? (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {movimentacoes
+                      .filter((mov) => {
+                        const movData = new Date(mov.createdAt);
+                        const inicio = dataInicio ? new Date(dataInicio) : null;
+                        const fim = dataFim
+                          ? new Date(dataFim + "T23:59:59")
+                          : null;
+
+                        if (inicio && movData < inicio) return false;
+                        if (fim && movData > fim) return false;
+                        return true;
+                      })
+                      .map((mov) => (
+                        <div
+                          key={mov.id}
+                          className="p-4 border border-gray-200 rounded-lg bg-white"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <Badge
+                              variant={
+                                mov.tipo === "entrada" ? "success" : "danger"
+                              }
+                            >
+                              {mov.tipo === "entrada"
+                                ? "📥 Entrada"
+                                : "📤 Saída"}
+                            </Badge>
+                            <span className="text-sm text-gray-600">
+                              {new Date(mov.createdAt).toLocaleDateString(
+                                "pt-BR"
+                              )}{" "}
+                              às{" "}
+                              {new Date(mov.createdAt).toLocaleTimeString(
+                                "pt-BR"
+                              )}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-5 gap-4 mt-3 text-sm">
+                            <div>
+                              <p className="text-gray-600">Total Pré</p>
+                              <p className="font-semibold">
+                                {mov.totalPre || 0}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-600">Saíram</p>
+                              <p className="font-semibold text-red-600">
+                                {mov.sairam || 0}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-600">Abastecidas</p>
+                              <p className="font-semibold text-green-600">
+                                {mov.abastecidas || 0}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-600 flex items-center gap-1">
+                                <span>📦</span> Total Atual
+                              </p>
+                              <p className="font-semibold text-purple-600">
+                                {(mov.totalPre || 0) +
+                                  (mov.abastecidas || 0) -
+                                  (mov.sairam || 0)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-600 flex items-center gap-1">
+                                <span>🎫</span> Fichas
+                              </p>
+                              <p className="font-semibold text-blue-600">
+                                {mov.fichas || 0}
+                              </p>
+                            </div>
+                          </div>
+                          {mov.observacoes && (
+                            <p className="text-sm text-gray-600 mt-3 italic">
+                              💬 {mov.observacoes}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-6xl mb-4">📭</p>
+                    <p className="text-gray-600">
+                      Nenhuma movimentação registrada para esta máquina
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Alertas de Estoque */}
@@ -345,6 +1043,18 @@ export function Dashboard() {
                         Média F/P
                       </div>
                     </th>
+                    <th>
+                      <div className="flex items-center gap-2">
+                        <svg
+                          className="w-4 h-4 text-pink-600"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
+                        </svg>
+                        Produtos Vendidos
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -374,6 +1084,11 @@ export function Dashboard() {
                       <td>
                         <span className="badge bg-purple-50 text-purple-700 border-purple-200">
                           {loja.mediaFichasPremio}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="badge bg-pink-50 text-pink-700 border-pink-200">
+                          {loja.produtosVendidos || loja.sairam || 0} unidades
                         </span>
                       </td>
                     </tr>

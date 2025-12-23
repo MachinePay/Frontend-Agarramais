@@ -232,7 +232,7 @@ export function Lojas() {
         )}
 
         <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="card bg-gradient-to-br from-primary to-accent-yellow text-white">
+          <div className="card bg-gradient-to-br from-purple-500 to-purple-600 text-white">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm opacity-90">Total de Lojas</p>

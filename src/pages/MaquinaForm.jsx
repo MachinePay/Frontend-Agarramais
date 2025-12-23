@@ -15,11 +15,11 @@ export function MaquinaForm() {
     codigo: "",
     nome: "",
     loja_id: "",
-    capacidade: "",
-    estoque_atual: "",
-    modelo: "",
-    ano_fabricacao: "",
-    observacoes: "",
+    tipo: "",
+    capacidadePadrao: "",
+    valorFicha: "",
+    percentualAlertaEstoque: "",
+    localizacao: "",
     ativo: true,
   });
 
@@ -55,7 +55,17 @@ export function MaquinaForm() {
     try {
       setLoadingData(true);
       const response = await api.get(`/maquinas/${id}`);
-      setFormData(response.data);
+      setFormData({
+        codigo: response.data.codigo || "",
+        nome: response.data.nome || "",
+        loja_id: response.data.lojaId ? String(response.data.lojaId) : "",
+        tipo: response.data.tipo || "",
+        capacidadePadrao: response.data.capacidadePadrao || "",
+        valorFicha: response.data.valorFicha || "",
+        percentualAlertaEstoque: response.data.percentualAlertaEstoque || 20,
+        localizacao: response.data.localizacao || "",
+        ativo: response.data.ativo !== undefined ? response.data.ativo : true,
+      });
     } catch (error) {
       setError(
         "Erro ao carregar máquina: " +
@@ -81,15 +91,41 @@ export function MaquinaForm() {
     setLoading(true);
 
     try {
+      // Validação adicional
+      console.log("FormData completo:", formData); // Debug
+      console.log(
+        "loja_id:",
+        formData.loja_id,
+        "tipo:",
+        typeof formData.loja_id
+      ); // Debug
+
+      if (!formData.loja_id || formData.loja_id === "") {
+        setError("Por favor, selecione uma loja");
+        setLoading(false);
+        return;
+      }
+
+      if (!formData.codigo || formData.codigo.trim() === "") {
+        setError("Por favor, informe o código da máquina");
+        setLoading(false);
+        return;
+      }
+
       const data = {
-        ...formData,
-        loja_id: parseInt(formData.loja_id),
-        capacidade: parseInt(formData.capacidade),
-        estoque_atual: parseInt(formData.estoque_atual),
-        ano_fabricacao: formData.ano_fabricacao
-          ? parseInt(formData.ano_fabricacao)
-          : null,
+        codigo: formData.codigo.trim(),
+        nome: formData.nome.trim(),
+        lojaId: formData.loja_id,
+        tipo: formData.tipo?.trim() || null,
+        capacidadePadrao: parseInt(formData.capacidadePadrao, 10) || 0,
+        valorFicha: parseFloat(formData.valorFicha) || 0,
+        percentualAlertaEstoque:
+          parseInt(formData.percentualAlertaEstoque, 10) || 20,
+        localizacao: formData.localizacao?.trim() || null,
+        ativo: formData.ativo,
       };
+
+      console.log("Dados enviados:", JSON.stringify(data, null, 2)); // Debug detalhado
 
       if (isEdit) {
         await api.put(`/maquinas/${id}`, data);
@@ -108,11 +144,6 @@ export function MaquinaForm() {
   };
 
   if (loadingData) return <PageLoader />;
-
-  const ocupacao =
-    formData.capacidade > 0
-      ? Math.round((formData.estoque_atual / formData.capacidade) * 100)
-      : 0;
 
   return (
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
@@ -221,7 +252,7 @@ export function MaquinaForm() {
               </div>
             </div>
 
-            {/* Capacidade e Estoque */}
+            {/* Configurações */}
             <div>
               <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <svg
@@ -231,18 +262,35 @@ export function MaquinaForm() {
                 >
                   <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
                 </svg>
-                Capacidade e Estoque
+                Configurações
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Capacidade Total *
+                    Tipo de Máquina
+                  </label>
+                  <input
+                    type="text"
+                    name="tipo"
+                    value={formData.tipo}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="Ex: Garra, Empurrador, etc."
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Tipo ou modelo da máquina
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Capacidade Padrão *
                   </label>
                   <input
                     type="number"
-                    name="capacidade"
-                    value={formData.capacidade}
+                    name="capacidadePadrao"
+                    value={formData.capacidadePadrao}
                     onChange={handleChange}
                     className="input-field"
                     placeholder="Ex: 100"
@@ -250,52 +298,47 @@ export function MaquinaForm() {
                     required
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Número máximo de produtos que a máquina pode armazenar
+                    Capacidade máxima de produtos
                   </p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Estoque Atual *
+                    Valor da Ficha (R$)
                   </label>
                   <input
                     type="number"
-                    name="estoque_atual"
-                    value={formData.estoque_atual}
+                    name="valorFicha"
+                    value={formData.valorFicha}
                     onChange={handleChange}
                     className="input-field"
-                    placeholder="Ex: 75"
+                    placeholder="Ex: 2.00"
                     min="0"
-                    max={formData.capacidade || undefined}
-                    required
+                    step="0.01"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Quantidade de produtos atualmente na máquina
+                    Valor cobrado por tentativa
                   </p>
                 </div>
 
-                {formData.capacidade > 0 && (
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Taxa de Ocupação
-                    </label>
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1 bg-gray-200 rounded-full h-4">
-                        <div
-                          className={`h-4 rounded-full transition-all ${
-                            ocupacao < 30
-                              ? "bg-red-500"
-                              : ocupacao < 60
-                              ? "bg-yellow-500"
-                              : "bg-green-500"
-                          }`}
-                          style={{ width: `${Math.min(ocupacao, 100)}%` }}
-                        />
-                      </div>
-                      <span className="text-lg font-bold">{ocupacao}%</span>
-                    </div>
-                  </div>
-                )}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Alerta de Estoque (%)
+                  </label>
+                  <input
+                    type="number"
+                    name="percentualAlertaEstoque"
+                    value={formData.percentualAlertaEstoque}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="Ex: 20"
+                    min="0"
+                    max="100"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Percentual mínimo para alerta (padrão: 20%)
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -313,52 +356,25 @@ export function MaquinaForm() {
                     clipRule="evenodd"
                   />
                 </svg>
-                Informações Adicionais
+                Localização
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Modelo
-                  </label>
-                  <input
-                    type="text"
-                    name="modelo"
-                    value={formData.modelo}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="Ex: Claw Master 3000"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Ano de Fabricação
-                  </label>
-                  <input
-                    type="number"
-                    name="ano_fabricacao"
-                    value={formData.ano_fabricacao}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="Ex: 2023"
-                    min="1900"
-                    max={new Date().getFullYear()}
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Observações
+                    Localização na Loja
                   </label>
                   <textarea
-                    name="observacoes"
-                    value={formData.observacoes}
+                    name="localizacao"
+                    value={formData.localizacao}
                     onChange={handleChange}
                     className="input-field"
                     rows="3"
-                    placeholder="Informações adicionais sobre a máquina..."
+                    placeholder="Ex: Entrada principal, lado direito próximo ao balcão..."
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Descrição da localização da máquina na loja
+                  </p>
                 </div>
               </div>
             </div>

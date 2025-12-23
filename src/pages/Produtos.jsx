@@ -18,18 +18,23 @@ export function Produtos() {
   const [produtos, setProdutos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState(null);
+  const [produtoParaDeletar, setProdutoParaDeletar] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState("");
+  const [mostrarInativos, setMostrarInativos] = useState(false);
 
   useEffect(() => {
     carregarProdutos();
-  }, []);
+  }, [mostrarInativos]); // Recarrega quando o filtro muda
 
   const carregarProdutos = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/produtos");
+      const urlProdutos = mostrarInativos
+        ? "/produtos?incluirInativos=true"
+        : "/produtos";
+      const response = await api.get(urlProdutos);
       setProdutos(response.data);
     } catch (error) {
       setError(
@@ -43,17 +48,33 @@ export function Produtos() {
 
   const handleDelete = async () => {
     try {
-      await api.delete(`/produtos/${deleteId}`);
-      setSuccess("Produto excluído com sucesso!");
+      const response = await api.delete(`/produtos/${deleteId}`);
+
+      // Verificar se foi soft delete ou hard delete
+      if (response.data.permanentDelete) {
+        setSuccess("✅ Produto excluído permanentemente com sucesso!");
+      } else {
+        setSuccess(
+          "⚠️ Produto desativado! Clique novamente em excluir para deletar permanentemente."
+        );
+      }
+
       carregarProdutos();
       setDeleteId(null);
+      setProdutoParaDeletar(null);
     } catch (error) {
       setError(
         "Erro ao excluir produto: " +
           (error.response?.data?.error || error.message)
       );
       setDeleteId(null);
+      setProdutoParaDeletar(null);
     }
+  };
+
+  const handleAbrirDialogDeletar = (produto) => {
+    setDeleteId(produto.id);
+    setProdutoParaDeletar(produto);
   };
 
   const categorias = [
@@ -65,34 +86,34 @@ export function Produtos() {
 
   const stats = [
     {
-      title: "Total de Produtos",
+      label: "Total de Produtos",
       value: produtos.length,
       icon: "🧸",
-      color: "primary",
+      gradient: "bg-gradient-to-br from-pink-500 to-pink-600",
     },
     {
-      title: "Produtos Ativos",
+      label: "Produtos Ativos",
       value: produtos.filter((p) => p.ativo).length,
       icon: "✅",
-      color: "success",
+      gradient: "bg-gradient-to-br from-green-500 to-green-600",
     },
     {
-      title: "Categorias",
+      label: "Categorias",
       value: categorias.length,
       icon: "📁",
-      color: "secondary",
+      gradient: "bg-gradient-to-br from-blue-500 to-blue-600",
     },
     {
-      title: "Valor Médio",
+      label: "Valor Médio",
       value:
         produtos.length > 0
           ? `R$ ${(
-              produtos.reduce((sum, p) => sum + (p.preco || 0), 0) /
+              produtos.reduce((sum, p) => sum + Number(p.preco || 0), 0) /
               produtos.length
             ).toFixed(2)}`
           : "R$ 0,00",
       icon: "💰",
-      color: "yellow",
+      gradient: "bg-gradient-to-br from-yellow-500 to-yellow-600",
     },
   ];
 
@@ -114,7 +135,7 @@ export function Produtos() {
       label: "Preço",
       render: (produto) => (
         <span className="font-semibold text-green-600">
-          R$ {(produto.preco || 0).toFixed(2)}
+          R$ {Number(produto.preco || 0).toFixed(2)}
         </span>
       ),
     },
@@ -122,7 +143,7 @@ export function Produtos() {
       key: "estoque",
       label: "Estoque",
       render: (produto) => {
-        const estoque = produto.estoque_atual || 0;
+        const estoque = produto.estoqueAtual || 0;
         const cor =
           estoque < 10 ? "error" : estoque < 30 ? "warning" : "success";
         return <Badge type={cor}>{estoque}</Badge>;
@@ -132,7 +153,7 @@ export function Produtos() {
       key: "ativo",
       label: "Status",
       render: (produto) => (
-        <Badge type={produto.ativo ? "success" : "error"}>
+        <Badge variant={produto.ativo ? "success" : "danger"}>
           {produto.ativo ? "Ativo" : "Inativo"}
         </Badge>
       ),
@@ -150,11 +171,11 @@ export function Produtos() {
             ✏️
           </button>
           <button
-            onClick={() => setDeleteId(produto.id)}
+            onClick={() => handleAbrirDialogDeletar(produto)}
             className="text-red-600 hover:text-red-800 font-semibold"
             title="Excluir"
           >
-            🗑️
+            {produto.ativo ? "⚠️" : "🗑️"}
           </button>
         </div>
       ),
@@ -193,28 +214,43 @@ export function Produtos() {
 
         <div className="card-gradient">
           {/* Filtros */}
-          {categorias.length > 0 && (
-            <div className="mb-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Filtrar por Categoria
+          <div className="mb-6 flex flex-col md:flex-row gap-4">
+            {categorias.length > 0 && (
+              <div className="flex-1">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Filtrar por Categoria
+                </label>
+                <select
+                  value={filtroCategoria}
+                  onChange={(e) => setFiltroCategoria(e.target.value)}
+                  className="select-field w-full"
+                >
+                  <option value="">Todas as Categorias</option>
+                  {categorias.map((categoria) => (
+                    <option key={categoria} value={categoria}>
+                      {categoria}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="flex items-end">
+              <label className="flex items-center gap-2 cursor-pointer bg-gray-50 px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={mostrarInativos}
+                  onChange={(e) => setMostrarInativos(e.target.checked)}
+                  className="w-4 h-4 text-primary focus:ring-primary"
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  Mostrar produtos inativos
+                </span>
               </label>
-              <select
-                value={filtroCategoria}
-                onChange={(e) => setFiltroCategoria(e.target.value)}
-                className="select-field max-w-xs"
-              >
-                <option value="">Todas as Categorias</option>
-                {categorias.map((categoria) => (
-                  <option key={categoria} value={categoria}>
-                    {categoria}
-                  </option>
-                ))}
-              </select>
             </div>
-          )}
+          </div>
 
           {produtosFiltrados.length > 0 ? (
-            <DataTable columns={columns} data={produtosFiltrados} />
+            <DataTable headers={columns} data={produtosFiltrados} />
           ) : (
             <EmptyState
               icon="🧸"
@@ -237,10 +273,21 @@ export function Produtos() {
 
       <ConfirmDialog
         isOpen={deleteId !== null}
-        onClose={() => setDeleteId(null)}
+        onClose={() => {
+          setDeleteId(null);
+          setProdutoParaDeletar(null);
+        }}
         onConfirm={handleDelete}
-        title="Excluir Produto"
-        message="Tem certeza que deseja excluir este produto? Esta ação não pode ser desfeita."
+        title={
+          produtoParaDeletar?.ativo
+            ? "Desativar Produto"
+            : "Excluir Produto Permanentemente"
+        }
+        message={
+          produtoParaDeletar?.ativo
+            ? `Tem certeza que deseja desativar o produto "${produtoParaDeletar?.nome}"? O produto ficará inativo mas não será excluído. Para excluir permanentemente, clique em excluir novamente após desativar.`
+            : `⚠️ ATENÇÃO: Esta ação irá EXCLUIR PERMANENTEMENTE o produto "${produtoParaDeletar?.nome}" do sistema. Esta ação NÃO PODE SER DESFEITA!`
+        }
       />
     </div>
   );
