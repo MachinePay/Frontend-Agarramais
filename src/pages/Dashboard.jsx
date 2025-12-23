@@ -34,6 +34,10 @@ export function Dashboard() {
   const [loadingEstoque, setLoadingEstoque] = useState(false);
   const [lojaEstoqueExpanded, setLojaEstoqueExpanded] = useState({});
 
+  // Estados para edição de estoque
+  const [estoqueEditando, setEstoqueEditando] = useState(null); // { lojaId, estoque: [...] }
+  const [salvandoEstoque, setSalvandoEstoque] = useState(false);
+
   useEffect(() => {
     carregarDados();
   }, []);
@@ -307,6 +311,75 @@ export function Dashboard() {
       ...prev,
       [lojaId]: !prev[lojaId],
     }));
+  };
+
+  const abrirEdicaoEstoque = (loja) => {
+    setEstoqueEditando({
+      lojaId: loja.id,
+      lojaNome: loja.nome,
+      estoque: loja.estoque.map((item) => ({
+        id: item.id,
+        produtoId: item.produtoId,
+        produtoNome: item.produto.nome,
+        produtoEmoji: item.produto.emoji,
+        quantidade: item.quantidade,
+        estoqueMinimo: item.estoqueMinimo,
+      })),
+    });
+  };
+
+  const fecharEdicaoEstoque = () => {
+    setEstoqueEditando(null);
+  };
+
+  const atualizarQuantidadeEstoque = (itemId, novaQuantidade) => {
+    setEstoqueEditando((prev) => ({
+      ...prev,
+      estoque: prev.estoque.map((item) =>
+        item.id === itemId
+          ? { ...item, quantidade: parseInt(novaQuantidade) || 0 }
+          : item
+      ),
+    }));
+  };
+
+  const atualizarEstoqueMinimoEstoque = (itemId, novoMinimo) => {
+    setEstoqueEditando((prev) => ({
+      ...prev,
+      estoque: prev.estoque.map((item) =>
+        item.id === itemId
+          ? { ...item, estoqueMinimo: parseInt(novoMinimo) || 0 }
+          : item
+      ),
+    }));
+  };
+
+  const salvarEstoque = async () => {
+    try {
+      setSalvandoEstoque(true);
+
+      // Atualizar cada item de estoque
+      await Promise.all(
+        estoqueEditando.estoque.map((item) =>
+          api.put(`/estoque-lojas/${estoqueEditando.lojaId}/${item.id}`, {
+            quantidade: item.quantidade,
+            estoqueMinimo: item.estoqueMinimo,
+          })
+        )
+      );
+
+      // Recarregar os dados
+      await carregarEstoqueDasLojas();
+      fecharEdicaoEstoque();
+    } catch (error) {
+      console.error("Erro ao salvar estoque:", error);
+      alert(
+        "Erro ao salvar estoque: " +
+          (error.response?.data?.error || error.message)
+      );
+    } finally {
+      setSalvandoEstoque(false);
+    }
   };
 
   const handleSelecionarLoja = (loja) => {
@@ -622,48 +695,62 @@ export function Dashboard() {
                   className="border-2 border-gray-200 rounded-xl overflow-hidden hover:border-gray-300 transition-colors"
                 >
                   {/* Header - sempre visível */}
-                  <div
-                    className="p-5 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors flex items-center justify-between"
-                    onClick={() => toggleLojaEstoque(loja.id)}
-                  >
-                    <div className="flex items-center gap-4">
-                      <span className="text-3xl">🏪</span>
-                      <div>
-                        <h3 className="font-bold text-gray-900 text-lg">
-                          {loja.nome}
-                        </h3>
-                        <p className="text-sm text-gray-600 mt-1">
-                          <span className="font-semibold">
-                            {loja.totalProdutos}
-                          </span>{" "}
-                          {loja.totalProdutos === 1 ? "produto" : "produtos"} ·{" "}
-                          <span className="font-semibold">
-                            {loja.totalUnidades}
-                          </span>{" "}
-                          unidades totais
-                        </p>
-                        {loja.endereco && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            📍 {loja.endereco}
+                  <div className="p-5 bg-gray-50">
+                    <div className="flex items-center justify-between">
+                      <div
+                        className="flex items-center gap-4 flex-1 cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => toggleLojaEstoque(loja.id)}
+                      >
+                        <span className="text-3xl">🏪</span>
+                        <div>
+                          <h3 className="font-bold text-gray-900 text-lg">
+                            {loja.nome}
+                          </h3>
+                          <p className="text-sm text-gray-600 mt-1">
+                            <span className="font-semibold">
+                              {loja.totalProdutos}
+                            </span>{" "}
+                            {loja.totalProdutos === 1 ? "produto" : "produtos"}{" "}
+                            ·{" "}
+                            <span className="font-semibold">
+                              {loja.totalUnidades}
+                            </span>{" "}
+                            unidades totais
                           </p>
-                        )}
+                          {loja.endereco && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              📍 {loja.endereco}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            abrirEdicaoEstoque(loja);
+                          }}
+                          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium text-sm flex items-center gap-2"
+                        >
+                          ✏️ Editar Estoque
+                        </button>
+                        <svg
+                          className={`w-6 h-6 text-gray-500 transition-transform ${
+                            lojaEstoqueExpanded[loja.id] ? "rotate-180" : ""
+                          }`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
                       </div>
                     </div>
-                    <svg
-                      className={`w-6 h-6 text-gray-500 transition-transform ${
-                        lojaEstoqueExpanded[loja.id] ? "rotate-180" : ""
-                      }`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
                   </div>
 
                   {/* Conteúdo - expansível */}
@@ -721,7 +808,8 @@ export function Dashboard() {
                             Nenhum produto no estoque
                           </p>
                           <p className="text-sm text-gray-400 mt-1">
-                            Configure o estoque em Lojas → Editar Loja
+                            Clique em "Editar Estoque" acima para adicionar
+                            produtos
                           </p>
                         </div>
                       )}
@@ -1488,6 +1576,157 @@ export function Dashboard() {
           </Link>
         </div>
       </div>
+
+      {/* Modal de Edição de Estoque */}
+      {estoqueEditando && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            {/* Header do Modal */}
+            <div className="bg-gradient-to-r from-primary to-accent-yellow p-6 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold flex items-center gap-3">
+                    <span className="text-3xl">✏️</span>
+                    Editar Estoque do Depósito
+                  </h2>
+                  <p className="text-white/90 mt-1">
+                    🏪 {estoqueEditando.lojaNome}
+                  </p>
+                </div>
+                <button
+                  onClick={fecharEdicaoEstoque}
+                  className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
+                  disabled={salvandoEstoque}
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Conteúdo do Modal */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+              {estoqueEditando.estoque.length > 0 ? (
+                <div className="space-y-4">
+                  {estoqueEditando.estoque.map((item) => (
+                    <div
+                      key={item.id}
+                      className="border-2 border-gray-200 rounded-xl p-4 hover:border-primary/30 transition-colors"
+                    >
+                      <div className="flex items-start gap-4">
+                        <span className="text-4xl">
+                          {item.produtoEmoji || "📦"}
+                        </span>
+                        <div className="flex-1">
+                          <h4 className="font-bold text-gray-900 text-lg mb-4">
+                            {item.produtoNome}
+                          </h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                Quantidade Atual
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                value={item.quantidade}
+                                onChange={(e) =>
+                                  atualizarQuantidadeEstoque(
+                                    item.id,
+                                    e.target.value
+                                  )
+                                }
+                                className="input-primary w-full text-lg font-bold"
+                                disabled={salvandoEstoque}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                Estoque Mínimo
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                value={item.estoqueMinimo}
+                                onChange={(e) =>
+                                  atualizarEstoqueMinimoEstoque(
+                                    item.id,
+                                    e.target.value
+                                  )
+                                }
+                                className="input-primary w-full"
+                                disabled={salvandoEstoque}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-5xl mb-3">📭</p>
+                  <p className="text-gray-500 font-medium">
+                    Nenhum produto no estoque desta loja
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer do Modal */}
+            <div className="border-t-2 border-gray-100 p-6 flex items-center justify-end gap-3">
+              <button
+                onClick={fecharEdicaoEstoque}
+                className="px-6 py-3 border-2 border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                disabled={salvandoEstoque}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={salvarEstoque}
+                className="px-6 py-3 bg-gradient-to-r from-primary to-accent-yellow text-white rounded-lg font-semibold hover:shadow-lg transition-all flex items-center gap-2"
+                disabled={salvandoEstoque}
+              >
+                {salvandoEstoque ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                    Salvar Alterações
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>
