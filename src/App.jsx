@@ -78,7 +78,7 @@ function App() {
           <Route
             path="/lojas/nova"
             element={
-              <PrivateRoute adminOnly>
+              <PrivateRoute>
                 <LojaForm />
               </PrivateRoute>
             }
@@ -86,7 +86,7 @@ function App() {
           <Route
             path="/lojas/:id/editar"
             element={
-              <PrivateRoute adminOnly>
+              <PrivateRoute>
                 <LojaForm />
               </PrivateRoute>
             }
@@ -102,7 +102,7 @@ function App() {
           <Route
             path="/maquinas/nova"
             element={
-              <PrivateRoute adminOnly>
+              <PrivateRoute>
                 <MaquinaForm />
               </PrivateRoute>
             }
@@ -110,7 +110,7 @@ function App() {
           <Route
             path="/maquinas/:id/editar"
             element={
-              <PrivateRoute adminOnly>
+              <PrivateRoute>
                 <MaquinaForm />
               </PrivateRoute>
             }
@@ -126,7 +126,7 @@ function App() {
           <Route
             path="/produtos/novo"
             element={
-              <PrivateRoute adminOnly>
+              <PrivateRoute>
                 <ProdutoForm />
               </PrivateRoute>
             }
@@ -134,7 +134,7 @@ function App() {
           <Route
             path="/produtos/:id/editar"
             element={
-              <PrivateRoute adminOnly>
+              <PrivateRoute>
                 <ProdutoForm />
               </PrivateRoute>
             }
@@ -150,7 +150,7 @@ function App() {
           <Route
             path="/graficos"
             element={
-              <PrivateRoute>
+              <PrivateRoute adminOnly>
                 <Graficos />
               </PrivateRoute>
             }
@@ -158,7 +158,7 @@ function App() {
           <Route
             path="/relatorios"
             element={
-              <PrivateRoute>
+              <PrivateRoute adminOnly>
                 <Relatorios />
               </PrivateRoute>
             }

@@ -66,16 +66,6 @@ export function Navbar() {
                   📦 Movimentações
                 </Link>
                 <Link
-                  to="/graficos"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    isActive("/graficos")
-                      ? "bg-gradient-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
-                      : "text-gray-300 hover:bg-white/10 hover:text-white"
-                  }`}
-                >
-                  📈 Gráficos
-                </Link>
-                <Link
                   to="/maquinas"
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                     isActive("/maquinas")
@@ -85,8 +75,38 @@ export function Navbar() {
                 >
                   🎮 Máquinas
                 </Link>
+                <Link
+                  to="/lojas"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    isActive("/lojas")
+                      ? "bg-gradient-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
+                      : "text-gray-300 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  🏪 Lojas
+                </Link>
+                <Link
+                  to="/produtos"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    isActive("/produtos")
+                      ? "bg-gradient-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
+                      : "text-gray-300 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  🧸 Produtos
+                </Link>
                 {usuario?.role === "ADMIN" && (
                   <>
+                    <Link
+                      to="/graficos"
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        isActive("/graficos")
+                          ? "bg-gradient-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
+                          : "text-gray-300 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      📈 Gráficos
+                    </Link>
                     <Link
                       to="/relatorios"
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
@@ -96,26 +116,6 @@ export function Navbar() {
                       }`}
                     >
                       📄 Relatórios
-                    </Link>
-                    <Link
-                      to="/lojas"
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                        isActive("/lojas")
-                          ? "bg-gradient-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
-                          : "text-gray-300 hover:bg-white/10 hover:text-white"
-                      }`}
-                    >
-                      🏪 Lojas
-                    </Link>
-                    <Link
-                      to="/produtos"
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                        isActive("/produtos")
-                          ? "bg-gradient-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
-                          : "text-gray-300 hover:bg-white/10 hover:text-white"
-                      }`}
-                    >
-                      🧸 Produtos
                     </Link>
                     <Link
                       to="/usuarios"

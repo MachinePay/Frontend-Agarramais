@@ -29,6 +29,11 @@ export function Dashboard() {
   const [dataFim, setDataFim] = useState("");
   const [alertasEstoqueLoja, setAlertasEstoqueLoja] = useState([]);
 
+  // Estados para estoque das lojas
+  const [lojasComEstoque, setLojasComEstoque] = useState([]);
+  const [loadingEstoque, setLoadingEstoque] = useState(false);
+  const [lojaEstoqueExpanded, setLojaEstoqueExpanded] = useState({});
+
   useEffect(() => {
     carregarDados();
   }, []);
@@ -145,6 +150,55 @@ export function Dashboard() {
     }
   };
 
+  const carregarEstoqueDasLojas = async () => {
+    try {
+      setLoadingEstoque(true);
+
+      // 1. Buscar todas as lojas
+      const lojasRes = await api.get("/lojas");
+      const lojas = lojasRes.data || [];
+
+      // 2. Para cada loja, buscar seu estoque
+      const lojasComEstoquePromises = lojas.map(async (loja) => {
+        try {
+          const estoqueRes = await api.get(`/estoque-lojas/${loja.id}`);
+          const estoque = estoqueRes.data || [];
+
+          return {
+            ...loja,
+            estoque: estoque,
+            totalProdutos: estoque.length,
+            totalUnidades: estoque.reduce(
+              (sum, item) => sum + item.quantidade,
+              0
+            ),
+          };
+        } catch (error) {
+          console.error(`Erro ao carregar estoque da loja ${loja.id}:`, error);
+          return {
+            ...loja,
+            estoque: [],
+            totalProdutos: 0,
+            totalUnidades: 0,
+          };
+        }
+      });
+
+      const resultado = await Promise.all(lojasComEstoquePromises);
+      setLojasComEstoque(resultado);
+    } catch (error) {
+      console.error("Erro ao carregar estoque das lojas:", error);
+      setLojasComEstoque([]);
+    } finally {
+      setLoadingEstoque(false);
+    }
+  };
+
+  // Carregar estoque das lojas
+  useEffect(() => {
+    carregarEstoqueDasLojas();
+  }, []);
+
   const carregarDetalhesMaquina = async (maquinaId) => {
     try {
       setLoadingMaquina(true);
@@ -246,6 +300,13 @@ export function Dashboard() {
       carregarVendasPorProduto();
     }
     setMostrarDetalhesProdutos(!mostrarDetalhesProdutos);
+  };
+
+  const toggleLojaEstoque = (lojaId) => {
+    setLojaEstoqueExpanded((prev) => ({
+      ...prev,
+      [lojaId]: !prev[lojaId],
+    }));
   };
 
   const handleSelecionarLoja = (loja) => {
@@ -535,6 +596,142 @@ export function Dashboard() {
               )}
             </div>
           )}
+
+        {/* Estoque dos Depósitos */}
+        {lojasComEstoque.length > 0 && (
+          <div className="card mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                  <span className="text-3xl">📦</span>
+                  Estoque dos Depósitos
+                </h2>
+                <p className="text-gray-600 mt-1">
+                  Visualização rápida do estoque em cada loja
+                </p>
+              </div>
+              {loadingEstoque && (
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              {lojasComEstoque.map((loja) => (
+                <div
+                  key={loja.id}
+                  className="border-2 border-gray-200 rounded-xl overflow-hidden hover:border-gray-300 transition-colors"
+                >
+                  {/* Header - sempre visível */}
+                  <div
+                    className="p-5 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors flex items-center justify-between"
+                    onClick={() => toggleLojaEstoque(loja.id)}
+                  >
+                    <div className="flex items-center gap-4">
+                      <span className="text-3xl">🏪</span>
+                      <div>
+                        <h3 className="font-bold text-gray-900 text-lg">
+                          {loja.nome}
+                        </h3>
+                        <p className="text-sm text-gray-600 mt-1">
+                          <span className="font-semibold">
+                            {loja.totalProdutos}
+                          </span>{" "}
+                          {loja.totalProdutos === 1 ? "produto" : "produtos"} ·{" "}
+                          <span className="font-semibold">
+                            {loja.totalUnidades}
+                          </span>{" "}
+                          unidades totais
+                        </p>
+                        {loja.endereco && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            📍 {loja.endereco}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <svg
+                      className={`w-6 h-6 text-gray-500 transition-transform ${
+                        lojaEstoqueExpanded[loja.id] ? "rotate-180" : ""
+                      }`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </div>
+
+                  {/* Conteúdo - expansível */}
+                  {lojaEstoqueExpanded[loja.id] && (
+                    <div className="p-5 bg-white border-t-2 border-gray-100">
+                      {loja.estoque.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {loja.estoque
+                            .sort((a, b) => b.quantidade - a.quantidade)
+                            .map((item) => (
+                              <div
+                                key={item.id}
+                                className="p-4 bg-gray-50 rounded-lg border-2 border-gray-200 hover:shadow-md hover:border-gray-300 transition-all"
+                              >
+                                <div className="flex items-start gap-3 mb-3">
+                                  <span className="text-3xl">
+                                    {item.produto.emoji || "📦"}
+                                  </span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-bold text-gray-900 text-base truncate">
+                                      {item.produto.nome}
+                                    </p>
+                                    {item.produto.codigo && (
+                                      <p className="text-xs text-gray-500 mt-1">
+                                        Cód: {item.produto.codigo}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-end justify-between mt-3 pt-3 border-t border-gray-200">
+                                  <div>
+                                    <p className="text-xs text-gray-600 mb-1">
+                                      Quantidade
+                                    </p>
+                                    <span className="text-3xl font-bold text-gray-900">
+                                      {item.quantidade}
+                                    </span>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-xs text-gray-600 mb-1">
+                                      Estoque mín.
+                                    </p>
+                                    <span className="text-lg font-semibold text-gray-600">
+                                      {item.estoqueMinimo}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-12">
+                          <p className="text-5xl mb-3">📭</p>
+                          <p className="text-gray-500 font-medium">
+                            Nenhum produto no estoque
+                          </p>
+                          <p className="text-sm text-gray-400 mt-1">
+                            Configure o estoque em Lojas → Editar Loja
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Busca de Lojas e Máquinas */}
         <div className="card-gradient mb-8">
