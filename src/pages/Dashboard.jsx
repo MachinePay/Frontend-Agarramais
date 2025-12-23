@@ -261,7 +261,7 @@ export function Dashboard() {
 
         {/* Cards de Resumo com design moderno - Apenas para ADMIN */}
         {usuario?.role === "ADMIN" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div className="stat-card bg-gradient-to-br from-yellow-500 to-orange-500">
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-2">
@@ -317,33 +317,6 @@ export function Dashboard() {
                 <p className="text-xs opacity-75 mt-1">
                   🎫 Fichas que entraram
                 </p>
-              </div>
-            </div>
-
-            <div className="stat-card bg-gradient-to-br from-indigo-500 to-indigo-600">
-              <div className="relative z-10">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-medium opacity-90">
-                    Fichas Vendidas
-                  </h3>
-                  <svg
-                    className="w-8 h-8 opacity-80"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
-                    />
-                  </svg>
-                </div>
-                <p className="text-3xl font-bold">
-                  {stats.balanco?.totais?.totalFichas || 0}
-                </p>
-                <p className="text-xs opacity-75 mt-1">💰 Fichas vendidas</p>
               </div>
             </div>
 
