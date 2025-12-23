@@ -27,6 +27,7 @@ export function Dashboard() {
   const [vendasPorProduto, setVendasPorProduto] = useState([]);
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
+  const [alertasEstoqueLoja, setAlertasEstoqueLoja] = useState([]);
 
   useEffect(() => {
     carregarDados();
@@ -52,7 +53,7 @@ export function Dashboard() {
       if (isAdmin) {
         requisicoes.unshift(
           api.get("/relatorios/alertas-estoque").catch((err) => {
-            console.error("Erro ao carregar alertas:", err.message);
+            console.error("Erro ao carregar alertas de máquinas:", err.message);
             return { data: { alertas: [] } };
           }),
           api.get("/relatorios/balanco-semanal").catch((err) => {
@@ -93,11 +94,54 @@ export function Dashboard() {
       });
       setLojas(lojasRes.data || []);
       setMaquinas(maquinasRes.data || []);
+
+      // Carregar alertas de estoque de lojas (para todos os usuários)
+      if (lojasRes.data && lojasRes.data.length > 0) {
+        carregarAlertasEstoqueLoja(lojasRes.data);
+      }
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
       setStats({ alertas: [], balanco: null, loading: false });
       setLojas([]);
       setMaquinas([]);
+    }
+  };
+
+  const carregarAlertasEstoqueLoja = async (lojasData) => {
+    try {
+      // Buscar alertas de todas as lojas
+      const alertasPromises = lojasData.map((loja) =>
+        api
+          .get(`/estoque-lojas/${loja.id}/alertas`)
+          .then((res) => ({
+            lojaId: loja.id,
+            lojaNome: loja.nome,
+            alertas: res.data || [],
+          }))
+          .catch((err) => {
+            console.error(
+              `Erro ao carregar alertas da loja ${loja.nome}:`,
+              err.message
+            );
+            return { lojaId: loja.id, lojaNome: loja.nome, alertas: [] };
+          })
+      );
+
+      const alertasTodasLojas = await Promise.all(alertasPromises);
+
+      // Agrupar todos os alertas
+      const todosAlertas = alertasTodasLojas.flatMap((lojaAlertas) =>
+        lojaAlertas.alertas.map((alerta) => ({
+          ...alerta,
+          lojaNome: lojaAlertas.lojaNome,
+        }))
+      );
+
+      setAlertasEstoqueLoja(todosAlertas);
+      console.log("Alertas de estoque de lojas:", todosAlertas);
+    } catch (error) {
+      console.error("Erro ao carregar alertas de estoque de lojas:", error);
+      setAlertasEstoqueLoja([]);
     }
   };
 
@@ -367,8 +411,13 @@ export function Dashboard() {
                     />
                   </svg>
                 </div>
-                <p className="text-3xl font-bold">{stats.alertas.length}</p>
-                <p className="text-xs opacity-75 mt-1">⚠️ Requer atenção</p>
+                <p className="text-3xl font-bold">
+                  {stats.alertas.length + alertasEstoqueLoja.length}
+                </p>
+                <p className="text-xs opacity-75 mt-1">
+                  ⚠️ {stats.alertas.length} máquinas · 🏪{" "}
+                  {alertasEstoqueLoja.length} lojas
+                </p>
               </div>
             </div>
           </div>
@@ -891,7 +940,7 @@ export function Dashboard() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                 <span className="bg-red-100 p-2 rounded-lg">⚠️</span>
-                Alertas de Estoque Baixo
+                Alertas de Estoque em Máquinas
               </h2>
               <span className="badge badge-danger">
                 {stats.alertas.length}{" "}
@@ -957,6 +1006,102 @@ export function Dashboard() {
                 className="block mt-6 text-center bg-gradient-to-r from-primary/10 to-accent-yellow/10 hover:from-primary/20 hover:to-accent-yellow/20 text-primary font-bold py-3 rounded-xl transition-all duration-200"
               >
                 Ver todos os alertas ({stats.alertas.length})
+              </Link>
+            )}
+          </div>
+        )}
+
+        {/* Alertas de Estoque de Lojas */}
+        {alertasEstoqueLoja.length > 0 && (
+          <div className="card mb-8 border-l-4 border-orange-500">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <span className="bg-orange-100 p-2 rounded-lg">🏪</span>
+                Alertas de Estoque nas Lojas
+              </h2>
+              <span className="badge bg-orange-100 text-orange-700 border-orange-300">
+                {alertasEstoqueLoja.length}{" "}
+                {alertasEstoqueLoja.length === 1 ? "produto" : "produtos"}
+              </span>
+            </div>
+            <div className="space-y-3">
+              {alertasEstoqueLoja.slice(0, 5).map((alerta, index) => {
+                const percentualAtual =
+                  alerta.estoqueMinimo > 0
+                    ? Math.round(
+                        (alerta.quantidade / alerta.estoqueMinimo) * 100
+                      )
+                    : 0;
+                const nivelAlerta =
+                  percentualAtual <= 25
+                    ? "CRÍTICO"
+                    : percentualAtual <= 50
+                    ? "ALTO"
+                    : "MÉDIO";
+
+                return (
+                  <div
+                    key={`${alerta.lojaId}-${alerta.produtoId}-${index}`}
+                    className={`p-5 rounded-xl border-l-4 transition-all duration-200 hover:scale-[1.02] ${
+                      nivelAlerta === "CRÍTICO"
+                        ? "bg-gradient-to-r from-red-50 to-red-100/50 border-red-500 shadow-red-100 shadow-md"
+                        : nivelAlerta === "ALTO"
+                        ? "bg-gradient-to-r from-orange-50 to-orange-100/50 border-orange-500 shadow-orange-100 shadow-md"
+                        : "bg-gradient-to-r from-yellow-50 to-yellow-100/50 border-yellow-500 shadow-yellow-100 shadow-md"
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-2xl">
+                            {alerta.produto.emoji || "📦"}
+                          </span>
+                          <span className="font-bold text-lg text-gray-900">
+                            {alerta.produto.nome}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 flex items-center gap-1">
+                          <svg
+                            className="w-4 h-4"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          {alerta.lojaNome}
+                        </p>
+                        {alerta.produto.codigo && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Código: {alerta.produto.codigo}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-3xl font-bold text-gray-900">
+                            {alerta.quantidade}
+                          </span>
+                          <span className="text-lg text-gray-600">un</span>
+                        </div>
+                        <p className="text-xs text-gray-600 mt-1 bg-white/60 px-2 py-1 rounded-full">
+                          Min: {alerta.estoqueMinimo} · {percentualAtual}%
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {alertasEstoqueLoja.length > 5 && (
+              <Link
+                to="/lojas"
+                className="block mt-6 text-center bg-gradient-to-r from-orange-500/10 to-orange-600/10 hover:from-orange-500/20 hover:to-orange-600/20 text-orange-700 font-bold py-3 rounded-xl transition-all duration-200"
+              >
+                Ver todos os alertas de lojas ({alertasEstoqueLoja.length})
               </Link>
             )}
           </div>
