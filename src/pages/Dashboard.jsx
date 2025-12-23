@@ -363,15 +363,31 @@ export function Dashboard() {
     try {
       setSalvandoEstoque(true);
 
-      // Atualizar cada item de estoque
-      await Promise.all(
-        estoqueEditando.estoque.map((item) =>
-          api.put(`/estoque-lojas/${estoqueEditando.lojaId}/${item.id}`, {
-            quantidade: item.quantidade,
-            estoqueMinimo: item.estoqueMinimo,
-          })
-        )
-      );
+      // Atualizar ou criar cada item individualmente
+      for (const item of estoqueEditando.estoque) {
+        try {
+          if (item.id) {
+            // Atualizar item existente
+            await api.put(
+              `/estoque-lojas/${estoqueEditando.lojaId}/${item.id}`,
+              {
+                quantidade: item.quantidade || 0,
+                estoqueMinimo: item.estoqueMinimo || 0,
+              }
+            );
+          } else {
+            // Criar novo item
+            await api.post(`/estoque-lojas/${estoqueEditando.lojaId}`, {
+              produtoId: item.produtoId,
+              quantidade: item.quantidade || 0,
+              estoqueMinimo: item.estoqueMinimo || 0,
+            });
+          }
+        } catch (itemError) {
+          console.error(`Erro ao salvar produto ${item.produtoId}:`, itemError);
+          // Continuar com os próximos itens mesmo se um falhar
+        }
+      }
 
       // Recarregar os dados
       await carregarEstoqueDasLojas();
