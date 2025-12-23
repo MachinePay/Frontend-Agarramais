@@ -5,8 +5,10 @@ import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { PageLoader } from "../components/Loading";
 import { Badge } from "../components/UIComponents";
+import { useAuth } from "../contexts/AuthContext";
 
 export function Dashboard() {
+  const { usuario } = useAuth();
   const [stats, setStats] = useState({
     alertas: [],
     balanco: null,
@@ -32,8 +34,23 @@ export function Dashboard() {
 
   const carregarDados = async () => {
     try {
-      const [alertasRes, balancoRes, lojasRes, maquinasRes] = await Promise.all(
-        [
+      const isAdmin = usuario?.role === "ADMIN";
+
+      // Buscar lojas e máquinas (acessível para todos)
+      const requisicoes = [
+        api.get("/lojas").catch((err) => {
+          console.error("Erro ao carregar lojas:", err.message);
+          return { data: [] };
+        }),
+        api.get("/maquinas").catch((err) => {
+          console.error("Erro ao carregar máquinas:", err.message);
+          return { data: [] };
+        }),
+      ];
+
+      // Adicionar requisições de relatórios apenas para ADMIN
+      if (isAdmin) {
+        requisicoes.unshift(
           api.get("/relatorios/alertas-estoque").catch((err) => {
             console.error("Erro ao carregar alertas:", err.message);
             return { data: { alertas: [] } };
@@ -41,31 +58,33 @@ export function Dashboard() {
           api.get("/relatorios/balanco-semanal").catch((err) => {
             console.error("Erro ao carregar balanço:", err.message);
             return { data: null };
-          }),
-          api.get("/lojas").catch((err) => {
-            console.error("Erro ao carregar lojas:", err.message);
-            return { data: [] };
-          }),
-          api.get("/maquinas").catch((err) => {
-            console.error("Erro ao carregar máquinas:", err.message);
-            return { data: [] };
-          }),
-        ]
-      );
+          })
+        );
+      }
+
+      const resultados = await Promise.all(requisicoes);
+
+      let alertasRes, balancoRes, lojasRes, maquinasRes;
+
+      if (isAdmin) {
+        [alertasRes, balancoRes, lojasRes, maquinasRes] = resultados;
+      } else {
+        [lojasRes, maquinasRes] = resultados;
+        alertasRes = { data: { alertas: [] } };
+        balancoRes = { data: null };
+      }
 
       console.log("Lojas carregadas:", lojasRes.data);
       console.log("Máquinas carregadas:", maquinasRes.data);
-      console.log("Balanço semanal:", balancoRes.data);
-      console.log("Estrutura completa de totais:", balancoRes.data?.totais);
-      console.log("Total de Fichas:", balancoRes.data?.totais?.totalFichas);
-      console.log(
-        "Total de Fichas Vendidas:",
-        balancoRes.data?.totais?.totalFichasVendidas
-      );
-      console.log(
-        "Total de Faturamento:",
-        balancoRes.data?.totais?.totalFaturamento
-      );
+      if (isAdmin) {
+        console.log("Balanço semanal:", balancoRes.data);
+        console.log("Estrutura completa de totais:", balancoRes.data?.totais);
+        console.log("Total de Fichas:", balancoRes.data?.totais?.totalFichas);
+        console.log(
+          "Total de Faturamento:",
+          balancoRes.data?.totais?.totalFaturamento
+        );
+      }
 
       setStats({
         alertas: alertasRes.data?.alertas || [],
@@ -240,254 +259,260 @@ export function Dashboard() {
           </p>
         </div>
 
-        {/* Cards de Resumo com design moderno */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-          <div className="stat-card bg-gradient-to-br from-yellow-500 to-orange-500">
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-medium opacity-90">
-                  Faturamento Semanal
-                </h3>
-                <svg
-                  className="w-8 h-8 opacity-80"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-              <p className="text-3xl font-bold">
-                R${" "}
-                {stats.balanco?.totais?.totalFaturamento?.toFixed(2) || "0,00"}
-              </p>
-              <p className="text-xs opacity-75 mt-1">💰 Últimos 7 dias</p>
-            </div>
-          </div>
-
-          <div className="stat-card bg-gradient-to-br from-blue-500 to-blue-600">
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-medium opacity-90">
-                  Fichas Inseridas
-                </h3>
-                <svg
-                  className="w-8 h-8 opacity-80"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                  />
-                </svg>
-              </div>
-              <p className="text-3xl font-bold">
-                {stats.balanco?.totais?.totalFichas || 0}
-              </p>
-              <p className="text-xs opacity-75 mt-1">🎫 Fichas que entraram</p>
-            </div>
-          </div>
-
-          <div className="stat-card bg-gradient-to-br from-indigo-500 to-indigo-600">
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-medium opacity-90">
-                  Fichas Vendidas
-                </h3>
-                <svg
-                  className="w-8 h-8 opacity-80"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
-                  />
-                </svg>
-              </div>
-              <p className="text-3xl font-bold">
-                {stats.balanco?.totais?.totalFichas || 0}
-              </p>
-              <p className="text-xs opacity-75 mt-1">💰 Fichas vendidas</p>
-            </div>
-          </div>
-
-          <div className="stat-card bg-gradient-to-br from-green-500 to-green-600">
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-medium opacity-90">
-                  Prêmios Saídos
-                </h3>
-                <svg
-                  className="w-8 h-8 opacity-80"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"
-                  />
-                </svg>
-              </div>
-              <p className="text-3xl font-bold">
-                {stats.balanco?.totais?.totalSairam || 0}
-              </p>
-              <p className="text-xs opacity-75 mt-1">🎁 Pelúcias entregues</p>
-            </div>
-          </div>
-
-          <div className="stat-card bg-gradient-to-br from-red-500 to-red-600">
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-medium opacity-90">
-                  Alertas de Estoque
-                </h3>
-                <svg
-                  className="w-8 h-8 opacity-80"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                  />
-                </svg>
-              </div>
-              <p className="text-3xl font-bold">{stats.alertas.length}</p>
-              <p className="text-xs opacity-75 mt-1">⚠️ Requer atenção</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Estatísticas de Produtos Totais */}
-        {stats.balanco?.distribuicaoLojas?.length > 0 && (
-          <div className="card-gradient mb-8 border-l-4 border-pink-500">
-            <div
-              className="flex items-center justify-between cursor-pointer hover:bg-pink-50/50 transition-colors rounded-xl p-2 -m-2"
-              onClick={toggleDetalhesProdutos}
-            >
-              <div>
-                <h2 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-                  <span className="bg-gradient-to-br from-pink-500 to-pink-600 p-3 rounded-xl text-white">
-                    🎁
-                  </span>
-                  Total de Produtos Vendidos
-                </h2>
-                <p className="text-gray-600">
-                  Soma de todas as lojas no período
-                </p>
-              </div>
-              <div className="text-right">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-5xl font-bold text-gradient">
-                    {stats.balanco.distribuicaoLojas.reduce(
-                      (total, loja) =>
-                        total + (loja.produtosVendidos || loja.sairam || 0),
-                      0
-                    )}
-                  </span>
-                  <span className="text-2xl text-gray-600">unidades</span>
+        {/* Cards de Resumo com design moderno - Apenas para ADMIN */}
+        {usuario?.role === "ADMIN" && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+            <div className="stat-card bg-gradient-to-br from-yellow-500 to-orange-500">
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium opacity-90">
+                    Faturamento Semanal
+                  </h3>
+                  <svg
+                    className="w-8 h-8 opacity-80"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
                 </div>
-                <p className="text-sm text-gray-500 mt-2">
-                  📊 {stats.balanco.distribuicaoLojas.length}{" "}
-                  {stats.balanco.distribuicaoLojas.length === 1
-                    ? "loja"
-                    : "lojas"}{" "}
-                  ativas
+                <p className="text-3xl font-bold">
+                  R${" "}
+                  {stats.balanco?.totais?.totalFaturamento?.toFixed(2) ||
+                    "0,00"}
                 </p>
-                <button className="mt-2 text-xs text-pink-600 font-semibold hover:text-pink-700 flex items-center gap-1">
-                  {mostrarDetalhesProdutos ? "▼ Ocultar" : "▶ Ver detalhes"}
-                </button>
+                <p className="text-xs opacity-75 mt-1">💰 Últimos 7 dias</p>
               </div>
             </div>
 
-            {/* Detalhes de Vendas por Produto */}
-            {mostrarDetalhesProdutos && (
-              <div className="mt-6 pt-6 border-t-2 border-pink-200">
-                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <span className="text-2xl">📦</span>
-                  Vendas Detalhadas por Produto
-                </h3>
-
-                {vendasPorProduto.length > 0 ? (
-                  <div className="space-y-4">
-                    {vendasPorProduto.map((produto) => (
-                      <div
-                        key={produto.id}
-                        className="bg-gradient-to-r from-pink-50 to-purple-50 p-5 rounded-xl border-2 border-pink-200 hover:shadow-md transition-all"
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <h4 className="text-lg font-bold text-gray-900 flex items-center gap-3">
-                            <span className="bg-pink-500 text-white w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold">
-                              {produto.totalVendido}
-                            </span>
-                            <span className="text-2xl">{produto.emoji}</span>
-                            <span>{produto.nome}</span>
-                          </h4>
-                          <span className="badge bg-pink-100 text-pink-700 border-pink-300 text-base px-4 py-2">
-                            {produto.totalVendido}{" "}
-                            {produto.totalVendido === 1
-                              ? "unidade vendida"
-                              : "unidades vendidas"}
-                          </span>
-                        </div>
-
-                        {/* Vendas por Loja */}
-                        <div className="mt-3 pl-10">
-                          <p className="text-sm font-semibold text-gray-700 mb-2">
-                            📍 Vendas por loja:
-                          </p>
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                            {Object.entries(produto.vendasPorLoja).map(
-                              ([loja, quantidade]) => (
-                                <div
-                                  key={loja}
-                                  className="bg-white px-3 py-2 rounded-lg border border-pink-200 flex items-center justify-between"
-                                >
-                                  <span className="text-sm text-gray-700">
-                                    {loja}
-                                  </span>
-                                  <span className="text-sm font-bold text-pink-600">
-                                    {quantidade}
-                                  </span>
-                                </div>
-                              )
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
-                    <p className="text-gray-600">
-                      Carregando detalhes dos produtos...
-                    </p>
-                  </div>
-                )}
+            <div className="stat-card bg-gradient-to-br from-blue-500 to-blue-600">
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium opacity-90">
+                    Fichas Inseridas
+                  </h3>
+                  <svg
+                    className="w-8 h-8 opacity-80"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                    />
+                  </svg>
+                </div>
+                <p className="text-3xl font-bold">
+                  {stats.balanco?.totais?.totalFichas || 0}
+                </p>
+                <p className="text-xs opacity-75 mt-1">
+                  🎫 Fichas que entraram
+                </p>
               </div>
-            )}
+            </div>
+
+            <div className="stat-card bg-gradient-to-br from-indigo-500 to-indigo-600">
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium opacity-90">
+                    Fichas Vendidas
+                  </h3>
+                  <svg
+                    className="w-8 h-8 opacity-80"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+                    />
+                  </svg>
+                </div>
+                <p className="text-3xl font-bold">
+                  {stats.balanco?.totais?.totalFichas || 0}
+                </p>
+                <p className="text-xs opacity-75 mt-1">💰 Fichas vendidas</p>
+              </div>
+            </div>
+
+            <div className="stat-card bg-gradient-to-br from-green-500 to-green-600">
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium opacity-90">
+                    Prêmios Saídos
+                  </h3>
+                  <svg
+                    className="w-8 h-8 opacity-80"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"
+                    />
+                  </svg>
+                </div>
+                <p className="text-3xl font-bold">
+                  {stats.balanco?.totais?.totalSairam || 0}
+                </p>
+                <p className="text-xs opacity-75 mt-1">🎁 Pelúcias entregues</p>
+              </div>
+            </div>
+
+            <div className="stat-card bg-gradient-to-br from-red-500 to-red-600">
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium opacity-90">
+                    Alertas de Estoque
+                  </h3>
+                  <svg
+                    className="w-8 h-8 opacity-80"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                </div>
+                <p className="text-3xl font-bold">{stats.alertas.length}</p>
+                <p className="text-xs opacity-75 mt-1">⚠️ Requer atenção</p>
+              </div>
+            </div>
           </div>
         )}
+
+        {/* Estatísticas de Produtos Totais - Apenas para ADMIN */}
+        {usuario?.role === "ADMIN" &&
+          stats.balanco?.distribuicaoLojas?.length > 0 && (
+            <div className="card-gradient mb-8 border-l-4 border-pink-500">
+              <div
+                className="flex items-center justify-between cursor-pointer hover:bg-pink-50/50 transition-colors rounded-xl p-2 -m-2"
+                onClick={toggleDetalhesProdutos}
+              >
+                <div>
+                  <h2 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+                    <span className="bg-gradient-to-br from-pink-500 to-pink-600 p-3 rounded-xl text-white">
+                      🎁
+                    </span>
+                    Total de Produtos Vendidos
+                  </h2>
+                  <p className="text-gray-600">
+                    Soma de todas as lojas no período
+                  </p>
+                </div>
+                <div className="text-right">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-5xl font-bold text-gradient">
+                      {stats.balanco.distribuicaoLojas.reduce(
+                        (total, loja) =>
+                          total + (loja.produtosVendidos || loja.sairam || 0),
+                        0
+                      )}
+                    </span>
+                    <span className="text-2xl text-gray-600">unidades</span>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2">
+                    📊 {stats.balanco.distribuicaoLojas.length}{" "}
+                    {stats.balanco.distribuicaoLojas.length === 1
+                      ? "loja"
+                      : "lojas"}{" "}
+                    ativas
+                  </p>
+                  <button className="mt-2 text-xs text-pink-600 font-semibold hover:text-pink-700 flex items-center gap-1">
+                    {mostrarDetalhesProdutos ? "▼ Ocultar" : "▶ Ver detalhes"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Detalhes de Vendas por Produto */}
+              {mostrarDetalhesProdutos && (
+                <div className="mt-6 pt-6 border-t-2 border-pink-200">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span className="text-2xl">📦</span>
+                    Vendas Detalhadas por Produto
+                  </h3>
+
+                  {vendasPorProduto.length > 0 ? (
+                    <div className="space-y-4">
+                      {vendasPorProduto.map((produto) => (
+                        <div
+                          key={produto.id}
+                          className="bg-gradient-to-r from-pink-50 to-purple-50 p-5 rounded-xl border-2 border-pink-200 hover:shadow-md transition-all"
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-lg font-bold text-gray-900 flex items-center gap-3">
+                              <span className="bg-pink-500 text-white w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold">
+                                {produto.totalVendido}
+                              </span>
+                              <span className="text-2xl">{produto.emoji}</span>
+                              <span>{produto.nome}</span>
+                            </h4>
+                            <span className="badge bg-pink-100 text-pink-700 border-pink-300 text-base px-4 py-2">
+                              {produto.totalVendido}{" "}
+                              {produto.totalVendido === 1
+                                ? "unidade vendida"
+                                : "unidades vendidas"}
+                            </span>
+                          </div>
+
+                          {/* Vendas por Loja */}
+                          <div className="mt-3 pl-10">
+                            <p className="text-sm font-semibold text-gray-700 mb-2">
+                              📍 Vendas por loja:
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                              {Object.entries(produto.vendasPorLoja).map(
+                                ([loja, quantidade]) => (
+                                  <div
+                                    key={loja}
+                                    className="bg-white px-3 py-2 rounded-lg border border-pink-200 flex items-center justify-between"
+                                  >
+                                    <span className="text-sm text-gray-700">
+                                      {loja}
+                                    </span>
+                                    <span className="text-sm font-bold text-pink-600">
+                                      {quantidade}
+                                    </span>
+                                  </div>
+                                )
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
+                      <p className="text-gray-600">
+                        Carregando detalhes dos produtos...
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
         {/* Busca de Lojas e Máquinas */}
         <div className="card-gradient mb-8">

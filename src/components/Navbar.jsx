@@ -76,16 +76,6 @@ export function Navbar() {
                   📈 Gráficos
                 </Link>
                 <Link
-                  to="/relatorios"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    isActive("/relatorios")
-                      ? "bg-gradient-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
-                      : "text-gray-300 hover:bg-white/10 hover:text-white"
-                  }`}
-                >
-                  📄 Relatórios
-                </Link>
-                <Link
                   to="/maquinas"
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                     isActive("/maquinas")
@@ -97,6 +87,16 @@ export function Navbar() {
                 </Link>
                 {usuario?.role === "ADMIN" && (
                   <>
+                    <Link
+                      to="/relatorios"
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        isActive("/relatorios")
+                          ? "bg-gradient-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
+                          : "text-gray-300 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      📄 Relatórios
+                    </Link>
                     <Link
                       to="/lojas"
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
