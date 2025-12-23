@@ -34,18 +34,41 @@ export function Dashboard() {
     try {
       const [alertasRes, balancoRes, lojasRes, maquinasRes] = await Promise.all(
         [
-          api.get("/relatorios/alertas-estoque"),
-          api.get("/relatorios/balanco-semanal"),
-          api.get("/lojas"),
-          api.get("/maquinas"),
+          api.get("/relatorios/alertas-estoque").catch((err) => {
+            console.error("Erro ao carregar alertas:", err.message);
+            return { data: { alertas: [] } };
+          }),
+          api.get("/relatorios/balanco-semanal").catch((err) => {
+            console.error("Erro ao carregar balanço:", err.message);
+            return { data: null };
+          }),
+          api.get("/lojas").catch((err) => {
+            console.error("Erro ao carregar lojas:", err.message);
+            return { data: [] };
+          }),
+          api.get("/maquinas").catch((err) => {
+            console.error("Erro ao carregar máquinas:", err.message);
+            return { data: [] };
+          }),
         ]
       );
 
       console.log("Lojas carregadas:", lojasRes.data);
       console.log("Máquinas carregadas:", maquinasRes.data);
+      console.log("Balanço semanal:", balancoRes.data);
+      console.log("Estrutura completa de totais:", balancoRes.data?.totais);
+      console.log("Total de Fichas:", balancoRes.data?.totais?.totalFichas);
+      console.log(
+        "Total de Fichas Vendidas:",
+        balancoRes.data?.totais?.totalFichasVendidas
+      );
+      console.log(
+        "Total de Faturamento:",
+        balancoRes.data?.totais?.totalFaturamento
+      );
 
       setStats({
-        alertas: alertasRes.data.alertas || [],
+        alertas: alertasRes.data?.alertas || [],
         balanco: balancoRes.data,
         loading: false,
       });
@@ -199,6 +222,9 @@ export function Dashboard() {
     return <PageLoader />;
   }
 
+  console.log("Estado stats no render:", stats);
+  console.log("Fichas no render:", stats.balanco?.totais?.totalFichas);
+
   return (
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
       <Navbar />
@@ -216,7 +242,7 @@ export function Dashboard() {
 
         {/* Cards de Resumo com design moderno */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-          <div className="stat-card bg-gradient-to-br from-primary to-accent-yellow">
+          <div className="stat-card bg-gradient-to-br from-yellow-500 to-orange-500">
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-medium opacity-90">
@@ -292,7 +318,7 @@ export function Dashboard() {
                 </svg>
               </div>
               <p className="text-3xl font-bold">
-                {stats.balanco?.totais?.totalFichasVendidas || 0}
+                {stats.balanco?.totais?.totalFichas || 0}
               </p>
               <p className="text-xs opacity-75 mt-1">💰 Fichas vendidas</p>
             </div>
