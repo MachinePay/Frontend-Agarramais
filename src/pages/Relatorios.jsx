@@ -221,134 +221,382 @@ export function Relatorios() {
                   até{" "}
                   {new Date(relatorio.periodo.fim).toLocaleDateString("pt-BR")}
                 </p>
+                <p className="text-sm opacity-90 mt-2">
+                  🎰 Total de Máquinas: {relatorio.maquinas?.length || 0}
+                </p>
               </div>
             </div>
 
-            {/* Cards de Totais */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="card bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-                <div className="text-3xl mb-2">🎫</div>
-                <div className="text-2xl font-bold">
-                  {(relatorio.totais?.fichas || 0).toLocaleString("pt-BR")}
-                </div>
-                <div className="text-sm opacity-90">Total de Fichas</div>
-              </div>
-
-              <div className="card bg-gradient-to-br from-red-500 to-red-600 text-white">
-                <div className="text-3xl mb-2">📤</div>
-                <div className="text-2xl font-bold">
-                  {(relatorio.totais?.produtosSairam || 0).toLocaleString(
-                    "pt-BR"
-                  )}
-                </div>
-                <div className="text-sm opacity-90">Produtos Saíram</div>
-              </div>
-
-              <div className="card bg-gradient-to-br from-green-500 to-green-600 text-white">
-                <div className="text-3xl mb-2">📥</div>
-                <div className="text-2xl font-bold">
-                  {(relatorio.totais?.produtosEntraram || 0).toLocaleString(
-                    "pt-BR"
-                  )}
-                </div>
-                <div className="text-sm opacity-90">Produtos Entraram</div>
-              </div>
-
-              <div className="card bg-gradient-to-br from-purple-500 to-purple-600 text-white">
-                <div className="text-3xl mb-2">🔄</div>
-                <div className="text-2xl font-bold">
-                  {(relatorio.totais?.movimentacoes || 0).toLocaleString(
-                    "pt-BR"
-                  )}
-                </div>
-                <div className="text-sm opacity-90">Total de Movimentações</div>
-              </div>
-            </div>
-
-            {/* Produtos que Saíram */}
-            <div className="card">
-              <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <span className="text-2xl">📤</span>
-                Produtos que Saíram
+            {/* Cards de Totais Gerais */}
+            <div className="card bg-gradient-to-r from-purple-50 to-purple-100 border-2 border-purple-300">
+              <h3 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <span className="text-3xl">📊</span>
+                Resumo Geral da Loja
               </h3>
-              {relatorio.produtosSairam &&
-              relatorio.produtosSairam.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {relatorio.produtosSairam
-                    .sort((a, b) => b.quantidade - a.quantidade)
-                    .map((produto) => (
-                      <div
-                        key={produto.id}
-                        className="p-4 bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-200 rounded-lg hover:shadow-lg transition-all"
-                      >
-                        <div className="text-4xl mb-2 text-center">
-                          {produto.emoji || "📦"}
-                        </div>
-                        <h4 className="font-bold text-gray-900 text-center mb-1">
-                          {produto.nome}
-                        </h4>
-                        <p className="text-sm text-gray-600 text-center mb-2">
-                          Cód: {produto.codigo || "S/C"}
-                        </p>
-                        <div className="text-center">
-                          <span className="inline-block px-3 py-1 bg-red-500 text-white font-bold rounded-full">
-                            {produto.quantidade.toLocaleString("pt-BR")}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="card bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+                  <div className="text-3xl mb-2">🎫</div>
+                  <div className="text-2xl font-bold">
+                    {(relatorio.totais?.fichas || 0).toLocaleString("pt-BR")}
+                  </div>
+                  <div className="text-sm opacity-90">Total de Fichas</div>
                 </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-4xl mb-2">📭</p>
-                  <p className="text-gray-600">
-                    Nenhum produto saiu no período selecionado
+
+                <div className="card bg-gradient-to-br from-red-500 to-red-600 text-white">
+                  <div className="text-3xl mb-2">📤</div>
+                  <div className="text-2xl font-bold">
+                    {(relatorio.totais?.produtosSairam || 0).toLocaleString(
+                      "pt-BR"
+                    )}
+                  </div>
+                  <div className="text-sm opacity-90">Produtos Saíram</div>
+                </div>
+
+                <div className="card bg-gradient-to-br from-green-500 to-green-600 text-white">
+                  <div className="text-3xl mb-2">📥</div>
+                  <div className="text-2xl font-bold">
+                    {(relatorio.totais?.produtosEntraram || 0).toLocaleString(
+                      "pt-BR"
+                    )}
+                  </div>
+                  <div className="text-sm opacity-90">Produtos Entraram</div>
+                </div>
+
+                <div className="card bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+                  <div className="text-3xl mb-2">🔄</div>
+                  <div className="text-2xl font-bold">
+                    {(relatorio.totais?.movimentacoes || 0).toLocaleString(
+                      "pt-BR"
+                    )}
+                  </div>
+                  <div className="text-sm opacity-90">
+                    Total de Movimentações
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* DETALHAMENTO POR MÁQUINA - PRINCIPAL */}
+            {relatorio.maquinas && relatorio.maquinas.length > 0 && (
+              <div className="space-y-6">
+                <div className="card bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
+                  <h2 className="text-3xl font-bold flex items-center gap-3">
+                    <span className="text-4xl">🎰</span>
+                    RELATÓRIO DETALHADO POR MÁQUINA
+                  </h2>
+                  <p className="text-sm opacity-90 mt-2">
+                    Visualize abaixo as informações detalhadas de cada máquina
+                    desta loja no período selecionado
                   </p>
                 </div>
-              )}
-            </div>
 
-            {/* Produtos que Entraram */}
-            <div className="card">
-              <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <span className="text-2xl">📥</span>
-                Produtos que Entraram
-              </h3>
-              {relatorio.produtosEntraram &&
-              relatorio.produtosEntraram.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {relatorio.produtosEntraram
-                    .sort((a, b) => b.quantidade - a.quantidade)
-                    .map((produto) => (
-                      <div
-                        key={produto.id}
-                        className="p-4 bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-lg hover:shadow-lg transition-all"
-                      >
-                        <div className="text-4xl mb-2 text-center">
-                          {produto.emoji || "📦"}
+                {relatorio.maquinas.map((maquina, index) => (
+                  <div
+                    key={maquina.maquina.id}
+                    className="card border-4 border-indigo-300 shadow-2xl page-break-before"
+                  >
+                    {/* Header da Máquina com destaque */}
+                    <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6 rounded-xl mb-6 shadow-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-3xl font-bold mb-2">
+                            🎰 {maquina.maquina.nome || `Máquina ${index + 1}`}
+                          </h3>
+                          <p className="text-lg opacity-90">
+                            📋 Código:{" "}
+                            <span className="font-mono font-bold">
+                              {maquina.maquina.codigo}
+                            </span>
+                          </p>
                         </div>
-                        <h4 className="font-bold text-gray-900 text-center mb-1">
-                          {produto.nome}
-                        </h4>
-                        <p className="text-sm text-gray-600 text-center mb-2">
-                          Cód: {produto.codigo || "S/C"}
-                        </p>
-                        <div className="text-center">
-                          <span className="inline-block px-3 py-1 bg-green-500 text-white font-bold rounded-full">
-                            {produto.quantidade.toLocaleString("pt-BR")}
-                          </span>
+                        <div className="text-right">
+                          <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg">
+                            <div className="text-sm opacity-90">Máquina</div>
+                            <div className="text-3xl font-bold">
+                              {index + 1}/{relatorio.maquinas.length}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    ))}
+                    </div>
+
+                    {/* Totais da Máquina em destaque */}
+                    <div className="mb-6">
+                      <h4 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <span className="text-2xl">📊</span>
+                        Resumo de Movimentações desta Máquina
+                      </h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-5 rounded-xl shadow-lg">
+                          <div className="text-4xl mb-2 text-center">🎫</div>
+                          <div className="text-3xl font-bold text-center">
+                            {maquina.totais.fichas.toLocaleString("pt-BR")}
+                          </div>
+                          <div className="text-sm text-center mt-2 opacity-90">
+                            Total de Fichas
+                          </div>
+                        </div>
+                        <div className="bg-gradient-to-br from-red-500 to-red-600 text-white p-5 rounded-xl shadow-lg">
+                          <div className="text-4xl mb-2 text-center">📤</div>
+                          <div className="text-3xl font-bold text-center">
+                            {maquina.totais.produtosSairam.toLocaleString(
+                              "pt-BR"
+                            )}
+                          </div>
+                          <div className="text-sm text-center mt-2 opacity-90">
+                            Produtos Saíram
+                          </div>
+                        </div>
+                        <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-5 rounded-xl shadow-lg">
+                          <div className="text-4xl mb-2 text-center">📥</div>
+                          <div className="text-3xl font-bold text-center">
+                            {maquina.totais.produtosEntraram.toLocaleString(
+                              "pt-BR"
+                            )}
+                          </div>
+                          <div className="text-sm text-center mt-2 opacity-90">
+                            Produtos Entraram
+                          </div>
+                        </div>
+                        <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-5 rounded-xl shadow-lg">
+                          <div className="text-4xl mb-2 text-center">🔄</div>
+                          <div className="text-3xl font-bold text-center">
+                            {maquina.totais.movimentacoes}
+                          </div>
+                          <div className="text-sm text-center mt-2 opacity-90">
+                            Movimentações
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Produtos da Máquina */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Produtos que Saíram */}
+                      <div className="bg-red-50 p-5 rounded-xl border-2 border-red-200">
+                        <h4 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2 bg-red-500 text-white p-3 rounded-lg">
+                          <span className="text-2xl">📤</span>
+                          Produtos que SAÍRAM
+                          <span className="ml-auto bg-white text-red-500 px-3 py-1 rounded-full text-sm font-bold">
+                            {maquina.totais.produtosSairam}
+                          </span>
+                        </h4>
+                        {maquina.produtosSairam &&
+                        maquina.produtosSairam.length > 0 ? (
+                          <div className="space-y-3">
+                            {maquina.produtosSairam
+                              .sort((a, b) => b.quantidade - a.quantidade)
+                              .map((produto) => (
+                                <div
+                                  key={produto.id}
+                                  className="bg-white p-4 rounded-lg border-2 border-red-300 shadow-md"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3 flex-1">
+                                      <span className="text-4xl">
+                                        {produto.emoji || "📦"}
+                                      </span>
+                                      <div className="flex-1">
+                                        <div className="font-bold text-lg text-gray-900">
+                                          {produto.nome}
+                                        </div>
+                                        <div className="text-sm text-gray-600">
+                                          📋 Cód:{" "}
+                                          <span className="font-mono">
+                                            {produto.codigo || "S/C"}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="bg-red-500 text-white px-5 py-3 rounded-xl font-bold text-xl">
+                                      {produto.quantidade.toLocaleString(
+                                        "pt-BR"
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 bg-white rounded-lg">
+                            <p className="text-6xl mb-2">📭</p>
+                            <p className="text-gray-500 font-medium">
+                              Nenhum produto saiu
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Produtos que Entraram */}
+                      <div className="bg-green-50 p-5 rounded-xl border-2 border-green-200">
+                        <h4 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2 bg-green-500 text-white p-3 rounded-lg">
+                          <span className="text-2xl">📥</span>
+                          Produtos que ENTRARAM
+                          <span className="ml-auto bg-white text-green-500 px-3 py-1 rounded-full text-sm font-bold">
+                            {maquina.totais.produtosEntraram}
+                          </span>
+                        </h4>
+                        {maquina.produtosEntraram &&
+                        maquina.produtosEntraram.length > 0 ? (
+                          <div className="space-y-3">
+                            {maquina.produtosEntraram
+                              .sort((a, b) => b.quantidade - a.quantidade)
+                              .map((produto) => (
+                                <div
+                                  key={produto.id}
+                                  className="bg-white p-4 rounded-lg border-2 border-green-300 shadow-md"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3 flex-1">
+                                      <span className="text-4xl">
+                                        {produto.emoji || "📦"}
+                                      </span>
+                                      <div className="flex-1">
+                                        <div className="font-bold text-lg text-gray-900">
+                                          {produto.nome}
+                                        </div>
+                                        <div className="text-sm text-gray-600">
+                                          📋 Cód:{" "}
+                                          <span className="font-mono">
+                                            {produto.codigo || "S/C"}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="bg-green-500 text-white px-5 py-3 rounded-xl font-bold text-xl">
+                                      {produto.quantidade.toLocaleString(
+                                        "pt-BR"
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 bg-white rounded-lg">
+                            <p className="text-6xl mb-2">📭</p>
+                            <p className="text-gray-500 font-medium">
+                              Nenhum produto entrou
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Separador entre máquinas */}
+                    {index < relatorio.maquinas.length - 1 && (
+                      <div className="mt-8 pt-6 border-t-4 border-dashed border-gray-300">
+                        <p className="text-center text-gray-500 text-sm font-medium">
+                          ⬇️ Próxima Máquina ⬇️
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Consolidado Geral de Produtos */}
+            <div className="card bg-gradient-to-r from-amber-50 to-orange-100 border-2 border-orange-300">
+              <h3 className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+                <span className="text-3xl">📊</span>
+                Consolidado Geral de Produtos
+              </h3>
+              <p className="text-sm text-gray-600 mb-6">
+                Resumo de todos os produtos (todas as máquinas somadas)
+              </p>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Produtos que Saíram - Consolidado */}
+                <div>
+                  <h4 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span className="text-2xl">📤</span>
+                    Produtos que Saíram (Total Geral)
+                  </h4>
+                  {relatorio.produtosSairam &&
+                  relatorio.produtosSairam.length > 0 ? (
+                    <div className="space-y-2">
+                      {relatorio.produtosSairam
+                        .sort((a, b) => b.quantidade - a.quantidade)
+                        .map((produto) => (
+                          <div
+                            key={produto.id}
+                            className="p-3 bg-white border-2 border-red-200 rounded-lg"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="text-2xl">
+                                  {produto.emoji || "📦"}
+                                </span>
+                                <div>
+                                  <div className="font-bold text-gray-900">
+                                    {produto.nome}
+                                  </div>
+                                  <div className="text-xs text-gray-600">
+                                    Cód: {produto.codigo || "S/C"}
+                                  </div>
+                                </div>
+                              </div>
+                              <span className="bg-red-500 text-white px-3 py-1 rounded-full font-bold">
+                                {produto.quantidade.toLocaleString("pt-BR")}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-4xl mb-2">📭</p>
+                      <p className="text-gray-600">Nenhum produto saiu</p>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-4xl mb-2">📭</p>
-                  <p className="text-gray-600">
-                    Nenhum produto entrou no período selecionado
-                  </p>
+
+                {/* Produtos que Entraram - Consolidado */}
+                <div>
+                  <h4 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span className="text-2xl">📥</span>
+                    Produtos que Entraram (Total Geral)
+                  </h4>
+                  {relatorio.produtosEntraram &&
+                  relatorio.produtosEntraram.length > 0 ? (
+                    <div className="space-y-2">
+                      {relatorio.produtosEntraram
+                        .sort((a, b) => b.quantidade - a.quantidade)
+                        .map((produto) => (
+                          <div
+                            key={produto.id}
+                            className="p-3 bg-white border-2 border-green-200 rounded-lg"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="text-2xl">
+                                  {produto.emoji || "📦"}
+                                </span>
+                                <div>
+                                  <div className="font-bold text-gray-900">
+                                    {produto.nome}
+                                  </div>
+                                  <div className="text-xs text-gray-600">
+                                    Cód: {produto.codigo || "S/C"}
+                                  </div>
+                                </div>
+                              </div>
+                              <span className="bg-green-500 text-white px-3 py-1 rounded-full font-bold">
+                                {produto.quantidade.toLocaleString("pt-BR")}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-4xl mb-2">📭</p>
+                      <p className="text-gray-600">Nenhum produto entrou</p>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           </div>
         )}
@@ -383,6 +631,10 @@ export function Relatorios() {
             border: 1px solid #e5e7eb;
           }
           
+          .page-break-before {
+            page-break-before: always;
+          }
+          
           .print-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
             -webkit-print-color-adjust: exact;
@@ -390,7 +642,7 @@ export function Relatorios() {
             color: white !important;
           }
           
-          .bg-gradient-to-br {
+          .bg-gradient-to-br, .bg-gradient-to-r {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
@@ -398,7 +650,18 @@ export function Relatorios() {
           .from-blue-500, .to-blue-600,
           .from-red-500, .to-red-600,
           .from-green-500, .to-green-600,
-          .from-purple-500, .to-purple-600 {
+          .from-purple-500, .to-purple-600,
+          .from-indigo-500, .to-indigo-500 {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          
+          .bg-blue-50, .bg-red-50, .bg-green-50, .bg-purple-50, .bg-gray-50 {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          
+          .border-blue-200, .border-red-200, .border-green-200, .border-purple-200 {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
@@ -408,7 +671,7 @@ export function Relatorios() {
             size: A4;
           }
           
-          h1, h2, h3 {
+          h1, h2, h3, h4 {
             page-break-after: avoid;
           }
           
