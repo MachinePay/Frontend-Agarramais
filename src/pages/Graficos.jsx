@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import api from "../services/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
@@ -23,8 +23,6 @@ import {
 export function Graficos() {
   const [loading, setLoading] = useState(true);
   const [lojas, setLojas] = useState([]);
-  const [maquinas, setMaquinas] = useState([]);
-  const [movimentacoes, setMovimentacoes] = useState([]);
   const [lojaSelecionada, setLojaSelecionada] = useState("");
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
@@ -34,25 +32,7 @@ export function Graficos() {
     carregarLojas();
   }, []);
 
-  useEffect(() => {
-    if (lojaSelecionada && dataInicio && dataFim) {
-      carregarDados();
-    }
-  }, [lojaSelecionada, dataInicio, dataFim]);
-
-  const carregarLojas = async () => {
-    try {
-      setLoading(true);
-      const lojasRes = await api.get("/lojas");
-      setLojas(lojasRes.data || []);
-    } catch (error) {
-      console.error("Erro ao carregar lojas:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const carregarDados = async () => {
+  const carregarDados = useCallback(async () => {
     try {
       setLoading(true);
       const [maquinasRes, movimentacoesRes, produtosRes] = await Promise.all([
@@ -64,7 +44,6 @@ export function Graficos() {
       const maquinasDaLoja = maquinasRes.data.filter(
         (m) => m.lojaId === lojaSelecionada
       );
-      setMaquinas(maquinasDaLoja);
 
       // Filtrar movimentações por máquinas da loja e período
       const maquinaIds = maquinasDaLoja.map((m) => m.id);
@@ -79,10 +58,27 @@ export function Graficos() {
         );
       });
 
-      setMovimentacoes(movFiltradas);
       processarDados(maquinasDaLoja, movFiltradas, produtosRes.data);
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [lojaSelecionada, dataInicio, dataFim]);
+
+  useEffect(() => {
+    if (lojaSelecionada && dataInicio && dataFim) {
+      carregarDados();
+    }
+  }, [lojaSelecionada, dataInicio, dataFim, carregarDados]);
+
+  const carregarLojas = async () => {
+    try {
+      setLoading(true);
+      const lojasRes = await api.get("/lojas");
+      setLojas(lojasRes.data || []);
+    } catch (error) {
+      console.error("Erro ao carregar lojas:", error);
     } finally {
       setLoading(false);
     }
@@ -215,8 +211,6 @@ export function Graficos() {
   };
 
   if (loading && lojas.length === 0) return <PageLoader />;
-
-  const lojaSelecionadaObj = lojas.find((l) => l.id === lojaSelecionada);
 
   return (
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
