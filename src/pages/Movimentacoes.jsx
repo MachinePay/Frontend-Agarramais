@@ -26,11 +26,14 @@ export function Movimentacoes() {
   const [formData, setFormData] = useState({
     maquina_id: "",
     produto_id: "",
-    quantidadeEntrada: "",
-    quantidadeSaida: "",
+    quantidadeAtualMaquina: "",
+    quantidadeAdicionada: "",
     fichas: "",
     observacao: "",
   });
+
+  // Estados auxiliares para exibir cálculos
+  const [estoqueAnterior, setEstoqueAnterior] = useState(0);
 
   useEffect(() => {
     carregarDados();
@@ -71,6 +74,22 @@ export function Movimentacoes() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
+
+    // Quando selecionar máquina, buscar estoque atual
+    if (name === "maquina_id" && value) {
+      buscarEstoqueAtual(value);
+    }
+  };
+
+  const buscarEstoqueAtual = async (maquinaId) => {
+    try {
+      const estoqueRes = await api.get(`/maquinas/${maquinaId}/estoque`);
+      const estoqueAtual = estoqueRes.data.estoqueAtual || 0;
+      setEstoqueAnterior(estoqueAtual);
+    } catch (error) {
+      console.error("Erro ao buscar estoque:", error);
+      setEstoqueAnterior(0);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -90,44 +109,50 @@ export function Movimentacoes() {
         return;
       }
 
-      const quantidadeEntrada = parseInt(formData.quantidadeEntrada, 10) || 0;
-      const quantidadeSaida = parseInt(formData.quantidadeSaida, 10) || 0;
+      const quantidadeAtual =
+        parseInt(formData.quantidadeAtualMaquina, 10) || 0;
+      const quantidadeAdicionada =
+        parseInt(formData.quantidadeAdicionada, 10) || 0;
       const fichas = parseInt(formData.fichas, 10) || 0;
 
-      // Ao menos uma quantidade deve ser informada
-      if (quantidadeEntrada === 0 && quantidadeSaida === 0) {
+      // Validação: deve informar pelo menos a quantidade atual
+      if (quantidadeAtual === 0 && quantidadeAdicionada === 0) {
         setError(
-          "Por favor, informe ao menos uma quantidade (entrada ou saída)"
+          "Por favor, informe a quantidade atual na máquina ou a quantidade adicionada"
         );
         return;
       }
 
-      // Buscar estoque atual da máquina
-      console.log("Buscando estoque da máquina:", formData.maquina_id);
-      const estoqueRes = await api.get(
-        `/maquinas/${formData.maquina_id}/estoque`
+      // Calcular quantidades baseado na lógica:
+      // quantidadeSaiu = estoqueAnterior - quantidadeAtual
+      // novoEstoque = quantidadeAtual + quantidadeAdicionada
+
+      const quantidadeSaiu = Math.max(0, estoqueAnterior - quantidadeAtual);
+
+      console.log("Cálculos da movimentação:");
+      console.log("- Estoque anterior:", estoqueAnterior);
+      console.log("- Quantidade atual informada:", quantidadeAtual);
+      console.log("- Quantidade adicionada:", quantidadeAdicionada);
+      console.log("- Calculado que saiu:", quantidadeSaiu);
+      console.log(
+        "- Novo estoque (atual + adicionada):",
+        quantidadeAtual + quantidadeAdicionada
       );
-
-      console.log("Resposta completa do estoque:", estoqueRes.data);
-
-      const estoqueAtual = estoqueRes.data.estoqueAtual || 0;
-
-      console.log("Estoque atual da máquina:", estoqueAtual);
 
       // Transformar para o formato do backend
       const data = {
         maquinaId: formData.maquina_id,
-        totalPre: estoqueAtual,
-        sairam: quantidadeSaida,
-        abastecidas: quantidadeEntrada,
+        totalPre: estoqueAnterior,
+        sairam: quantidadeSaiu,
+        abastecidas: quantidadeAdicionada,
         fichas: fichas,
         contadorMaquina: null,
         observacoes: formData.observacao?.trim() || null,
         produtos: [
           {
             produtoId: formData.produto_id,
-            quantidadeSaiu: quantidadeSaida,
-            quantidadeAbastecida: quantidadeEntrada,
+            quantidadeSaiu: quantidadeSaiu,
+            quantidadeAbastecida: quantidadeAdicionada,
           },
         ],
       };
@@ -142,11 +167,12 @@ export function Movimentacoes() {
       setFormData({
         maquina_id: "",
         produto_id: "",
-        quantidadeEntrada: "",
-        quantidadeSaida: "",
+        quantidadeAtualMaquina: "",
+        quantidadeAdicionada: "",
         fichas: "",
         observacao: "",
       });
+      setEstoqueAnterior(0);
       setFiltroLojaForm("");
       setShowForm(false);
       carregarDados();
@@ -397,48 +423,90 @@ export function Movimentacoes() {
                     clipRule="evenodd"
                   />
                 </svg>
-                <strong>Passo 1:</strong> Selecione a loja →{" "}
-                <strong>Passo 2:</strong> Escolha a máquina →{" "}
-                <strong>Passo 3:</strong> Adicione o produto
+                <strong>Como funciona:</strong> Informe quantos produtos tem
+                AGORA na máquina (o sistema calcula o que saiu). Se abastecer,
+                informe quantos foram adicionados.
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Indicador de Estoque Anterior */}
+              {formData.maquina_id && (
+                <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-blue-900">
+                        📊 Estoque Anterior da Máquina
+                      </p>
+                      <p className="text-xs text-blue-700 mt-1">
+                        Última contagem registrada no sistema
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-3xl font-bold text-blue-900">
+                        {estoqueAnterior}
+                      </p>
+                      <p className="text-xs text-blue-600">unidades</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    📥 Quantidade Entrada
+                    📦 Quantidade Atual na Máquina *
                   </label>
                   <input
                     type="number"
-                    name="quantidadeEntrada"
-                    value={formData.quantidadeEntrada}
+                    name="quantidadeAtualMaquina"
+                    value={formData.quantidadeAtualMaquina}
                     onChange={handleChange}
                     className="input-field"
                     placeholder="0"
                     min="0"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Produtos abastecidos na máquina
+                    Quantos produtos tem agora
                   </p>
+                  {formData.quantidadeAtualMaquina && estoqueAnterior > 0 && (
+                    <p className="text-xs font-semibold text-red-600 mt-1">
+                      🔻 Saíram:{" "}
+                      {Math.max(
+                        0,
+                        estoqueAnterior -
+                          parseInt(formData.quantidadeAtualMaquina || 0)
+                      )}{" "}
+                      unidades
+                    </p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    📤 Quantidade Saída
+                    📥 Quantidade Adicionada
                   </label>
                   <input
                     type="number"
-                    name="quantidadeSaida"
-                    value={formData.quantidadeSaida}
+                    name="quantidadeAdicionada"
+                    value={formData.quantidadeAdicionada}
                     onChange={handleChange}
                     className="input-field"
                     placeholder="0"
                     min="0"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Produtos que saíram (vendidos/ganhos)
+                    Quantos produtos foram adicionados
                   </p>
+                  {formData.quantidadeAdicionada &&
+                    formData.quantidadeAtualMaquina && (
+                      <p className="text-xs font-semibold text-green-600 mt-1">
+                        ✅ Novo total:{" "}
+                        {parseInt(formData.quantidadeAtualMaquina || 0) +
+                          parseInt(formData.quantidadeAdicionada || 0)}{" "}
+                        unidades
+                      </p>
+                    )}
                 </div>
 
                 <div>
