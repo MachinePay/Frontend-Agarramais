@@ -47,8 +47,10 @@ export function Lojas() {
     try {
       await api.delete(`/lojas/${id}`);
       setLojas(lojas.filter((loja) => loja.id !== id));
+      setDeleteDialog({ open: false, lojaId: null });
       setError("");
     } catch (error) {
+      setDeleteDialog({ open: false, lojaId: null });
       setError(
         "Erro ao excluir loja: " +
           (error.response?.data?.error || error.message)
