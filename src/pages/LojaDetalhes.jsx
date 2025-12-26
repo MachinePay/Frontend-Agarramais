@@ -27,12 +27,63 @@ export function LojaDetalhes() {
   const carregarDados = async () => {
     try {
       setLoading(true);
-      const [lojaRes, maquinasRes] = await Promise.all([
-        api.get(`/lojas/${id}`),
-        api.get(`/maquinas`),
-      ]);
+      const [lojaRes, maquinasRes, movimentacoesRes, produtosRes] =
+        await Promise.all([
+          api.get(`/lojas/${id}`),
+          api.get(`/maquinas`),
+          api.get(`/movimentacoes`),
+          api.get(`/produtos`),
+        ]);
+
+      const maquinasDaLoja = maquinasRes.data.filter((m) => m.lojaId === id);
+      const todasMovimentacoes = movimentacoesRes.data;
+      const produtos = produtosRes.data;
+
+      // Enriquecer cada máquina com estoque atual e último produto
+      const maquinasEnriquecidas = await Promise.all(
+        maquinasDaLoja.map(async (maquina) => {
+          try {
+            // Buscar estoque atual da API
+            const estoqueRes = await api.get(`/maquinas/${maquina.id}/estoque`);
+            const estoqueAtual = estoqueRes.data.estoqueAtual || 0;
+
+            // Buscar última movimentação desta máquina
+            const movsDaMaquina = todasMovimentacoes
+              .filter((mov) => mov.maquinaId === maquina.id)
+              .sort(
+                (a, b) =>
+                  new Date(b.dataColeta || b.createdAt) -
+                  new Date(a.dataColeta || a.createdAt)
+              );
+
+            let ultimoProduto = null;
+            if (movsDaMaquina.length > 0) {
+              const ultimaMov = movsDaMaquina[0];
+              const produtoId = ultimaMov.detalhesProdutos?.[0]?.produtoId;
+              ultimoProduto = produtos.find((p) => p.id === produtoId);
+            }
+
+            return {
+              ...maquina,
+              estoqueAtual,
+              ultimoProduto,
+            };
+          } catch (error) {
+            console.error(
+              `Erro ao buscar dados da máquina ${maquina.id}:`,
+              error
+            );
+            return {
+              ...maquina,
+              estoqueAtual: 0,
+              ultimoProduto: null,
+            };
+          }
+        })
+      );
+
       setLoja(lojaRes.data);
-      setMaquinas(maquinasRes.data.filter((m) => m.lojaId === id));
+      setMaquinas(maquinasEnriquecidas);
     } catch (error) {
       setError(
         "Erro ao carregar dados: " +
@@ -288,6 +339,15 @@ export function LojaDetalhes() {
                         className="space-y-2 cursor-pointer"
                         onClick={() => handleSelecionarMaquina(maquina)}
                       >
+                        {maquina.ultimoProduto && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Tipo:</span>
+                            <span className="font-semibold flex items-center gap-1">
+                              <span>{maquina.ultimoProduto.emoji || "🧸"}</span>
+                              <span>{maquina.ultimoProduto.nome}</span>
+                            </span>
+                          </div>
+                        )}
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Capacidade:</span>
                           <span className="font-semibold">
@@ -295,8 +355,10 @@ export function LojaDetalhes() {
                           </span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Estoque:</span>
-                          <span className="font-semibold">{estoqueAtual}</span>
+                          <span className="text-gray-600">Estoque Atual:</span>
+                          <span className="font-semibold text-primary">
+                            {estoqueAtual}
+                          </span>
                         </div>
 
                         <div>

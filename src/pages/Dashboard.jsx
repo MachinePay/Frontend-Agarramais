@@ -410,9 +410,43 @@ export function Dashboard() {
     setSearchTerm("");
   };
 
-  const handleSelecionarMaquina = (maquina) => {
-    setMaquinaSelecionada(maquina);
-    carregarDetalhesMaquina(maquina.id);
+  const handleSelecionarMaquina = async (maquina) => {
+    try {
+      // Buscar estoque atual
+      const estoqueRes = await api.get(`/maquinas/${maquina.id}/estoque`);
+      const estoqueAtual = estoqueRes.data.estoqueAtual || 0;
+
+      // Buscar movimentações para obter último produto
+      const movRes = await api.get(`/movimentacoes?maquinaId=${maquina.id}`);
+      const movimentacoes = movRes.data || [];
+
+      let ultimoProduto = null;
+      if (movimentacoes.length > 0) {
+        const movimentacoesOrdenadas = movimentacoes.sort(
+          (a, b) =>
+            new Date(b.dataColeta || b.createdAt) -
+            new Date(a.dataColeta || a.createdAt)
+        );
+        const ultimaMov = movimentacoesOrdenadas[0];
+        const produtoId = ultimaMov.detalhesProdutos?.[0]?.produtoId;
+
+        if (produtoId) {
+          const produtosRes = await api.get(`/produtos`);
+          ultimoProduto = produtosRes.data.find((p) => p.id === produtoId);
+        }
+      }
+
+      setMaquinaSelecionada({
+        ...maquina,
+        estoqueAtual,
+        ultimoProduto,
+      });
+      carregarDetalhesMaquina(maquina.id);
+    } catch (error) {
+      console.error("Erro ao carregar detalhes da máquina:", error);
+      setMaquinaSelecionada(maquina);
+      carregarDetalhesMaquina(maquina.id);
+    }
   };
 
   const handleVoltar = () => {
@@ -1045,7 +1079,16 @@ export function Dashboard() {
                   <div>
                     <p className="text-sm text-gray-600">Tipo</p>
                     <p className="text-lg font-semibold">
-                      {maquinaSelecionada.tipo || "-"}
+                      {maquinaSelecionada.ultimoProduto ? (
+                        <span className="flex items-center gap-2">
+                          <span>
+                            {maquinaSelecionada.ultimoProduto.emoji || "🧸"}
+                          </span>
+                          <span>{maquinaSelecionada.ultimoProduto.nome}</span>
+                        </span>
+                      ) : (
+                        maquinaSelecionada.tipo || "-"
+                      )}
                     </p>
                   </div>
                   <div>

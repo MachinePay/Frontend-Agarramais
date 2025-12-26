@@ -30,6 +30,7 @@ export function Movimentacoes() {
     quantidadeAdicionada: "",
     fichas: "",
     observacao: "",
+    retiradaEstoque: false,
   });
 
   // Estados auxiliares para exibir cálculos
@@ -72,8 +73,15 @@ export function Movimentacoes() {
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    const { name, value, type, checked } = e.target;
+    const newValue = type === "checkbox" ? checked : value;
+
+    // Se marcar retirada de estoque, zerar fichas
+    if (name === "retiradaEstoque" && checked) {
+      setFormData({ ...formData, [name]: newValue, fichas: "0" });
+    } else {
+      setFormData({ ...formData, [name]: newValue });
+    }
 
     // Quando selecionar máquina, buscar estoque atual
     if (name === "maquina_id" && value) {
@@ -113,7 +121,10 @@ export function Movimentacoes() {
         parseInt(formData.quantidadeAtualMaquina, 10) || 0;
       const quantidadeAdicionada =
         parseInt(formData.quantidadeAdicionada, 10) || 0;
-      const fichas = parseInt(formData.fichas, 10) || 0;
+      // Se for retirada de estoque, fichas = 0
+      const fichas = formData.retiradaEstoque
+        ? 0
+        : parseInt(formData.fichas, 10) || 0;
 
       // Validação: deve informar pelo menos a quantidade atual
       if (quantidadeAtual === 0 && quantidadeAdicionada === 0) {
@@ -139,6 +150,15 @@ export function Movimentacoes() {
         quantidadeAtual + quantidadeAdicionada
       );
 
+      // Preparar observação - se for retirada de estoque, adicionar nota automática
+      let observacaoFinal = formData.observacao?.trim() || "";
+      if (formData.retiradaEstoque) {
+        const notaRetirada = "⚠️ RETIRADA DE ESTOQUE - NÃO É VENDA";
+        observacaoFinal = observacaoFinal
+          ? `${notaRetirada}. ${observacaoFinal}`
+          : notaRetirada;
+      }
+
       // Transformar para o formato do backend
       const data = {
         maquinaId: formData.maquina_id,
@@ -146,8 +166,9 @@ export function Movimentacoes() {
         sairam: quantidadeSaiu,
         abastecidas: quantidadeAdicionada,
         fichas: fichas,
+        retiradaEstoque: formData.retiradaEstoque,
         contadorMaquina: null,
-        observacoes: formData.observacao?.trim() || null,
+        observacoes: observacaoFinal || null,
         produtos: [
           {
             produtoId: formData.produto_id,
@@ -171,6 +192,7 @@ export function Movimentacoes() {
         quantidadeAdicionada: "",
         fichas: "",
         observacao: "",
+        retiradaEstoque: false,
       });
       setEstoqueAnterior(0);
       setFiltroLojaForm("");
@@ -521,12 +543,39 @@ export function Movimentacoes() {
                     className="input-field"
                     placeholder="0"
                     min="0"
+                    disabled={formData.retiradaEstoque}
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Fichas coletadas da máquina
                   </p>
                 </div>
               </div>
+
+              {/* Checkbox de Retirada de Estoque */}
+              <div className="p-4 bg-gradient-to-r from-orange-50 to-yellow-50 border-2 border-orange-200 rounded-lg">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="retiradaEstoque"
+                    checked={formData.retiradaEstoque}
+                    onChange={handleChange}
+                    className="w-5 h-5 text-orange-600 bg-gray-100 border-gray-300 rounded focus:ring-orange-500 focus:ring-2 cursor-pointer"
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm font-bold text-orange-900">
+                      📦 Retirada de Estoque (não conta como dinheiro)
+                    </span>
+                    <p className="text-xs text-orange-700 mt-1">
+                      Marque esta opção quando estiver retirando produtos da
+                      máquina sem que seja uma venda (exemplo: produtos
+                      danificados, devolução, transferência). As fichas serão
+                      automaticamente zeradas.
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>

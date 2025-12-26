@@ -18,6 +18,8 @@ export function MaquinaForm() {
     tipo: "",
     capacidadePadrao: "",
     valorFicha: "",
+    fichasNecessarias: "",
+    forcaGarra: "",
     percentualAlertaEstoque: "",
     localizacao: "",
     ativo: true,
@@ -62,6 +64,8 @@ export function MaquinaForm() {
         tipo: response.data.tipo || "",
         capacidadePadrao: response.data.capacidadePadrao || "",
         valorFicha: response.data.valorFicha || "",
+        fichasNecessarias: response.data.fichasNecessarias || "",
+        forcaGarra: response.data.forcaGarra || "",
         percentualAlertaEstoque: response.data.percentualAlertaEstoque || 20,
         localizacao: response.data.localizacao || "",
         ativo: response.data.ativo !== undefined ? response.data.ativo : true,
@@ -119,6 +123,8 @@ export function MaquinaForm() {
         tipo: formData.tipo?.trim() || null,
         capacidadePadrao: parseInt(formData.capacidadePadrao, 10) || 0,
         valorFicha: parseFloat(formData.valorFicha) || 0,
+        fichasNecessarias: parseInt(formData.fichasNecessarias, 10) || null,
+        forcaGarra: parseInt(formData.forcaGarra, 10) || null,
         percentualAlertaEstoque:
           parseInt(formData.percentualAlertaEstoque, 10) || 20,
         localizacao: formData.localizacao?.trim() || null,
@@ -317,7 +323,44 @@ export function MaquinaForm() {
                     step="0.01"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Valor cobrado por tentativa
+                    Valor cobrado por ficha
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    🎫 Fichas para Jogar
+                  </label>
+                  <input
+                    type="number"
+                    name="fichasNecessarias"
+                    value={formData.fichasNecessarias}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="Ex: 1"
+                    min="1"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Quantas fichas são necessárias para liberar uma jogada
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    🦸 Força da Garra (%)
+                  </label>
+                  <input
+                    type="number"
+                    name="forcaGarra"
+                    value={formData.forcaGarra}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="Ex: 75"
+                    min="0"
+                    max="100"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Parâmetro de força configurado na garra (0-100%)
                   </p>
                 </div>
 
