@@ -22,6 +22,7 @@ export function MaquinaForm() {
     forcaForte: "",
     forcaFraca: "",
     forcaPremium: "",
+    jogadasPremium: "",
     percentualAlertaEstoque: "",
     localizacao: "",
     ativo: true,
@@ -70,6 +71,7 @@ export function MaquinaForm() {
         forcaForte: response.data.forcaForte || "",
         forcaFraca: response.data.forcaFraca || "",
         forcaPremium: response.data.forcaPremium || "",
+        jogadasPremium: response.data.jogadasPremium || "",
         percentualAlertaEstoque: response.data.percentualAlertaEstoque || 20,
         localizacao: response.data.localizacao || "",
         ativo: response.data.ativo !== undefined ? response.data.ativo : true,
@@ -131,6 +133,7 @@ export function MaquinaForm() {
         forcaForte: parseInt(formData.forcaForte, 10) || null,
         forcaFraca: parseInt(formData.forcaFraca, 10) || null,
         forcaPremium: parseInt(formData.forcaPremium, 10) || null,
+        jogadasPremium: parseInt(formData.jogadasPremium, 10) || null,
         percentualAlertaEstoque:
           parseInt(formData.percentualAlertaEstoque, 10) || 20,
         localizacao: formData.localizacao?.trim() || null,
@@ -405,6 +408,24 @@ export function MaquinaForm() {
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Parâmetro de força premium da garra (0-100%)
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    🎮 Jogadas para Força Premium
+                  </label>
+                  <input
+                    type="number"
+                    name="jogadasPremium"
+                    value={formData.jogadasPremium}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="Ex: 10"
+                    min="1"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Quantidade de jogadas com força premium
                   </p>
                 </div>
 

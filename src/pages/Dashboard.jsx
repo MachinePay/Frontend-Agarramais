@@ -1158,6 +1158,19 @@ export function Dashboard() {
                         </p>
                       </div>
                     )}
+                  {maquinaSelecionada.jogadasPremium && (
+                    <div>
+                      <p className="text-sm text-gray-600">
+                        🎮 Jogadas Premium
+                      </p>
+                      <p className="text-lg font-semibold">
+                        {maquinaSelecionada.jogadasPremium}{" "}
+                        {maquinaSelecionada.jogadasPremium === 1
+                          ? "jogada"
+                          : "jogadas"}
+                      </p>
+                    </div>
+                  )}
                   <div>
                     <p className="text-sm text-gray-600">Status</p>
                     <p className="text-lg font-semibold">

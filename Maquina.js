@@ -53,14 +53,43 @@ const Maquina = sequelize.define(
         min: 1,
       },
     },
-    forcaGarra: {
+    forcaForte: {
       type: DataTypes.INTEGER,
       allowNull: true,
-      field: "forca_garra",
-      comment: "Força da garra em percentual (0-100%)",
+      field: "forca_forte",
+      comment: "Força forte da garra em percentual (0-100%)",
       validate: {
         min: 0,
         max: 100,
+      },
+    },
+    forcaFraca: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: "forca_fraca",
+      comment: "Força fraca da garra em percentual (0-100%)",
+      validate: {
+        min: 0,
+        max: 100,
+      },
+    },
+    forcaPremium: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: "forca_premium",
+      comment: "Força premium da garra em percentual (0-100%)",
+      validate: {
+        min: 0,
+        max: 100,
+      },
+    },
+    jogadasPremium: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: "jogadas_premium",
+      comment: "Quantidade de jogadas com força premium",
+      validate: {
+        min: 1,
       },
     },
     percentualAlertaEstoque: {
