@@ -23,14 +23,14 @@ export function Navbar() {
     <nav className="bg-gradient-to-r from-background-dark via-gray-900 to-background-dark text-white shadow-2xl border-b-4 border-primary">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
-          {/* Logo e Brand */}
+          /* Logo e Brand */
           <div className="flex items-center">
             <Link
               to="/"
               className="flex items-center space-x-2 sm:space-x-3 group"
             >
               <img
-                src="/LogoAgarraMais.png"
+                src="https://res.cloudinary.com/docrd6tkk/image/upload/v1766765078/LogoAgarraMais_adqqlp.png"
                 alt="Agarra Mais"
                 className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 object-contain transition-transform duration-300 group-hover:scale-110"
                 onError={(e) => {
@@ -132,7 +132,6 @@ export function Navbar() {
               </div>
             </div>
           </div>
-
           {/* User Info e Logout */}
           <div className="flex items-center space-x-4">
             {/* Botão Hamburger Mobile */}
