@@ -28,9 +28,11 @@ export function Navbar() {
             <Link to="/" className="flex items-center space-x-3 group">
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent-yellow rounded-full blur-md opacity-75 group-hover:opacity-100 transition-opacity"></div>
-                <div className="relative bg-gradient-to-br from-primary to-accent-yellow p-3 rounded-full shadow-lg">
-                  <span className="text-4xl">🧸</span>
-                </div>
+                <img
+                  src="/LogoAGarramais.webp"
+                  alt="Agarra Mais"
+                  className="relative w-12 h-12 rounded-full shadow-lg"
+                />
               </div>
               <span className="text-2xl font-bold bg-gradient-to-r from-primary via-accent-yellow to-primary bg-clip-text text-transparent">
                 Agarra Mais
