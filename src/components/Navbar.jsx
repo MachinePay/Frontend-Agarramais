@@ -25,16 +25,16 @@ export function Navbar() {
         <div className="flex items-center justify-between h-20">
           {/* Logo e Brand */}
           <div className="flex items-center">
-            <Link to="/" className="flex items-center space-x-3 group">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent-yellow rounded-full blur-md opacity-75 group-hover:opacity-100 transition-opacity"></div>
-                <img
-                  src="/LogoAGarramais.webp"
-                  alt="Agarra Mais"
-                  className="relative w-12 h-12 rounded-full shadow-lg"
-                />
-              </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-primary via-accent-yellow to-primary bg-clip-text text-transparent">
+            <Link
+              to="/"
+              className="flex items-center space-x-2 sm:space-x-3 group"
+            >
+              <img
+                src="/LogoAGarramais.png"
+                alt="Agarra Mais"
+                className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 object-contain transition-transform duration-300 group-hover:scale-110"
+              />
+              <span className="hidden sm:block text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-primary via-accent-yellow to-primary bg-clip-text text-transparent">
                 Agarra Mais
               </span>
             </Link>
