@@ -30,7 +30,7 @@ export function Navbar() {
               className="flex items-center space-x-2 sm:space-x-3 group"
             >
               <img
-                src="/LogoAGarramais.png"
+                src="/LogoAgarraMais.png"
                 alt="Agarra Mais"
                 className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 object-contain transition-transform duration-300 group-hover:scale-110"
               />
