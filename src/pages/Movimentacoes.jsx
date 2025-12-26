@@ -24,6 +24,11 @@ export function Movimentacoes() {
   const [showForm, setShowForm] = useState(false);
   const [filtroLojaForm, setFiltroLojaForm] = useState("");
   const [filtroLojaListagem, setFiltroLojaListagem] = useState("");
+  const [editandoMovimentacao, setEditandoMovimentacao] = useState(null);
+  const [formEdicao, setFormEdicao] = useState({
+    fichas: "",
+    abastecidas: "",
+  });
 
   const [formData, setFormData] = useState({
     maquina_id: "",
@@ -210,6 +215,38 @@ export function Movimentacoes() {
     }
   };
 
+  const iniciarEdicao = (movimentacao) => {
+    setEditandoMovimentacao(movimentacao);
+    setFormEdicao({
+      fichas: movimentacao.fichas || 0,
+      abastecidas: movimentacao.abastecidas || 0,
+    });
+  };
+
+  const cancelarEdicao = () => {
+    setEditandoMovimentacao(null);
+    setFormEdicao({ fichas: "", abastecidas: "" });
+  };
+
+  const salvarEdicao = async () => {
+    try {
+      await api.put(`/movimentacoes/${editandoMovimentacao.id}`, {
+        fichas: parseInt(formEdicao.fichas) || 0,
+        abastecidas: parseInt(formEdicao.abastecidas) || 0,
+      });
+      setSuccess("Movimentação atualizada com sucesso!");
+      cancelarEdicao();
+      carregarDados();
+    } catch (error) {
+      console.error("Erro ao atualizar movimentação:", error);
+      setError(
+        error.response?.data?.error ||
+          error.response?.data?.message ||
+          "Erro ao atualizar movimentação"
+      );
+    }
+  };
+
   // Estatísticas - Calcular baseado em abastecidas/sairam
   const entradas = movimentacoes.filter((m) => m.abastecidas > 0);
   const saidas = movimentacoes.filter((m) => m.sairam > 0);
@@ -369,6 +406,35 @@ export function Movimentacoes() {
       ),
     },
   ];
+
+  // Adicionar coluna de ações apenas para ADMIN
+  if (usuario?.role === "ADMIN") {
+    columns.push({
+      key: "acoes",
+      label: "Ações",
+      render: (mov) => (
+        <button
+          onClick={() => iniciarEdicao(mov)}
+          className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition-colors flex items-center gap-1"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+            />
+          </svg>
+          Editar
+        </button>
+      ),
+    });
+  }
 
   if (loading) return <PageLoader />;
 
@@ -747,6 +813,102 @@ export function Movimentacoes() {
           </div>
         )}
       </div>
+
+      {/* Modal de Edição */}
+      {editandoMovimentacao && usuario?.role === "ADMIN" && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <span className="text-2xl">✏️</span>
+                Editar Movimentação
+              </h3>
+              <button
+                onClick={cancelarEdicao}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600">
+                  <strong>Data:</strong>{" "}
+                  {new Date(
+                    editandoMovimentacao.dataColeta ||
+                      editandoMovimentacao.createdAt
+                  ).toLocaleString("pt-BR")}
+                </p>
+                <p className="text-sm text-gray-600 mt-1">
+                  <strong>Máquina:</strong>{" "}
+                  {maquinas.find((m) => m.id === editandoMovimentacao.maquinaId)
+                    ?.codigo || "N/A"}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  🎫 Quantidade de Fichas
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formEdicao.fichas}
+                  onChange={(e) =>
+                    setFormEdicao({ ...formEdicao, fichas: e.target.value })
+                  }
+                  className="input-field"
+                  placeholder="0"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  📦 Quantidade Abastecida
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formEdicao.abastecidas}
+                  onChange={(e) =>
+                    setFormEdicao({
+                      ...formEdicao,
+                      abastecidas: e.target.value,
+                    })
+                  }
+                  className="input-field"
+                  placeholder="0"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={cancelarEdicao}
+                  className="flex-1 btn-secondary"
+                >
+                  Cancelar
+                </button>
+                <button onClick={salvarEdicao} className="flex-1 btn-primary">
+                  Salvar Alterações
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>
