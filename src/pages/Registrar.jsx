@@ -2,7 +2,12 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
+const SENHA_ACESSO = "agarramais2025"; // Defina a senha de acesso aqui
+
 export function Registrar() {
+  const [senhaAcesso, setSenhaAcesso] = useState("");
+  const [acessoLiberado, setAcessoLiberado] = useState(false);
+  const [erroAcesso, setErroAcesso] = useState("");
   const [formData, setFormData] = useState({
     nome: "",
     email: "",
@@ -14,6 +19,16 @@ export function Registrar() {
   const [loading, setLoading] = useState(false);
   const { registrar } = useAuth();
   const navigate = useNavigate();
+
+  const verificarSenhaAcesso = (e) => {
+    e.preventDefault();
+    if (senhaAcesso === SENHA_ACESSO) {
+      setAcessoLiberado(true);
+      setErroAcesso("");
+    } else {
+      setErroAcesso("Senha de acesso incorreta");
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -53,6 +68,89 @@ export function Registrar() {
 
     setLoading(false);
   };
+
+  // Se o acesso ainda não foi liberado, mostra a tela de senha
+  if (!acessoLiberado) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-secondary via-background-light to-accent-cream/30 px-4 py-8 bg-pattern relative overflow-hidden">
+        {/* Decorative elements */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-primary/10 to-transparent rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-accent-yellow/10 to-transparent rounded-full blur-3xl"></div>
+
+        <div className="relative card-gradient max-w-md w-full backdrop-blur-sm">
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary to-accent-yellow rounded-full shadow-2xl mb-3">
+              <svg
+                className="w-8 h-8 text-white"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <h1 className="text-3xl font-bold mb-1">
+              <span className="text-gradient">Acesso Restrito</span>
+            </h1>
+            <p className="text-gray-600 text-sm">
+              Digite a senha para criar uma nova conta 🔐
+            </p>
+          </div>
+
+          <form onSubmit={verificarSenhaAcesso} className="space-y-4">
+            {erroAcesso && (
+              <div className="alert-error animate-pulse">
+                <div className="flex items-center gap-2">
+                  <svg
+                    className="w-5 h-5"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <span>{erroAcesso}</span>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Senha de Acesso
+              </label>
+              <input
+                type="password"
+                value={senhaAcesso}
+                onChange={(e) => setSenhaAcesso(e.target.value)}
+                className="input-field"
+                placeholder="Digite a senha de acesso"
+                required
+              />
+            </div>
+
+            <button type="submit" className="w-full btn-primary">
+              Verificar Senha
+            </button>
+
+            <div className="text-center pt-3">
+              <Link
+                to="/login"
+                className="text-sm text-primary hover:text-primary-dark transition-colors font-medium"
+              >
+                ← Voltar para o Login
+              </Link>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-secondary via-background-light to-accent-cream/30 px-4 py-8 bg-pattern relative overflow-hidden">
