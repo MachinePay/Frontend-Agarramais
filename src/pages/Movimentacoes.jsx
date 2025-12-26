@@ -10,8 +10,10 @@ import {
   AlertBox,
 } from "../components/UIComponents";
 import { PageLoader, EmptyState } from "../components/Loading";
+import { useAuth } from "../contexts/AuthContext";
 
 export function Movimentacoes() {
+  const { usuario } = useAuth();
   const [movimentacoes, setMovimentacoes] = useState([]);
   const [maquinas, setMaquinas] = useState([]);
   const [produtos, setProdutos] = useState([]);
@@ -396,34 +398,36 @@ export function Movimentacoes() {
           />
         )}
 
-        <StatsGrid stats={stats} />
+        {usuario?.role === "ADMIN" && <StatsGrid stats={stats} />}
 
-        {/* Filtro por Loja */}
-        <div className="card-gradient mb-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <span className="text-2xl">🔍</span>
-            Filtrar Movimentações
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                🏪 Filtrar por Loja
-              </label>
-              <select
-                value={filtroLojaListagem}
-                onChange={(e) => setFiltroLojaListagem(e.target.value)}
-                className="input-field"
-              >
-                <option value="">Todas as lojas</option>
-                {lojas.map((loja) => (
-                  <option key={loja.id} value={loja.id}>
-                    {loja.nome}
-                  </option>
-                ))}
-              </select>
+        {/* Filtro por Loja - Apenas para ADMIN */}
+        {usuario?.role === "ADMIN" && (
+          <div className="card-gradient mb-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <span className="text-2xl">🔍</span>
+              Filtrar Movimentações
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  🏪 Filtrar por Loja
+                </label>
+                <select
+                  value={filtroLojaListagem}
+                  onChange={(e) => setFiltroLojaListagem(e.target.value)}
+                  className="input-field"
+                >
+                  <option value="">Todas as lojas</option>
+                  {lojas.map((loja) => (
+                    <option key={loja.id} value={loja.id}>
+                      {loja.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {showForm && (
           <div className="card-gradient mb-6">
@@ -705,40 +709,43 @@ export function Movimentacoes() {
           </div>
         )}
 
-        <div className="card-gradient">
-          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <span className="text-2xl">📋</span>
-            Histórico de Movimentações
-            {filtroLojaListagem && (
-              <span className="text-sm text-gray-600 font-normal">
-                ({movimentacoesFiltradas.length} de {movimentacoes.length}{" "}
-                registros)
-              </span>
-            )}
-          </h3>
+        {/* Histórico de Movimentações - Apenas para ADMIN */}
+        {usuario?.role === "ADMIN" && (
+          <div className="card-gradient">
+            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <span className="text-2xl">📋</span>
+              Histórico de Movimentações
+              {filtroLojaListagem && (
+                <span className="text-sm text-gray-600 font-normal">
+                  ({movimentacoesFiltradas.length} de {movimentacoes.length}{" "}
+                  registros)
+                </span>
+              )}
+            </h3>
 
-          {movimentacoesFiltradas.length > 0 ? (
-            <DataTable headers={columns} data={movimentacoesFiltradas} />
-          ) : (
-            <EmptyState
-              icon="🔄"
-              title={
-                filtroLojaListagem
-                  ? "Nenhuma movimentação encontrada"
-                  : "Nenhuma movimentação registrada"
-              }
-              message={
-                filtroLojaListagem
-                  ? "Não há movimentações para a loja selecionada."
-                  : "Registre sua primeira movimentação para começar o controle de estoque!"
-              }
-              action={{
-                label: "Nova Movimentação",
-                onClick: () => setShowForm(true),
-              }}
-            />
-          )}
-        </div>
+            {movimentacoesFiltradas.length > 0 ? (
+              <DataTable headers={columns} data={movimentacoesFiltradas} />
+            ) : (
+              <EmptyState
+                icon="🔄"
+                title={
+                  filtroLojaListagem
+                    ? "Nenhuma movimentação encontrada"
+                    : "Nenhuma movimentação registrada"
+                }
+                message={
+                  filtroLojaListagem
+                    ? "Não há movimentações para a loja selecionada."
+                    : "Registre sua primeira movimentação para começar o controle de estoque!"
+                }
+                action={{
+                  label: "Nova Movimentação",
+                  onClick: () => setShowForm(true),
+                }}
+              />
+            )}
+          </div>
+        )}
       </div>
 
       <Footer />

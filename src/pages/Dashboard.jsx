@@ -412,6 +412,10 @@ export function Dashboard() {
 
   const handleSelecionarMaquina = async (maquina) => {
     try {
+      // Buscar dados completos da máquina (inclui fichasNecessarias e forcaGarra)
+      const maquinaRes = await api.get(`/maquinas/${maquina.id}`);
+      const maquinaCompleta = maquinaRes.data;
+
       // Buscar estoque atual
       const estoqueRes = await api.get(`/maquinas/${maquina.id}/estoque`);
       const estoqueAtual = estoqueRes.data.estoqueAtual || 0;
@@ -437,7 +441,7 @@ export function Dashboard() {
       }
 
       setMaquinaSelecionada({
-        ...maquina,
+        ...maquinaCompleta,
         estoqueAtual,
         ultimoProduto,
       });
@@ -725,8 +729,8 @@ export function Dashboard() {
             </div>
           )}
 
-        {/* Estoque dos Depósitos */}
-        {lojasComEstoque.length > 0 && (
+        {/* Estoque dos Depósitos - Apenas para ADMIN */}
+        {usuario?.role === "ADMIN" && lojasComEstoque.length > 0 && (
           <div className="card mb-8">
             <div className="flex items-center justify-between mb-6">
               <div>
@@ -1112,6 +1116,48 @@ export function Dashboard() {
                       </p>
                     </div>
                   )}
+                  {maquinaSelecionada.fichasNecessarias && (
+                    <div>
+                      <p className="text-sm text-gray-600">
+                        🎫 Fichas para Jogar
+                      </p>
+                      <p className="text-lg font-semibold">
+                        {maquinaSelecionada.fichasNecessarias}{" "}
+                        {maquinaSelecionada.fichasNecessarias === 1
+                          ? "ficha"
+                          : "fichas"}
+                      </p>
+                    </div>
+                  )}
+                  {maquinaSelecionada.forcaForte !== null &&
+                    maquinaSelecionada.forcaForte !== undefined && (
+                      <div>
+                        <p className="text-sm text-gray-600">💪 Força Forte</p>
+                        <p className="text-lg font-semibold">
+                          {maquinaSelecionada.forcaForte}%
+                        </p>
+                      </div>
+                    )}
+                  {maquinaSelecionada.forcaFraca !== null &&
+                    maquinaSelecionada.forcaFraca !== undefined && (
+                      <div>
+                        <p className="text-sm text-gray-600">🤏 Força Fraca</p>
+                        <p className="text-lg font-semibold">
+                          {maquinaSelecionada.forcaFraca}%
+                        </p>
+                      </div>
+                    )}
+                  {maquinaSelecionada.forcaPremium !== null &&
+                    maquinaSelecionada.forcaPremium !== undefined && (
+                      <div>
+                        <p className="text-sm text-gray-600">
+                          ⭐ Força Premium
+                        </p>
+                        <p className="text-lg font-semibold">
+                          {maquinaSelecionada.forcaPremium}%
+                        </p>
+                      </div>
+                    )}
                   <div>
                     <p className="text-sm text-gray-600">Status</p>
                     <p className="text-lg font-semibold">
@@ -1133,158 +1179,162 @@ export function Dashboard() {
                 )}
               </div>
 
-              {/* Movimentações */}
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <span className="text-2xl">🔄</span>
-                  Histórico de Movimentações
-                </h3>
+              {/* Movimentações - Apenas para ADMIN */}
+              {usuario?.role === "ADMIN" && (
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span className="text-2xl">🔄</span>
+                    Histórico de Movimentações
+                  </h3>
 
-                {/* Filtros de Data */}
-                <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        📅 Data Inicial
-                      </label>
-                      <input
-                        type="date"
-                        value={dataInicio}
-                        onChange={(e) => setDataInicio(e.target.value)}
-                        className="input-field w-full"
-                      />
+                  {/* Filtros de Data */}
+                  <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          📅 Data Inicial
+                        </label>
+                        <input
+                          type="date"
+                          value={dataInicio}
+                          onChange={(e) => setDataInicio(e.target.value)}
+                          className="input-field w-full"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          📅 Data Final
+                        </label>
+                        <input
+                          type="date"
+                          value={dataFim}
+                          onChange={(e) => setDataFim(e.target.value)}
+                          className="input-field w-full"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        📅 Data Final
-                      </label>
-                      <input
-                        type="date"
-                        value={dataFim}
-                        onChange={(e) => setDataFim(e.target.value)}
-                        className="input-field w-full"
-                      />
-                    </div>
+                    {(dataInicio || dataFim) && (
+                      <button
+                        onClick={() => {
+                          setDataInicio("");
+                          setDataFim("");
+                        }}
+                        className="mt-2 text-sm text-primary hover:text-primary-dark flex items-center gap-1"
+                      >
+                        ✕ Limpar filtros
+                      </button>
+                    )}
                   </div>
-                  {(dataInicio || dataFim) && (
-                    <button
-                      onClick={() => {
-                        setDataInicio("");
-                        setDataFim("");
-                      }}
-                      className="mt-2 text-sm text-primary hover:text-primary-dark flex items-center gap-1"
-                    >
-                      ✕ Limpar filtros
-                    </button>
+                  {loadingMaquina ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+                      <p className="text-gray-600 mt-4">
+                        Carregando movimentações...
+                      </p>
+                    </div>
+                  ) : movimentacoes.length > 0 ? (
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {movimentacoes
+                        .filter((mov) => {
+                          const movData = new Date(mov.createdAt);
+                          const inicio = dataInicio
+                            ? new Date(dataInicio)
+                            : null;
+                          const fim = dataFim
+                            ? new Date(dataFim + "T23:59:59")
+                            : null;
+
+                          if (inicio && movData < inicio) return false;
+                          if (fim && movData > fim) return false;
+                          return true;
+                        })
+                        .map((mov) => (
+                          <div
+                            key={mov.id}
+                            className="p-4 border border-gray-200 rounded-lg bg-white"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <Badge
+                                variant={
+                                  mov.tipo === "entrada" ? "success" : "danger"
+                                }
+                              >
+                                {mov.tipo === "entrada"
+                                  ? "📥 Entrada"
+                                  : "📤 Saída"}
+                              </Badge>
+                              <span className="text-sm text-gray-600">
+                                {new Date(mov.createdAt).toLocaleDateString(
+                                  "pt-BR"
+                                )}{" "}
+                                às{" "}
+                                {new Date(mov.createdAt).toLocaleTimeString(
+                                  "pt-BR"
+                                )}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-5 gap-4 mt-3 text-sm">
+                              <div>
+                                <p className="text-gray-600">Total Pré</p>
+                                <p className="font-semibold">
+                                  {mov.totalPre || 0}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-gray-600">Saíram</p>
+                                <p className="font-semibold text-red-600">
+                                  {mov.sairam || 0}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-gray-600">Abastecidas</p>
+                                <p className="font-semibold text-green-600">
+                                  {mov.abastecidas || 0}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-gray-600 flex items-center gap-1">
+                                  <span>📦</span> Total Atual
+                                </p>
+                                <p className="font-semibold text-purple-600">
+                                  {(mov.totalPre || 0) +
+                                    (mov.abastecidas || 0) -
+                                    (mov.sairam || 0)}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-gray-600 flex items-center gap-1">
+                                  <span>🎫</span> Fichas
+                                </p>
+                                <p className="font-semibold text-blue-600">
+                                  {mov.fichas || 0}
+                                </p>
+                              </div>
+                            </div>
+                            {mov.observacoes && (
+                              <p className="text-sm text-gray-600 mt-3 italic">
+                                💬 {mov.observacoes}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <p className="text-6xl mb-4">📭</p>
+                      <p className="text-gray-600">
+                        Nenhuma movimentação registrada para esta máquina
+                      </p>
+                    </div>
                   )}
                 </div>
-                {loadingMaquina ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-                    <p className="text-gray-600 mt-4">
-                      Carregando movimentações...
-                    </p>
-                  </div>
-                ) : movimentacoes.length > 0 ? (
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
-                    {movimentacoes
-                      .filter((mov) => {
-                        const movData = new Date(mov.createdAt);
-                        const inicio = dataInicio ? new Date(dataInicio) : null;
-                        const fim = dataFim
-                          ? new Date(dataFim + "T23:59:59")
-                          : null;
-
-                        if (inicio && movData < inicio) return false;
-                        if (fim && movData > fim) return false;
-                        return true;
-                      })
-                      .map((mov) => (
-                        <div
-                          key={mov.id}
-                          className="p-4 border border-gray-200 rounded-lg bg-white"
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <Badge
-                              variant={
-                                mov.tipo === "entrada" ? "success" : "danger"
-                              }
-                            >
-                              {mov.tipo === "entrada"
-                                ? "📥 Entrada"
-                                : "📤 Saída"}
-                            </Badge>
-                            <span className="text-sm text-gray-600">
-                              {new Date(mov.createdAt).toLocaleDateString(
-                                "pt-BR"
-                              )}{" "}
-                              às{" "}
-                              {new Date(mov.createdAt).toLocaleTimeString(
-                                "pt-BR"
-                              )}
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-5 gap-4 mt-3 text-sm">
-                            <div>
-                              <p className="text-gray-600">Total Pré</p>
-                              <p className="font-semibold">
-                                {mov.totalPre || 0}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-gray-600">Saíram</p>
-                              <p className="font-semibold text-red-600">
-                                {mov.sairam || 0}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-gray-600">Abastecidas</p>
-                              <p className="font-semibold text-green-600">
-                                {mov.abastecidas || 0}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-gray-600 flex items-center gap-1">
-                                <span>📦</span> Total Atual
-                              </p>
-                              <p className="font-semibold text-purple-600">
-                                {(mov.totalPre || 0) +
-                                  (mov.abastecidas || 0) -
-                                  (mov.sairam || 0)}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-gray-600 flex items-center gap-1">
-                                <span>🎫</span> Fichas
-                              </p>
-                              <p className="font-semibold text-blue-600">
-                                {mov.fichas || 0}
-                              </p>
-                            </div>
-                          </div>
-                          {mov.observacoes && (
-                            <p className="text-sm text-gray-600 mt-3 italic">
-                              💬 {mov.observacoes}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <p className="text-6xl mb-4">📭</p>
-                    <p className="text-gray-600">
-                      Nenhuma movimentação registrada para esta máquina
-                    </p>
-                  </div>
-                )}
-              </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* Alertas de Estoque */}
-        {stats.alertas.length > 0 && (
+        {/* Alertas de Estoque - Apenas para ADMIN */}
+        {usuario?.role === "ADMIN" && stats.alertas.length > 0 && (
           <div className="card mb-8 border-l-4 border-red-500">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
@@ -1360,8 +1410,8 @@ export function Dashboard() {
           </div>
         )}
 
-        {/* Alertas de Estoque de Lojas */}
-        {alertasEstoqueLoja.length > 0 && (
+        {/* Alertas de Estoque de Lojas - Apenas para ADMIN */}
+        {usuario?.role === "ADMIN" && alertasEstoqueLoja.length > 0 && (
           <div className="card mb-8 border-l-4 border-orange-500">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">

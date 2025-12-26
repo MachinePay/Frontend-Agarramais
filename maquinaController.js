@@ -70,6 +70,10 @@ export const criarMaquina = async (req, res) => {
       lojaId,
       capacidadePadrao,
       valorFicha,
+      fichasNecessarias,
+      forcaForte,
+      forcaFraca,
+      forcaPremium,
       percentualAlertaEstoque,
       localizacao,
     } = req.body;
@@ -93,6 +97,10 @@ export const criarMaquina = async (req, res) => {
       lojaId,
       capacidadePadrao: capacidadePadrao || 100,
       valorFicha: valorFicha || 5.0,
+      fichasNecessarias: fichasNecessarias || null,
+      forcaForte: forcaForte || null,
+      forcaFraca: forcaFraca || null,
+      forcaPremium: forcaPremium || null,
       percentualAlertaEstoque: percentualAlertaEstoque || 30,
       localizacao,
     });
@@ -121,6 +129,10 @@ export const atualizarMaquina = async (req, res) => {
       lojaId,
       capacidadePadrao,
       valorFicha,
+      fichasNecessarias,
+      forcaForte,
+      forcaFraca,
+      forcaPremium,
       percentualAlertaEstoque,
       localizacao,
       ativo,
@@ -141,6 +153,14 @@ export const atualizarMaquina = async (req, res) => {
       lojaId: lojaId ?? maquina.lojaId,
       capacidadePadrao: capacidadePadrao ?? maquina.capacidadePadrao,
       valorFicha: valorFicha ?? maquina.valorFicha,
+      fichasNecessarias:
+        fichasNecessarias !== undefined
+          ? fichasNecessarias
+          : maquina.fichasNecessarias,
+      forcaForte: forcaForte !== undefined ? forcaForte : maquina.forcaForte,
+      forcaFraca: forcaFraca !== undefined ? forcaFraca : maquina.forcaFraca,
+      forcaPremium:
+        forcaPremium !== undefined ? forcaPremium : maquina.forcaPremium,
       percentualAlertaEstoque:
         percentualAlertaEstoque ?? maquina.percentualAlertaEstoque,
       localizacao: localizacao ?? maquina.localizacao,

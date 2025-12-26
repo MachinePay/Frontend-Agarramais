@@ -12,9 +12,11 @@ import {
   AlertBox,
 } from "../components/UIComponents";
 import { PageLoader, EmptyState } from "../components/Loading";
+import { useAuth } from "../contexts/AuthContext";
 
 export function Produtos() {
   const navigate = useNavigate();
+  const { usuario } = useAuth();
   const [produtos, setProdutos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState(null);
@@ -163,20 +165,27 @@ export function Produtos() {
       label: "Ações",
       render: (produto) => (
         <div className="flex gap-2">
-          <button
-            onClick={() => navigate(`/produtos/${produto.id}/editar`)}
-            className="text-blue-600 hover:text-blue-800 font-semibold"
-            title="Editar"
-          >
-            ✏️
-          </button>
-          <button
-            onClick={() => handleAbrirDialogDeletar(produto)}
-            className="text-red-600 hover:text-red-800 font-semibold"
-            title="Excluir"
-          >
-            {produto.ativo ? "⚠️" : "🗑️"}
-          </button>
+          {usuario?.role === "ADMIN" && (
+            <>
+              <button
+                onClick={() => navigate(`/produtos/${produto.id}/editar`)}
+                className="text-blue-600 hover:text-blue-800 font-semibold"
+                title="Editar"
+              >
+                ✏️
+              </button>
+              <button
+                onClick={() => handleAbrirDialogDeletar(produto)}
+                className="text-red-600 hover:text-red-800 font-semibold"
+                title="Excluir"
+              >
+                {produto.ativo ? "⚠️" : "🗑️"}
+              </button>
+            </>
+          )}
+          {usuario?.role !== "ADMIN" && (
+            <span className="text-gray-400 text-sm">Somente visualização</span>
+          )}
         </div>
       ),
     },
@@ -193,10 +202,14 @@ export function Produtos() {
           title="Produtos"
           subtitle="Gerencie os produtos (pelúcias) disponíveis no sistema"
           icon="🧸"
-          action={{
-            label: "Novo Produto",
-            onClick: () => navigate("/produtos/novo"),
-          }}
+          action={
+            usuario?.role === "ADMIN"
+              ? {
+                  label: "Novo Produto",
+                  onClick: () => navigate("/produtos/novo"),
+                }
+              : undefined
+          }
         />
 
         {error && (

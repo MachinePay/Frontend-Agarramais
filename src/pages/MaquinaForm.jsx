@@ -19,7 +19,9 @@ export function MaquinaForm() {
     capacidadePadrao: "",
     valorFicha: "",
     fichasNecessarias: "",
-    forcaGarra: "",
+    forcaForte: "",
+    forcaFraca: "",
+    forcaPremium: "",
     percentualAlertaEstoque: "",
     localizacao: "",
     ativo: true,
@@ -65,7 +67,9 @@ export function MaquinaForm() {
         capacidadePadrao: response.data.capacidadePadrao || "",
         valorFicha: response.data.valorFicha || "",
         fichasNecessarias: response.data.fichasNecessarias || "",
-        forcaGarra: response.data.forcaGarra || "",
+        forcaForte: response.data.forcaForte || "",
+        forcaFraca: response.data.forcaFraca || "",
+        forcaPremium: response.data.forcaPremium || "",
         percentualAlertaEstoque: response.data.percentualAlertaEstoque || 20,
         localizacao: response.data.localizacao || "",
         ativo: response.data.ativo !== undefined ? response.data.ativo : true,
@@ -124,7 +128,9 @@ export function MaquinaForm() {
         capacidadePadrao: parseInt(formData.capacidadePadrao, 10) || 0,
         valorFicha: parseFloat(formData.valorFicha) || 0,
         fichasNecessarias: parseInt(formData.fichasNecessarias, 10) || null,
-        forcaGarra: parseInt(formData.forcaGarra, 10) || null,
+        forcaForte: parseInt(formData.forcaForte, 10) || null,
+        forcaFraca: parseInt(formData.forcaFraca, 10) || null,
+        forcaPremium: parseInt(formData.forcaPremium, 10) || null,
         percentualAlertaEstoque:
           parseInt(formData.percentualAlertaEstoque, 10) || 20,
         localizacao: formData.localizacao?.trim() || null,
@@ -347,20 +353,58 @@ export function MaquinaForm() {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    🦸 Força da Garra (%)
+                    💪 Força Forte (%)
                   </label>
                   <input
                     type="number"
-                    name="forcaGarra"
-                    value={formData.forcaGarra}
+                    name="forcaForte"
+                    value={formData.forcaForte}
                     onChange={handleChange}
                     className="input-field"
-                    placeholder="Ex: 75"
+                    placeholder="Ex: 90"
                     min="0"
                     max="100"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Parâmetro de força configurado na garra (0-100%)
+                    Parâmetro de força forte da garra (0-100%)
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    🤏 Força Fraca (%)
+                  </label>
+                  <input
+                    type="number"
+                    name="forcaFraca"
+                    value={formData.forcaFraca}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="Ex: 30"
+                    min="0"
+                    max="100"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Parâmetro de força fraca da garra (0-100%)
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    ⭐ Força Premium (%)
+                  </label>
+                  <input
+                    type="number"
+                    name="forcaPremium"
+                    value={formData.forcaPremium}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="Ex: 100"
+                    min="0"
+                    max="100"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Parâmetro de força premium da garra (0-100%)
                   </p>
                 </div>
 
