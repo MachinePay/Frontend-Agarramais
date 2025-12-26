@@ -29,23 +29,12 @@ export function Navbar() {
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent-yellow rounded-full blur-md opacity-75 group-hover:opacity-100 transition-opacity"></div>
                 <div className="relative bg-gradient-to-br from-primary to-accent-yellow p-3 rounded-full shadow-lg">
-                  <svg
-                    className="w-8 h-8 text-white"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" />
-                  </svg>
+                  <span className="text-4xl">🧸</span>
                 </div>
               </div>
-              <div>
-                <span className="text-2xl font-bold bg-gradient-to-r from-primary via-accent-yellow to-primary bg-clip-text text-transparent">
-                  Agarra Mais
-                </span>
-                <p className="text-xs text-gray-400">
-                  Sistema de Gestão de Pelúcias
-                </p>
-              </div>
+              <span className="text-2xl font-bold bg-gradient-to-r from-primary via-accent-yellow to-primary bg-clip-text text-transparent">
+                Agarra Mais
+              </span>
             </Link>
 
             {/* Menu Desktop */}
