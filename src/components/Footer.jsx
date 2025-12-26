@@ -115,7 +115,7 @@ export function Footer() {
             <div className="flex items-center gap-4 text-sm text-gray-500">
               <span>Versão 1.0.0</span>
               <span className="w-1 h-1 bg-gray-600 rounded-full"></span>
-              <span>Feito com ❤️ para gestão de pelúcias</span>
+              <span>Made with Coffe by Gabriel Akira & Mateus Saavedra</span>
             </div>
           </div>
         </div>
