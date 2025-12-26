@@ -36,6 +36,8 @@ export function Movimentacoes() {
     quantidadeAtualMaquina: "",
     quantidadeAdicionada: "",
     fichas: "",
+    contadorIn: "",
+    contadorOut: "",
     observacao: "",
     retiradaEstoque: false,
   });
@@ -173,6 +175,8 @@ export function Movimentacoes() {
         sairam: quantidadeSaiu,
         abastecidas: quantidadeAdicionada,
         fichas: fichas,
+        contadorIn: parseInt(formData.contadorIn) || null,
+        contadorOut: parseInt(formData.contadorOut) || null,
         retiradaEstoque: formData.retiradaEstoque,
         contadorMaquina: null,
         observacoes: observacaoFinal || null,
@@ -198,6 +202,8 @@ export function Movimentacoes() {
         quantidadeAtualMaquina: "",
         quantidadeAdicionada: "",
         fichas: "",
+        contadorIn: "",
+        contadorOut: "",
         observacao: "",
         retiradaEstoque: false,
       });
@@ -617,6 +623,45 @@ export function Movimentacoes() {
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Fichas coletadas da máquina
+                  </p>
+                </div>
+              </div>
+
+              {/* Contadores da Máquina */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    📥 Contador IN (Entrada)
+                  </label>
+                  <input
+                    type="number"
+                    name="contadorIn"
+                    value={formData.contadorIn}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="0"
+                    min="0"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Número do contador IN da máquina
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    📤 Contador OUT (Saída)
+                  </label>
+                  <input
+                    type="number"
+                    name="contadorOut"
+                    value={formData.contadorOut}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="0"
+                    min="0"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Número do contador OUT da máquina
                   </p>
                 </div>
               </div>

@@ -1346,6 +1346,35 @@ export function Dashboard() {
                                 </p>
                               </div>
                             </div>
+
+                            {/* Contadores da Máquina */}
+                            {(mov.contadorIn || mov.contadorOut) && (
+                              <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-gray-200">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg">📥</span>
+                                  <div>
+                                    <p className="text-xs text-gray-600">
+                                      Contador IN
+                                    </p>
+                                    <p className="font-bold text-green-700">
+                                      {mov.contadorIn || "-"}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg">📤</span>
+                                  <div>
+                                    <p className="text-xs text-gray-600">
+                                      Contador OUT
+                                    </p>
+                                    <p className="font-bold text-orange-700">
+                                      {mov.contadorOut || "-"}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
                             {mov.observacoes && (
                               <p className="text-sm text-gray-600 mt-3 italic">
                                 💬 {mov.observacoes}
