@@ -487,13 +487,35 @@ export function Dashboard() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header com boas-vindas */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">
-            <span className="text-gradient">Dashboard</span> 🧸
-          </h1>
-          <p className="text-gray-600">
-            Visão geral do seu sistema de pelúcias
-          </p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold mb-2">
+              <span className="text-gradient">Dashboard</span> 🧸
+            </h1>
+            <p className="text-gray-600">
+              Visão geral do seu sistema de pelúcias
+            </p>
+          </div>
+          <button
+            onClick={carregarDados}
+            className="btn-primary flex items-center gap-2"
+            title="Atualizar dados"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+            Atualizar
+          </button>
         </div>
 
         {/* Cards de Resumo com design moderno - Apenas para ADMIN */}
