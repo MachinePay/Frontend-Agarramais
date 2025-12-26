@@ -142,6 +142,38 @@ export function Produtos() {
       ),
     },
     {
+      key: "jogadas_2_50",
+      label: "💰 Jogadas R$ 2,50",
+      render: (produto) => {
+        const preco = Number(produto.preco || 0);
+        const jogadas = Math.ceil(preco / 2.5);
+        return (
+          <div className="text-center">
+            <span className="font-bold text-green-600 text-lg">{jogadas}</span>
+            <span className="text-xs text-gray-500 block">
+              {jogadas === 1 ? "jogada" : "jogadas"}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      key: "jogadas_5_00",
+      label: "💎 Jogadas R$ 5,00",
+      render: (produto) => {
+        const preco = Number(produto.preco || 0);
+        const jogadas = Math.ceil(preco / 5);
+        return (
+          <div className="text-center">
+            <span className="font-bold text-blue-600 text-lg">{jogadas}</span>
+            <span className="text-xs text-gray-500 block">
+              {jogadas === 1 ? "jogada" : "jogadas"}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
       key: "estoque",
       label: "Estoque",
       render: (produto) => {

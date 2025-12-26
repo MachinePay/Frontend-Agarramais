@@ -39,7 +39,6 @@ export function ProdutoForm() {
     nome: "",
     categoria: "",
     preco: "",
-    custo: "",
     descricao: "",
     emoji: "🧸",
     estoque_minimo: "",
@@ -68,7 +67,6 @@ export function ProdutoForm() {
         nome: response.data.nome || "",
         categoria: response.data.categoria || "",
         preco: response.data.preco || "",
-        custo: response.data.custo || "",
         descricao: response.data.descricao || "",
         emoji: response.data.emoji || "🧸",
         estoque_minimo: response.data.estoque_minimo || "",
@@ -118,7 +116,6 @@ export function ProdutoForm() {
         nome: formData.nome.trim(),
         categoria: formData.categoria.trim(),
         preco: parseFloat(formData.preco),
-        custo: formData.custo ? parseFloat(formData.custo) : null,
         emoji: formData.emoji,
         estoque_minimo: formData.estoque_minimo
           ? parseInt(formData.estoque_minimo)
@@ -147,11 +144,6 @@ export function ProdutoForm() {
   };
 
   if (loadingData) return <PageLoader />;
-
-  const margem =
-    formData.preco && formData.custo
-      ? (((formData.preco - formData.custo) / formData.preco) * 100).toFixed(1)
-      : 0;
 
   return (
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
@@ -311,7 +303,7 @@ export function ProdutoForm() {
                 Precificação
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Preço de Venda *
@@ -333,43 +325,90 @@ export function ProdutoForm() {
                     />
                   </div>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Custo do Produto
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">
-                      R$
-                    </span>
-                    <input
-                      type="number"
-                      name="custo"
-                      value={formData.custo}
-                      onChange={handleChange}
-                      className="input-field pl-10"
-                      placeholder="0.00"
-                      step="0.01"
-                      min="0"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Margem de Lucro
-                  </label>
-                  <div className="input-field bg-gray-100 flex items-center justify-center">
-                    <span
-                      className={`text-lg font-bold ${
-                        margem > 0 ? "text-green-600" : "text-gray-400"
-                      }`}
-                    >
-                      {margem}%
-                    </span>
-                  </div>
-                </div>
               </div>
+
+              {/* Análise de Lucro por Ficha */}
+              {formData.preco && (
+                <div className="mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg">
+                  <h4 className="text-sm font-bold text-green-900 mb-3 flex items-center gap-2">
+                    <span className="text-xl">🎯</span>
+                    Análise de Jogadas para Lucro
+                  </h4>
+                  <p className="text-xs text-green-700 mb-4">
+                    Quantidade mínima de jogadas necessárias para ter lucro
+                    neste produto
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Ficha R$ 2,50 */}
+                    <div className="bg-white p-4 rounded-lg border border-green-300">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-semibold text-gray-700">
+                          💰 Ficha R$ 2,50
+                        </span>
+                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full font-bold">
+                          Econômica
+                        </span>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-3xl font-bold text-green-600">
+                          {Math.ceil(parseFloat(formData.preco) / 2.5)}
+                        </p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          {Math.ceil(parseFloat(formData.preco) / 2.5) === 1
+                            ? "jogada mínima"
+                            : "jogadas mínimas"}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-2">
+                          Faturamento: R${" "}
+                          {(
+                            Math.ceil(parseFloat(formData.preco) / 2.5) * 2.5
+                          ).toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Ficha R$ 5,00 */}
+                    <div className="bg-white p-4 rounded-lg border border-green-300">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-semibold text-gray-700">
+                          💎 Ficha R$ 5,00
+                        </span>
+                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-bold">
+                          Premium
+                        </span>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-3xl font-bold text-blue-600">
+                          {Math.ceil(parseFloat(formData.preco) / 5)}
+                        </p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          {Math.ceil(parseFloat(formData.preco) / 5) === 1
+                            ? "jogada mínima"
+                            : "jogadas mínimas"}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-2">
+                          Faturamento: R${" "}
+                          {(
+                            Math.ceil(parseFloat(formData.preco) / 5) * 5
+                          ).toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                    <p className="text-xs text-yellow-800 flex items-center gap-2">
+                      <span>💡</span>
+                      <span>
+                        <strong>Dica:</strong> Quanto menor o número de jogadas,
+                        mais rápido você recupera o investimento. Com ficha de
+                        R$ 5,00, o lucro é mais rápido!
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Estoque */}

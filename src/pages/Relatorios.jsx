@@ -203,29 +203,6 @@ export function Relatorios() {
         {relatorio && !loading && (
           <div className="space-y-6">
             {/* Header do Relatório */}
-            <div className="card bg-gradient-to-br from-primary to-secondary text-white print-header">
-              <div className="text-center">
-                <h2 className="text-3xl font-bold mb-2">
-                  {relatorio.loja?.nome || "Relatório"}
-                </h2>
-                {relatorio.loja?.endereco && (
-                  <p className="text-sm opacity-90 mb-3">
-                    📍 {relatorio.loja.endereco}
-                  </p>
-                )}
-                <p className="text-lg font-medium">
-                  Período:{" "}
-                  {new Date(relatorio.periodo.inicio).toLocaleDateString(
-                    "pt-BR"
-                  )}{" "}
-                  até{" "}
-                  {new Date(relatorio.periodo.fim).toLocaleDateString("pt-BR")}
-                </p>
-                <p className="text-sm opacity-90 mt-2">
-                  🎰 Total de Máquinas: {relatorio.maquinas?.length || 0}
-                </p>
-              </div>
-            </div>
 
             {/* Cards de Totais Gerais */}
             <div className="card bg-gradient-to-r from-purple-50 to-purple-100 border-2 border-purple-300">
@@ -233,7 +210,7 @@ export function Relatorios() {
                 <span className="text-3xl">📊</span>
                 Resumo Geral da Loja
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="card bg-gradient-to-br from-blue-500 to-blue-600 text-white">
                   <div className="text-3xl mb-2">🎫</div>
                   <div className="text-2xl font-bold">
@@ -272,6 +249,20 @@ export function Relatorios() {
                   <div className="text-sm opacity-90">
                     Total de Movimentações
                   </div>
+                </div>
+
+                <div className="card bg-gradient-to-br from-yellow-500 to-orange-600 text-white">
+                  <div className="text-3xl mb-2">💰</div>
+                  <div className="text-2xl font-bold">
+                    R${" "}
+                    {(() => {
+                      const totalFichas = relatorio.totais?.fichas || 0;
+                      const valorFicha =
+                        relatorio.loja?.valorFichaPadrao || 2.5;
+                      return (totalFichas * valorFicha).toFixed(2);
+                    })()}
+                  </div>
+                  <div className="text-sm opacity-90">Lucro Total da Loja</div>
                 </div>
               </div>
             </div>
@@ -326,7 +317,7 @@ export function Relatorios() {
                         <span className="text-2xl">📊</span>
                         Resumo de Movimentações desta Máquina
                       </h4>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                         <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-5 rounded-xl shadow-lg">
                           <div className="text-4xl mb-2 text-center">🎫</div>
                           <div className="text-3xl font-bold text-center">
@@ -365,6 +356,21 @@ export function Relatorios() {
                           </div>
                           <div className="text-sm text-center mt-2 opacity-90">
                             Movimentações
+                          </div>
+                        </div>
+                        <div className="bg-gradient-to-br from-yellow-500 to-orange-600 text-white p-5 rounded-xl shadow-lg">
+                          <div className="text-4xl mb-2 text-center">💰</div>
+                          <div className="text-3xl font-bold text-center">
+                            R${" "}
+                            {(() => {
+                              const fichas = maquina.totais.fichas || 0;
+                              const valorFicha =
+                                maquina.maquina.valorFicha || 2.5;
+                              return (fichas * valorFicha).toFixed(2);
+                            })()}
+                          </div>
+                          <div className="text-sm text-center mt-2 opacity-90">
+                            Lucro da Máquina
                           </div>
                         </div>
                       </div>
