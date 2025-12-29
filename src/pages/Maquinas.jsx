@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 import api from "../services/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
@@ -15,6 +16,7 @@ import { PageLoader, EmptyState } from "../components/Loading";
 
 export function Maquinas() {
   const navigate = useNavigate();
+  const { usuario } = useAuth();
   const [maquinas, setMaquinas] = useState([]);
   const [lojas, setLojas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -209,10 +211,14 @@ export function Maquinas() {
           title="Máquinas"
           subtitle="Gerencie as máquinas de pelúcia das lojas"
           icon="🎰"
-          action={{
-            label: "Nova Máquina",
-            onClick: () => navigate("/maquinas/nova"),
-          }}
+          action={
+            usuario?.role === "ADMIN"
+              ? {
+                  label: "Nova Máquina",
+                  onClick: () => navigate("/maquinas/nova"),
+                }
+              : undefined
+          }
         />
 
         {error && (
