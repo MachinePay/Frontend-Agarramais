@@ -38,6 +38,8 @@ export function Movimentacoes() {
     fichas: "",
     contadorIn: "",
     contadorOut: "",
+    quantidade_notas_entrada: "",
+    valor_entrada_maquininha_pix: "",
     observacao: "",
     retiradaEstoque: false,
   });
@@ -177,6 +179,12 @@ export function Movimentacoes() {
         fichas: fichas,
         contadorIn: parseInt(formData.contadorIn) || null,
         contadorOut: parseInt(formData.contadorOut) || null,
+        quantidade_notas_entrada: formData.quantidade_notas_entrada
+          ? parseFloat(formData.quantidade_notas_entrada)
+          : null,
+        valor_entrada_maquininha_pix: formData.valor_entrada_maquininha_pix
+          ? parseFloat(formData.valor_entrada_maquininha_pix)
+          : null,
         retiradaEstoque: formData.retiradaEstoque,
         contadorMaquina: null,
         observacoes: observacaoFinal || null,
@@ -623,6 +631,42 @@ export function Movimentacoes() {
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Fichas coletadas da máquina
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    💵 Valor em Notas (R$)
+                  </label>
+                  <input
+                    type="number"
+                    name="quantidade_notas_entrada"
+                    value={formData.quantidade_notas_entrada}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Valor total em dinheiro (notas) inserido na máquina
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    💳 Valor Digital (Pix/Maquininha) (R$)
+                  </label>
+                  <input
+                    type="number"
+                    name="valor_entrada_maquininha_pix"
+                    value={formData.valor_entrada_maquininha_pix}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Valor total recebido via pagamento digital (Pix/Maquininha)
                   </p>
                 </div>
               </div>
