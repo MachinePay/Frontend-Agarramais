@@ -28,6 +28,8 @@ export function Movimentacoes() {
   const [formEdicao, setFormEdicao] = useState({
     fichas: "",
     abastecidas: "",
+    quantidade_notas_entrada: "",
+    valor_entrada_maquininha_pix: "",
   });
 
   const [formData, setFormData] = useState({
@@ -234,12 +236,20 @@ export function Movimentacoes() {
     setFormEdicao({
       fichas: movimentacao.fichas || 0,
       abastecidas: movimentacao.abastecidas || 0,
+      quantidade_notas_entrada: movimentacao.quantidade_notas_entrada || "",
+      valor_entrada_maquininha_pix:
+        movimentacao.valor_entrada_maquininha_pix || "",
     });
   };
 
   const cancelarEdicao = () => {
     setEditandoMovimentacao(null);
-    setFormEdicao({ fichas: "", abastecidas: "" });
+    setFormEdicao({
+      fichas: "",
+      abastecidas: "",
+      quantidade_notas_entrada: "",
+      valor_entrada_maquininha_pix: "",
+    });
   };
 
   const salvarEdicao = async () => {
@@ -247,6 +257,14 @@ export function Movimentacoes() {
       await api.put(`/movimentacoes/${editandoMovimentacao.id}`, {
         fichas: parseInt(formEdicao.fichas) || 0,
         abastecidas: parseInt(formEdicao.abastecidas) || 0,
+        quantidade_notas_entrada:
+          formEdicao.quantidade_notas_entrada !== ""
+            ? parseFloat(formEdicao.quantidade_notas_entrada)
+            : null,
+        valor_entrada_maquininha_pix:
+          formEdicao.valor_entrada_maquininha_pix !== ""
+            ? parseFloat(formEdicao.valor_entrada_maquininha_pix)
+            : null,
       });
       setSuccess("Movimentação atualizada com sucesso!");
       cancelarEdicao();
@@ -983,6 +1001,43 @@ export function Movimentacoes() {
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  💵 Quantidade de Notas
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formEdicao.quantidade_notas_entrada}
+                  onChange={(e) =>
+                    setFormEdicao({
+                      ...formEdicao,
+                      quantidade_notas_entrada: e.target.value,
+                    })
+                  }
+                  className="input-field"
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  💳 Valor Digital (Pix/Maquininha) (R$)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formEdicao.valor_entrada_maquininha_pix}
+                  onChange={(e) =>
+                    setFormEdicao({
+                      ...formEdicao,
+                      valor_entrada_maquininha_pix: e.target.value,
+                    })
+                  }
+                  className="input-field"
+                  placeholder="0.00"
+                />
+              </div>
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={cancelarEdicao}
