@@ -327,17 +327,30 @@ export function Dashboard() {
   };
 
   const abrirEdicaoEstoque = (loja) => {
+    // Criar um mapa dos produtos já cadastrados no estoque
+    const estoqueMap = new Map(
+      loja.estoque.map((item) => [item.produtoId, item])
+    );
+
+    // Criar lista completa com todos os produtos do sistema
+    const estoqueTodos = produtos.map((produto) => {
+      const itemExistente = estoqueMap.get(produto.id);
+      return {
+        id: itemExistente?.id || null, // null para produtos novos
+        produtoId: produto.id,
+        produtoNome: produto.nome,
+        produtoEmoji: produto.emoji,
+        produtoCodigo: produto.codigo,
+        quantidade: itemExistente?.quantidade || 0,
+        estoqueMinimo: itemExistente?.estoqueMinimo || 0,
+        ativo: itemExistente ? true : false, // só ativo se já existe no estoque
+      };
+    });
+
     setEstoqueEditando({
       lojaId: loja.id,
       lojaNome: loja.nome,
-      estoque: loja.estoque.map((item) => ({
-        id: item.id,
-        produtoId: item.produtoId,
-        produtoNome: item.produto.nome,
-        produtoEmoji: item.produto.emoji,
-        quantidade: item.quantidade,
-        estoqueMinimo: item.estoqueMinimo,
-      })),
+      estoque: estoqueTodos,
     });
   };
 
@@ -345,25 +358,41 @@ export function Dashboard() {
     setEstoqueEditando(null);
   };
 
-  const atualizarQuantidadeEstoque = (itemId, novaQuantidade) => {
+  const atualizarQuantidadeEstoque = (produtoId, novaQuantidade) => {
     setEstoqueEditando((prev) => ({
       ...prev,
       estoque: prev.estoque.map((item) =>
-        item.id === itemId
+        item.produtoId === produtoId
           ? { ...item, quantidade: parseInt(novaQuantidade) || 0 }
           : item
       ),
     }));
   };
 
-  const atualizarEstoqueMinimoEstoque = (itemId, novoMinimo) => {
+  const atualizarEstoqueMinimoEstoque = (produtoId, novoMinimo) => {
     setEstoqueEditando((prev) => ({
       ...prev,
       estoque: prev.estoque.map((item) =>
-        item.id === itemId
+        item.produtoId === produtoId
           ? { ...item, estoqueMinimo: parseInt(novoMinimo) || 0 }
           : item
       ),
+    }));
+  };
+
+  const toggleProdutoAtivo = (produtoId) => {
+    setEstoqueEditando((prev) => ({
+      ...prev,
+      estoque: prev.estoque.map((item) =>
+        item.produtoId === produtoId ? { ...item, ativo: !item.ativo } : item
+      ),
+    }));
+  };
+
+  const marcarTodosProdutos = (ativo) => {
+    setEstoqueEditando((prev) => ({
+      ...prev,
+      estoque: prev.estoque.map((item) => ({ ...item, ativo })),
     }));
   };
 
@@ -371,36 +400,60 @@ export function Dashboard() {
     try {
       setSalvandoEstoque(true);
 
-      // Validar se os produtos existem antes de salvar
-      const produtosValidos = estoqueEditando.estoque.filter((item) => {
-        const produtoExiste = produtos.some((p) => p.id === item.produtoId);
-        if (!produtoExiste) {
-          console.warn(
-            `⚠️ Produto ${item.produtoId} não existe mais, ignorando...`
-          );
-        }
-        return produtoExiste;
-      });
-
-      console.log(
-        `📊 Salvando ${produtosValidos.length} produtos válidos (incluindo quantidades zeradas)`
+      // Filtrar apenas produtos ativos (marcados para aparecer)
+      const produtosAtivos = estoqueEditando.estoque.filter(
+        (item) => item.ativo
       );
 
-      // Sempre usar POST que faz findOrCreate automaticamente
-      for (const item of produtosValidos) {
+      console.log(
+        `📊 Salvando ${produtosAtivos.length} produtos ativos no estoque`
+      );
+
+      // Salvar produtos ativos
+      for (const item of produtosAtivos) {
         try {
-          // POST /estoque-lojas/:lojaId cria ou atualiza usando findOrCreate
-          await api.post(`/estoque-lojas/${estoqueEditando.lojaId}`, {
-            produtoId: item.produtoId,
-            quantidade: item.quantidade || 0,
-            estoqueMinimo: item.estoqueMinimo || 0,
-          });
+          // Se o item já tem ID, usar PUT para atualizar
+          // Se não tem ID, usar POST para criar
+          if (item.id) {
+            console.log(
+              `✏️ Atualizando produto ${item.produtoNome} (ID: ${item.id})`
+            );
+            await api.put(`/estoque-lojas/${item.id}`, {
+              quantidade: item.quantidade || 0,
+              estoqueMinimo: item.estoqueMinimo || 0,
+            });
+          } else {
+            console.log(
+              `➕ Criando novo produto ${item.produtoNome} no estoque`
+            );
+            await api.post(`/estoque-lojas/${estoqueEditando.lojaId}`, {
+              produtoId: item.produtoId,
+              quantidade: item.quantidade || 0,
+              estoqueMinimo: item.estoqueMinimo || 0,
+            });
+          }
         } catch (itemError) {
           console.error(
             `❌ Erro ao salvar produto ${item.produtoId}:`,
             itemError.response?.data || itemError.message
           );
-          // Continuar com os próximos itens mesmo se um falhar
+        }
+      }
+
+      // Remover produtos que foram desmarcados (se tinham id)
+      const produtosInativos = estoqueEditando.estoque.filter(
+        (item) => !item.ativo && item.id
+      );
+
+      for (const item of produtosInativos) {
+        try {
+          await api.delete(`/estoque-lojas/${item.id}`);
+          console.log(`🗑️ Removido produto ${item.produtoNome} do estoque`);
+        } catch (deleteError) {
+          console.error(
+            `❌ Erro ao remover produto ${item.produtoId}:`,
+            deleteError.response?.data || deleteError.message
+          );
         }
       }
 
@@ -1810,69 +1863,234 @@ export function Dashboard() {
 
             {/* Conteúdo do Modal */}
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+              {/* Informações e Filtros */}
+              <div className="mb-6 p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">💡</span>
+                  <div className="flex-1">
+                    <p className="text-sm text-blue-900 font-semibold mb-2">
+                      Como usar este painel:
+                    </p>
+                    <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+                      <li>
+                        Use o <strong>checkbox</strong> para selecionar quais
+                        produtos aparecerão no estoque desta loja
+                      </li>
+                      <li>
+                        Produtos com estoque <strong>abaixo do mínimo</strong>{" "}
+                        aparecem com{" "}
+                        <span className="text-red-600">fundo vermelho</span>
+                      </li>
+                      <li>
+                        Edite as quantidades e configure alertas de estoque
+                        mínimo
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Botões de Ação Rápida */}
+              <div className="mb-6 flex gap-3">
+                <button
+                  onClick={() => marcarTodosProdutos(true)}
+                  className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-semibold text-sm flex items-center justify-center gap-2"
+                  disabled={salvandoEstoque}
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                  Marcar Todos
+                </button>
+                <button
+                  onClick={() => marcarTodosProdutos(false)}
+                  className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-semibold text-sm flex items-center justify-center gap-2"
+                  disabled={salvandoEstoque}
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                  Desmarcar Todos
+                </button>
+              </div>
+
+              {/* Estatísticas */}
+              <div className="mb-6 grid grid-cols-2 gap-4">
+                <div className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg border-2 border-green-200">
+                  <p className="text-sm text-green-700 font-semibold mb-1">
+                    ✅ Produtos Ativos
+                  </p>
+                  <p className="text-3xl font-bold text-green-600">
+                    {estoqueEditando.estoque.filter((i) => i.ativo).length}
+                  </p>
+                </div>
+                <div className="p-4 bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg border-2 border-orange-200">
+                  <p className="text-sm text-orange-700 font-semibold mb-1">
+                    ⚠️ Abaixo do Mínimo
+                  </p>
+                  <p className="text-3xl font-bold text-orange-600">
+                    {
+                      estoqueEditando.estoque.filter(
+                        (i) =>
+                          i.ativo &&
+                          i.quantidade < i.estoqueMinimo &&
+                          i.estoqueMinimo > 0
+                      ).length
+                    }
+                  </p>
+                </div>
+              </div>
+
+              {/* Lista de Produtos */}
               {estoqueEditando.estoque.length > 0 ? (
-                <div className="space-y-4">
-                  {estoqueEditando.estoque.map((item) => (
-                    <div
-                      key={item.id}
-                      className="border-2 border-gray-200 rounded-xl p-4 hover:border-primary/30 transition-colors"
-                    >
-                      <div className="flex items-start gap-4">
-                        <span className="text-4xl">
-                          {item.produtoEmoji || "📦"}
-                        </span>
-                        <div className="flex-1">
-                          <h4 className="font-bold text-gray-900 text-lg mb-4">
-                            {item.produtoNome}
-                          </h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                Quantidade Atual
-                              </label>
-                              <input
-                                type="number"
-                                min="0"
-                                value={item.quantidade}
-                                onChange={(e) =>
-                                  atualizarQuantidadeEstoque(
-                                    item.id,
-                                    e.target.value
-                                  )
-                                }
-                                className="input-primary w-full text-lg font-bold"
-                                disabled={salvandoEstoque}
-                              />
+                <div className="space-y-3">
+                  {estoqueEditando.estoque.map((item) => {
+                    const abaixoDoMinimo =
+                      item.ativo &&
+                      item.estoqueMinimo > 0 &&
+                      item.quantidade < item.estoqueMinimo;
+
+                    return (
+                      <div
+                        key={item.produtoId}
+                        className={`border-2 rounded-xl p-4 transition-all ${
+                          abaixoDoMinimo
+                            ? "bg-red-50 border-red-300 shadow-md"
+                            : item.ativo
+                            ? "bg-white border-gray-200 hover:border-primary/30"
+                            : "bg-gray-50 border-gray-200 opacity-60"
+                        }`}
+                      >
+                        <div className="flex items-start gap-4">
+                          {/* Checkbox para ativar/desativar */}
+                          <div className="flex items-center pt-2">
+                            <input
+                              type="checkbox"
+                              checked={item.ativo}
+                              onChange={() =>
+                                toggleProdutoAtivo(item.produtoId)
+                              }
+                              className="w-6 h-6 text-primary rounded focus:ring-2 focus:ring-primary cursor-pointer"
+                              disabled={salvandoEstoque}
+                            />
+                          </div>
+
+                          <span className="text-4xl">
+                            {item.produtoEmoji || "📦"}
+                          </span>
+
+                          <div className="flex-1">
+                            <div className="flex items-start justify-between mb-3">
+                              <div>
+                                <h4 className="font-bold text-gray-900 text-lg">
+                                  {item.produtoNome}
+                                </h4>
+                                {item.produtoCodigo && (
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Cód: {item.produtoCodigo}
+                                  </p>
+                                )}
+                              </div>
+                              {abaixoDoMinimo && (
+                                <span className="px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse">
+                                  ⚠️ ESTOQUE BAIXO
+                                </span>
+                              )}
                             </div>
-                            <div>
-                              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                Estoque Mínimo
-                              </label>
-                              <input
-                                type="number"
-                                min="0"
-                                value={item.estoqueMinimo}
-                                onChange={(e) =>
-                                  atualizarEstoqueMinimoEstoque(
-                                    item.id,
-                                    e.target.value
-                                  )
-                                }
-                                className="input-primary w-full"
-                                disabled={salvandoEstoque}
-                              />
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                  Quantidade Atual
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={item.quantidade}
+                                  onChange={(e) =>
+                                    atualizarQuantidadeEstoque(
+                                      item.produtoId,
+                                      e.target.value
+                                    )
+                                  }
+                                  className={`input-primary w-full text-lg font-bold ${
+                                    abaixoDoMinimo
+                                      ? "border-red-400 bg-red-50"
+                                      : ""
+                                  }`}
+                                  disabled={salvandoEstoque || !item.ativo}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                  Estoque Mínimo
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={item.estoqueMinimo}
+                                  onChange={(e) =>
+                                    atualizarEstoqueMinimoEstoque(
+                                      item.produtoId,
+                                      e.target.value
+                                    )
+                                  }
+                                  className="input-primary w-full"
+                                  disabled={salvandoEstoque || !item.ativo}
+                                />
+                              </div>
                             </div>
+
+                            {!item.ativo && (
+                              <div className="mt-3 p-2 bg-gray-100 rounded-lg">
+                                <p className="text-xs text-gray-600 flex items-center gap-2">
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                  Este produto não aparecerá no estoque. Marque
+                                  o checkbox para ativá-lo.
+                                </p>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-12">
                   <p className="text-5xl mb-3">📭</p>
                   <p className="text-gray-500 font-medium">
-                    Nenhum produto no estoque desta loja
+                    Nenhum produto cadastrado no sistema
                   </p>
                 </div>
               )}
