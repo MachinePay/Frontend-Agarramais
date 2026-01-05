@@ -1014,7 +1014,6 @@ export function Dashboard() {
                                 </div>
                               );
                             })}
-                          ))}
                         </div>
                       ) : (
                         <div className="text-center py-12">
