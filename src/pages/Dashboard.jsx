@@ -1332,7 +1332,7 @@ export function Dashboard() {
                             e.stopPropagation();
                             abrirEdicaoEstoque(loja);
                           }}
-                          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium text-sm flex items-center gap-2"
+                          className="px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/90 transition-colors font-medium text-sm flex items-center gap-2"
                         >
                           ✏️ Editar Estoque
                         </button>
@@ -2491,12 +2491,12 @@ export function Dashboard() {
                     return (
                       <div
                         key={item.produtoId}
-                        className={`border-2 rounded-xl p-4 transition-all ${
+                        className={`border-2 border-black rounded-xl p-4 transition-all ${
                           abaixoDoMinimo
-                            ? "bg-red-50 border-red-300 shadow-md"
+                            ? "bg-red-50 shadow-md"
                             : item.ativo
-                            ? "bg-white border-gray-200 hover:border-primary/30"
-                            : "bg-gray-50 border-gray-200 opacity-60"
+                            ? "bg-white hover:border-primary/30"
+                            : "bg-gray-50 opacity-60"
                         }`}
                       >
                         <div className="flex items-start gap-4">
@@ -2551,7 +2551,7 @@ export function Dashboard() {
                                       e.target.value
                                     )
                                   }
-                                  className={`input-primary w-full text-lg font-bold ${
+                                  className={`input-primary w-full text-lg font-bold border border-black ${
                                     abaixoDoMinimo
                                       ? "border-red-400 bg-red-50"
                                       : ""
@@ -2573,7 +2573,7 @@ export function Dashboard() {
                                       e.target.value
                                     )
                                   }
-                                  className="input-primary w-full"
+                                  className="input-primary w-full border border-black"
                                   disabled={salvandoEstoque || !item.ativo}
                                 />
                               </div>
@@ -2625,12 +2625,12 @@ export function Dashboard() {
               </button>
               <button
                 onClick={salvarEstoque}
-                className="px-6 py-3 bg-gradient-to-r from-primary to-accent-yellow text-white rounded-lg font-semibold hover:shadow-lg transition-all flex items-center gap-2"
+                className="px-6 py-3 bg-gradient-to-r from-primary to-accent-yellow text-black rounded-lg font-semibold hover:shadow-lg transition-all flex items-center gap-2"
                 disabled={salvandoEstoque}
               >
                 {salvandoEstoque ? (
                   <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black"></div>
                     Salvando...
                   </>
                 ) : (
