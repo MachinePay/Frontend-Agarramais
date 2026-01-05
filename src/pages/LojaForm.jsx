@@ -183,30 +183,35 @@ export function LojaForm() {
       setSalvandoEstoque(true);
       setError("");
 
-      // Filtrar apenas itens com quantidade ou estoque mínimo > 0
-      const itensParaSalvar = estoque.filter(
-        (item) => item.quantidade > 0 || item.estoqueMinimo > 0
+      // Validar se os produtos existem antes de salvar
+      const produtosValidos = estoque.filter((item) => {
+        const produtoExiste = produtos.some((p) => p.id === item.produtoId);
+        if (!produtoExiste) {
+          console.warn(
+            `⚠️ Produto ${item.produtoId} não existe mais, ignorando...`
+          );
+        }
+        return produtoExiste;
+      });
+
+      console.log(
+        `📊 Salvando ${produtosValidos.length} produtos válidos (incluindo quantidades zeradas)`
       );
 
-      // Atualizar ou criar cada item individualmente
-      for (const item of itensParaSalvar) {
+      // Sempre usar POST que faz findOrCreate automaticamente
+      for (const item of produtosValidos) {
         try {
-          if (item.id) {
-            // Atualizar item existente
-            await api.put(`/estoque-lojas/${id}/${item.id}`, {
-              quantidade: item.quantidade || 0,
-              estoqueMinimo: item.estoqueMinimo || 0,
-            });
-          } else {
-            // Criar novo item
-            await api.post(`/estoque-lojas/${id}`, {
-              produtoId: item.produtoId,
-              quantidade: item.quantidade || 0,
-              estoqueMinimo: item.estoqueMinimo || 0,
-            });
-          }
+          // POST /estoque-lojas/:lojaId cria ou atualiza usando findOrCreate
+          await api.post(`/estoque-lojas/${id}`, {
+            produtoId: item.produtoId,
+            quantidade: item.quantidade || 0,
+            estoqueMinimo: item.estoqueMinimo || 0,
+          });
         } catch (itemError) {
-          console.error(`Erro ao salvar produto ${item.produtoId}:`, itemError);
+          console.error(
+            `❌ Erro ao salvar produto ${item.produtoId}:`,
+            itemError.response?.data || itemError.message
+          );
           // Continuar com os próximos itens mesmo se um falhar
         }
       }

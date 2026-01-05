@@ -19,6 +19,7 @@ export function Dashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [lojas, setLojas] = useState([]);
   const [maquinas, setMaquinas] = useState([]);
+  const [produtos, setProdutos] = useState([]);
   const [movimentacoes, setMovimentacoes] = useState([]);
   const [lojaSelecionada, setLojaSelecionada] = useState(null);
   const [maquinaSelecionada, setMaquinaSelecionada] = useState(null);
@@ -56,6 +57,10 @@ export function Dashboard() {
           console.error("Erro ao carregar máquinas:", err.message);
           return { data: [] };
         }),
+        api.get("/produtos").catch((err) => {
+          console.error("Erro ao carregar produtos:", err.message);
+          return { data: [] };
+        }),
       ];
 
       // Adicionar requisições de relatórios apenas para ADMIN
@@ -74,18 +79,20 @@ export function Dashboard() {
 
       const resultados = await Promise.all(requisicoes);
 
-      let alertasRes, balancoRes, lojasRes, maquinasRes;
+      let alertasRes, balancoRes, lojasRes, maquinasRes, produtosRes;
 
       if (isAdmin) {
-        [alertasRes, balancoRes, lojasRes, maquinasRes] = resultados;
+        [alertasRes, balancoRes, lojasRes, maquinasRes, produtosRes] =
+          resultados;
       } else {
-        [lojasRes, maquinasRes] = resultados;
+        [lojasRes, maquinasRes, produtosRes] = resultados;
         alertasRes = { data: { alertas: [] } };
         balancoRes = { data: null };
       }
 
       console.log("Lojas carregadas:", lojasRes.data);
       console.log("Máquinas carregadas:", maquinasRes.data);
+      console.log("Produtos carregados:", produtosRes.data);
       if (isAdmin) {
         console.log("Balanço semanal:", balancoRes.data);
         console.log("Estrutura completa de totais:", balancoRes.data?.totais);
@@ -103,6 +110,7 @@ export function Dashboard() {
       });
       setLojas(lojasRes.data || []);
       setMaquinas(maquinasRes.data || []);
+      setProdutos(produtosRes.data || []);
 
       // Carregar alertas de estoque de lojas (para todos os usuários)
       if (lojasRes.data && lojasRes.data.length > 0) {
@@ -363,28 +371,35 @@ export function Dashboard() {
     try {
       setSalvandoEstoque(true);
 
-      // Atualizar ou criar cada item individualmente
-      for (const item of estoqueEditando.estoque) {
+      // Validar se os produtos existem antes de salvar
+      const produtosValidos = estoqueEditando.estoque.filter((item) => {
+        const produtoExiste = produtos.some((p) => p.id === item.produtoId);
+        if (!produtoExiste) {
+          console.warn(
+            `⚠️ Produto ${item.produtoId} não existe mais, ignorando...`
+          );
+        }
+        return produtoExiste;
+      });
+
+      console.log(
+        `📊 Salvando ${produtosValidos.length} produtos válidos (incluindo quantidades zeradas)`
+      );
+
+      // Sempre usar POST que faz findOrCreate automaticamente
+      for (const item of produtosValidos) {
         try {
-          if (item.id) {
-            // Atualizar item existente
-            await api.put(
-              `/estoque-lojas/${estoqueEditando.lojaId}/${item.id}`,
-              {
-                quantidade: item.quantidade || 0,
-                estoqueMinimo: item.estoqueMinimo || 0,
-              }
-            );
-          } else {
-            // Criar novo item
-            await api.post(`/estoque-lojas/${estoqueEditando.lojaId}`, {
-              produtoId: item.produtoId,
-              quantidade: item.quantidade || 0,
-              estoqueMinimo: item.estoqueMinimo || 0,
-            });
-          }
+          // POST /estoque-lojas/:lojaId cria ou atualiza usando findOrCreate
+          await api.post(`/estoque-lojas/${estoqueEditando.lojaId}`, {
+            produtoId: item.produtoId,
+            quantidade: item.quantidade || 0,
+            estoqueMinimo: item.estoqueMinimo || 0,
+          });
         } catch (itemError) {
-          console.error(`Erro ao salvar produto ${item.produtoId}:`, itemError);
+          console.error(
+            `❌ Erro ao salvar produto ${item.produtoId}:`,
+            itemError.response?.data || itemError.message
+          );
           // Continuar com os próximos itens mesmo se um falhar
         }
       }

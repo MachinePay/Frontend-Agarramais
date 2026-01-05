@@ -104,11 +104,23 @@ export function Movimentacoes() {
 
   const buscarEstoqueAtual = async (maquinaId) => {
     try {
+      console.log("🔍 [Frontend] Buscando estoque para máquina:", maquinaId);
+
       const estoqueRes = await api.get(`/maquinas/${maquinaId}/estoque`);
+
+      console.log(
+        "📦 [Frontend] Resposta completa do backend:",
+        estoqueRes.data
+      );
+
       const estoqueAtual = estoqueRes.data.estoqueAtual || 0;
+
+      console.log("✅ [Frontend] Estoque definido:", estoqueAtual);
+
       setEstoqueAnterior(estoqueAtual);
     } catch (error) {
-      console.error("Erro ao buscar estoque:", error);
+      console.error("❌ [Frontend] Erro ao buscar estoque:", error);
+      console.error("Detalhes do erro:", error.response?.data);
       setEstoqueAnterior(0);
     }
   };
@@ -152,15 +164,27 @@ export function Movimentacoes() {
       // novoEstoque = quantidadeAtual + quantidadeAdicionada
 
       const quantidadeSaiu = Math.max(0, estoqueAnterior - quantidadeAtual);
+      const novoEstoque = quantidadeAtual + quantidadeAdicionada;
 
-      console.log("Cálculos da movimentação:");
-      console.log("- Estoque anterior:", estoqueAnterior);
-      console.log("- Quantidade atual informada:", quantidadeAtual);
-      console.log("- Quantidade adicionada:", quantidadeAdicionada);
-      console.log("- Calculado que saiu:", quantidadeSaiu);
+      console.log("📊 [handleSubmit] Cálculos da movimentação:");
+      console.log("  📌 Estoque anterior (totalPre):", estoqueAnterior);
+      console.log("  📌 Quantidade atual informada:", quantidadeAtual);
       console.log(
-        "- Novo estoque (atual + adicionada):",
-        quantidadeAtual + quantidadeAdicionada
+        "  📌 Quantidade adicionada (abastecidas):",
+        quantidadeAdicionada
+      );
+      console.log("  📌 Calculado que saiu (sairam):", quantidadeSaiu);
+      console.log("  📌 Novo estoque (totalPos):", novoEstoque);
+      console.log("  🧮 Fórmula: totalPos = totalPre - sairam + abastecidas");
+      console.log(
+        "  🧮 Verificação:",
+        estoqueAnterior,
+        "-",
+        quantidadeSaiu,
+        "+",
+        quantidadeAdicionada,
+        "=",
+        novoEstoque
       );
 
       // Preparar observação - se for retirada de estoque, adicionar nota automática
@@ -200,11 +224,21 @@ export function Movimentacoes() {
       };
 
       console.log(
-        "Dados da movimentação enviados:",
+        "📤 [handleSubmit] Dados da movimentação enviados:",
         JSON.stringify(data, null, 2)
       );
 
-      await api.post("/movimentacoes", data);
+      const response = await api.post("/movimentacoes", data);
+
+      console.log(
+        "✅ [handleSubmit] Movimentação criada com sucesso:",
+        response.data
+      );
+      console.log(
+        "  📊 Verifique se totalPos está correto:",
+        response.data.totalPos
+      );
+
       setSuccess("Movimentação registrada com sucesso!");
       setFormData({
         maquina_id: "",
@@ -222,7 +256,13 @@ export function Movimentacoes() {
       setShowForm(false);
       carregarDados();
     } catch (error) {
-      console.error("Erro ao registrar movimentação:", error);
+      console.error("❌ [handleSubmit] Erro ao registrar movimentação:", error);
+      console.error("  📋 Detalhes do erro:", {
+        mensagem: error.message,
+        status: error.response?.status,
+        dados: error.response?.data,
+        config: error.config,
+      });
       setError(
         error.response?.data?.error ||
           error.response?.data?.message ||
