@@ -396,6 +396,416 @@ export function Dashboard() {
     }));
   };
 
+  // Função para imprimir relatório individual de uma loja
+  const imprimirRelatorioLoja = (loja) => {
+    const itensParaComprar = loja.estoque.filter(
+      (item) => item.quantidade < item.estoqueMinimo
+    );
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Relatório de Estoque - ${loja.nome}</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              padding: 20px;
+              max-width: 800px;
+              margin: 0 auto;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
+              border-bottom: 3px solid #FF69B4;
+              padding-bottom: 20px;
+            }
+            .header h1 {
+              color: #FF69B4;
+              margin: 0;
+              font-size: 28px;
+            }
+            .header p {
+              color: #666;
+              margin: 5px 0;
+            }
+            .info-box {
+              background: #f8f9fa;
+              padding: 15px;
+              border-radius: 8px;
+              margin-bottom: 20px;
+            }
+            .section-title {
+              color: #333;
+              font-size: 20px;
+              margin: 25px 0 15px 0;
+              padding-bottom: 8px;
+              border-bottom: 2px solid #ddd;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 20px;
+            }
+            th {
+              background: #FF69B4;
+              color: white;
+              padding: 12px;
+              text-align: left;
+              font-weight: bold;
+            }
+            td {
+              padding: 10px 12px;
+              border-bottom: 1px solid #ddd;
+            }
+            tr:nth-child(even) {
+              background: #f8f9fa;
+            }
+            .alerta {
+              background: #fee;
+              color: #c00;
+              font-weight: bold;
+            }
+            .footer {
+              margin-top: 30px;
+              text-align: center;
+              color: #666;
+              font-size: 12px;
+              border-top: 1px solid #ddd;
+              padding-top: 15px;
+            }
+            @media print {
+              body { padding: 10px; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>📦 Relatório de Estoque</h1>
+            <p><strong>Loja:</strong> ${loja.nome}</p>
+            <p><strong>Endereço:</strong> ${
+              loja.endereco || "Não informado"
+            }</p>
+            <p><strong>Data:</strong> ${new Date().toLocaleDateString(
+              "pt-BR"
+            )} às ${new Date().toLocaleTimeString("pt-BR")}</p>
+          </div>
+
+          <div class="info-box">
+            <p><strong>Total de Produtos:</strong> ${loja.totalProdutos}</p>
+            <p><strong>Total de Unidades:</strong> ${loja.totalUnidades}</p>
+            <p><strong>Produtos Abaixo do Mínimo:</strong> ${
+              itensParaComprar.length
+            }</p>
+          </div>
+
+          <h2 class="section-title">📋 Estoque Atual</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Produto</th>
+                <th>Código</th>
+                <th>Qtd Atual</th>
+                <th>Qtd Mínima</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${loja.estoque
+                .map((item) => {
+                  const abaixo = item.quantidade < item.estoqueMinimo;
+                  return `
+                    <tr ${abaixo ? 'class="alerta"' : ""}>
+                      <td>${item.produto.emoji || "📦"} ${
+                    item.produto.nome
+                  }</td>
+                      <td>${item.produto.codigo || "-"}</td>
+                      <td>${item.quantidade}</td>
+                      <td>${item.estoqueMinimo}</td>
+                      <td>${abaixo ? "⚠️ ABAIXO DO MÍNIMO" : "✅ OK"}</td>
+                    </tr>
+                  `;
+                })
+                .join("")}
+            </tbody>
+          </table>
+
+          ${
+            itensParaComprar.length > 0
+              ? `
+            <h2 class="section-title">🛒 Produtos para Comprar</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Produto</th>
+                  <th>Qtd Atual</th>
+                  <th>Qtd Mínima</th>
+                  <th>Quantidade Sugerida</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itensParaComprar
+                  .map((item) => {
+                    const sugestao = item.estoqueMinimo - item.quantidade;
+                    return `
+                      <tr>
+                        <td>${item.produto.emoji || "📦"} ${
+                      item.produto.nome
+                    }</td>
+                        <td>${item.quantidade}</td>
+                        <td>${item.estoqueMinimo}</td>
+                        <td><strong>${sugestao} unidades</strong></td>
+                      </tr>
+                    `;
+                  })
+                  .join("")}
+              </tbody>
+            </table>
+          `
+              : '<p style="text-align: center; color: #28a745; font-size: 18px; padding: 20px;">✅ Todos os produtos estão com estoque adequado!</p>'
+          }
+
+          <div class="footer">
+            <p>Relatório gerado automaticamente pelo Sistema AgarraMais</p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const printWindow = window.open("", "_blank");
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  };
+
+  // Função para imprimir relatório consolidado de todas as lojas
+  const imprimirRelatorioConsolidado = () => {
+    // Consolidar necessidades por produto
+    const necessidadesPorProduto = {};
+
+    lojasComEstoque.forEach((loja) => {
+      loja.estoque.forEach((item) => {
+        const falta = item.estoqueMinimo - item.quantidade;
+        if (falta > 0) {
+          if (!necessidadesPorProduto[item.produtoId]) {
+            necessidadesPorProduto[item.produtoId] = {
+              produto: item.produto,
+              totalNecessario: 0,
+              lojas: [],
+            };
+          }
+          necessidadesPorProduto[item.produtoId].totalNecessario += falta;
+          necessidadesPorProduto[item.produtoId].lojas.push({
+            loja: loja.nome,
+            atual: item.quantidade,
+            minimo: item.estoqueMinimo,
+            necessario: falta,
+          });
+        }
+      });
+    });
+
+    const produtosNecessarios = Object.values(necessidadesPorProduto);
+    const totalItensComprar = produtosNecessarios.reduce(
+      (acc, p) => acc + p.totalNecessario,
+      0
+    );
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Relatório Consolidado de Compras</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              padding: 20px;
+              max-width: 1000px;
+              margin: 0 auto;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
+              border-bottom: 3px solid #FF69B4;
+              padding-bottom: 20px;
+            }
+            .header h1 {
+              color: #FF69B4;
+              margin: 0;
+              font-size: 28px;
+            }
+            .info-box {
+              background: #f8f9fa;
+              padding: 15px;
+              border-radius: 8px;
+              margin-bottom: 20px;
+              text-align: center;
+            }
+            .info-box h3 {
+              margin: 0;
+              color: #333;
+              font-size: 24px;
+            }
+            .section-title {
+              color: #333;
+              font-size: 20px;
+              margin: 25px 0 15px 0;
+              padding-bottom: 8px;
+              border-bottom: 2px solid #ddd;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 20px;
+            }
+            th {
+              background: #FF69B4;
+              color: white;
+              padding: 12px;
+              text-align: left;
+              font-weight: bold;
+            }
+            td {
+              padding: 10px 12px;
+              border-bottom: 1px solid #ddd;
+            }
+            tr:nth-child(even) {
+              background: #f8f9fa;
+            }
+            .sub-table {
+              margin: 10px 0;
+              background: #fff;
+            }
+            .sub-table th {
+              background: #ffd1dc;
+              color: #333;
+              font-size: 13px;
+            }
+            .sub-table td {
+              font-size: 13px;
+              padding: 8px;
+            }
+            .total-row {
+              background: #ffe4e1 !important;
+              font-weight: bold;
+            }
+            .footer {
+              margin-top: 30px;
+              text-align: center;
+              color: #666;
+              font-size: 12px;
+              border-top: 1px solid #ddd;
+              padding-top: 15px;
+            }
+            @media print {
+              body { padding: 10px; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>🛒 Relatório Consolidado de Compras</h1>
+            <p><strong>Data:</strong> ${new Date().toLocaleDateString(
+              "pt-BR"
+            )} às ${new Date().toLocaleTimeString("pt-BR")}</p>
+          </div>
+
+          <div class="info-box">
+            <h3>📦 Total de Unidades a Comprar: ${totalItensComprar}</h3>
+            <p><strong>Tipos de Produtos:</strong> ${
+              produtosNecessarios.length
+            }</p>
+            <p><strong>Lojas Atendidas:</strong> ${lojasComEstoque.length}</p>
+          </div>
+
+          ${
+            produtosNecessarios.length > 0
+              ? `
+            <h2 class="section-title">📋 Lista de Compras por Produto</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Produto</th>
+                  <th>Total a Comprar</th>
+                  <th>Distribuição por Loja</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${produtosNecessarios
+                  .map(
+                    (item) => `
+                      <tr>
+                        <td>
+                          <strong>${item.produto.emoji || "📦"} ${
+                      item.produto.nome
+                    }</strong><br>
+                          <small>Cód: ${item.produto.codigo || "-"}</small>
+                        </td>
+                        <td style="font-size: 18px; font-weight: bold; color: #FF69B4;">
+                          ${item.totalNecessario} unidades
+                        </td>
+                        <td>
+                          <table class="sub-table" style="width: 100%;">
+                            <thead>
+                              <tr>
+                                <th>Loja</th>
+                                <th>Atual</th>
+                                <th>Mínimo</th>
+                                <th>Enviar</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              ${item.lojas
+                                .map(
+                                  (l) => `
+                                  <tr>
+                                    <td>${l.loja}</td>
+                                    <td>${l.atual}</td>
+                                    <td>${l.minimo}</td>
+                                    <td><strong>${l.necessario}</strong></td>
+                                  </tr>
+                                `
+                                )
+                                .join("")}
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                    `
+                  )
+                  .join("")}
+                <tr class="total-row">
+                  <td colspan="2"><strong>TOTAL GERAL A COMPRAR:</strong></td>
+                  <td style="font-size: 20px; color: #FF69B4;"><strong>${totalItensComprar} unidades</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          `
+              : '<p style="text-align: center; color: #28a745; font-size: 18px; padding: 20px;">✅ Todas as lojas estão com estoque adequado!</p>'
+          }
+
+          <div class="footer">
+            <p>Relatório gerado automaticamente pelo Sistema AgarraMais</p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const printWindow = window.open("", "_blank");
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  };
+
   const salvarEstoque = async () => {
     try {
       setSalvandoEstoque(true);
@@ -832,9 +1242,30 @@ export function Dashboard() {
                   Visualização rápida do estoque em cada loja
                 </p>
               </div>
-              {loadingEstoque && (
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              )}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={imprimirRelatorioConsolidado}
+                  className="px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all font-semibold text-sm flex items-center gap-2"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                    />
+                  </svg>
+                  Imprimir Relatório Consolidado
+                </button>
+                {loadingEstoque && (
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                )}
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -874,6 +1305,28 @@ export function Dashboard() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            imprimirRelatorioLoja(loja);
+                          }}
+                          className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all font-medium text-sm flex items-center gap-2"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                            />
+                          </svg>
+                          Imprimir
+                        </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
