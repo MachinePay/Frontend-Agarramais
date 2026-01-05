@@ -386,6 +386,18 @@ export function Movimentacoes() {
       },
     },
     {
+      key: "usuario",
+      label: "Usuário",
+      render: (mov) => (
+        <div className="flex items-center gap-1">
+          <span className="text-lg">👤</span>
+          <span className="text-sm font-medium text-gray-700">
+            {mov.usuario?.nome || "Não informado"}
+          </span>
+        </div>
+      ),
+    },
+    {
       key: "tipo",
       label: "Tipo",
       render: (mov) => {
