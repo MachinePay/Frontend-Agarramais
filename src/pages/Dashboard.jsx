@@ -828,10 +828,13 @@ export function Dashboard() {
             console.log(
               `✏️ Atualizando produto ${item.produtoNome} (ID: ${item.id})`
             );
-            await api.put(`/estoque-lojas/${item.id}`, {
-              quantidade: item.quantidade || 0,
-              estoqueMinimo: item.estoqueMinimo || 0,
-            });
+            await api.put(
+              `/estoque-lojas/${estoqueEditando.lojaId}/${item.produtoId}`,
+              {
+                quantidade: item.quantidade || 0,
+                estoqueMinimo: item.estoqueMinimo || 0,
+              }
+            );
           } else {
             console.log(
               `➕ Criando novo produto ${item.produtoNome} no estoque`
