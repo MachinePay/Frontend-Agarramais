@@ -884,9 +884,8 @@ export function Movimentacoes() {
                     value={formData.produto_id}
                     onChange={handleChange}
                     className="select-field"
-                    required
                   >
-                    <option value="">Selecione um produto...</option>
+                    <option value="">Nenhum produto</option>
                     {produtos.map((produto) => (
                       <option key={produto.id} value={produto.id}>
                         {produto.emoji || "🧸"} {produto.nome}
