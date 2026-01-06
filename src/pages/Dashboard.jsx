@@ -2008,10 +2008,10 @@ export function Dashboard() {
                   key={index}
                   className={`p-5 rounded-xl border-l-4 transition-all duration-200 hover:scale-[1.02] ${
                     alerta.nivelAlerta === "CRÍTICO"
-                      ? "bg-gradient-to-r from-red-50 to-red-100/50 border-red-500 shadow-red-100 shadow-md"
+                      ? "bg-linear-to-r from-red-50 to-red-100/50 border-red-500 shadow-red-100 shadow-md"
                       : alerta.nivelAlerta === "ALTO"
-                      ? "bg-gradient-to-r from-orange-50 to-orange-100/50 border-orange-500 shadow-orange-100 shadow-md"
-                      : "bg-gradient-to-r from-yellow-50 to-yellow-100/50 border-yellow-500 shadow-yellow-100 shadow-md"
+                      ? "bg-linear-to-r from-orange-50 to-orange-100/50 border-orange-500 shadow-orange-100 shadow-md"
+                      : "bg-linear-to-r from-yellow-50 to-yellow-100/50 border-yellow-500 shadow-yellow-100 shadow-md"
                   }`}
                 >
                   <div className="flex justify-between items-start">
@@ -2068,16 +2068,23 @@ export function Dashboard() {
                 {stats.alertas.map((alerta, index) => (
                   <div
                     key={index}
-                    className="p-5 rounded-xl border-l-4 bg-gradient-to-r from-red-50 to-red-100/50 border-red-500 shadow-red-100 shadow-md transition-all duration-200 hover:scale-[1.02]"
+                    className={`p-5 rounded-xl border-l-4 transition-all duration-200 hover:scale-[1.02] ${
+                      alerta.nivelAlerta === "CRÍTICO"
+                        ? "bg-linear-to-r from-red-50 to-red-100/50 border-red-500 shadow-red-100 shadow-md"
+                        : alerta.nivelAlerta === "ALTO"
+                        ? "bg-linear-to-r from-orange-50 to-orange-100/50 border-orange-500 shadow-orange-100 shadow-md"
+                        : "bg-linear-to-r from-yellow-50 to-yellow-100/50 border-yellow-500 shadow-yellow-100 shadow-md"
+                    }`}
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-2xl">
-                            {alerta.produto?.emoji || "📦"}
-                          </span>
+                        <div className="flex items-center gap-2 mb-1">
                           <span className="font-bold text-lg text-gray-900">
-                            {alerta.produto?.nome || alerta.nome}
+                            {alerta.maquina.codigo}
+                          </span>
+                          <span className="text-gray-600">-</span>
+                          <span className="text-gray-800 font-medium">
+                            {alerta.maquina.nome}
                           </span>
                         </div>
                         <p className="text-sm text-gray-600 flex items-center gap-1">
@@ -2092,30 +2099,19 @@ export function Dashboard() {
                               clipRule="evenodd"
                             />
                           </svg>
-                          {alerta.lojaNome || alerta.local}
+                          {alerta.maquina.loja}
                         </p>
-                        {alerta.produto?.codigo && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Código: {alerta.produto.codigo}
-                          </p>
-                        )}
                       </div>
                       <div className="text-right">
                         <div className="flex items-baseline gap-1">
                           <span className="text-3xl font-bold text-gray-900">
-                            {alerta.quantidade || alerta.estoqueAtual}
+                            {alerta.percentualAtual}
                           </span>
-                          <span className="text-lg text-gray-600">un</span>
+                          <span className="text-lg text-gray-600">%</span>
                         </div>
                         <p className="text-xs text-gray-600 mt-1 bg-white/60 px-2 py-1 rounded-full">
-                          Min: {alerta.estoqueMinimo || alerta.capacidadePadrao}{" "}
-                          ·{" "}
-                          {alerta.percentualAtual ||
-                            Math.round(
-                              (alerta.estoqueAtual / alerta.capacidadePadrao) *
-                                100
-                            )}
-                          %
+                          {alerta.estoqueAtual}/{alerta.capacidadePadrao}{" "}
+                          unidades
                         </p>
                       </div>
                     </div>
