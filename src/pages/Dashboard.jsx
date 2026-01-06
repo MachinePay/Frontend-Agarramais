@@ -1,5 +1,4 @@
-const [mostrarTodosAlertasMaquinas, setMostrarTodosAlertasMaquinas] =
-  useState(false);
+// ...existing code...
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import api from "../services/api";
@@ -10,6 +9,8 @@ import { Badge } from "../components/UIComponents";
 import { useAuth } from "../contexts/AuthContext";
 
 export function Dashboard() {
+  const [mostrarTodosAlertasMaquinas, setMostrarTodosAlertasMaquinas] =
+    useState(false);
   const { usuario } = useAuth();
   const [stats, setStats] = useState({
     alertas: [],
