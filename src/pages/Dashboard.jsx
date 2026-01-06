@@ -1,3 +1,5 @@
+const [mostrarTodosAlertasMaquinas, setMostrarTodosAlertasMaquinas] =
+  useState(false);
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import api from "../services/api";
@@ -2052,13 +2054,79 @@ export function Dashboard() {
                 </div>
               ))}
             </div>
-            {stats.alertas.length > 5 && (
-              <Link
-                to="/maquinas"
-                className="block mt-6 text-center bg-gradient-to-r from-primary/10 to-accent-yellow/10 hover:from-primary/20 hover:to-accent-yellow/20 text-primary font-bold py-3 rounded-xl transition-all duration-200"
+            {stats.alertas.length > 5 && !mostrarTodosAlertasMaquinas && (
+              <button
+                className="block mt-6 w-full text-center bg-gradient-to-r from-primary/10 to-accent-yellow/10 hover:from-primary/20 hover:to-accent-yellow/20 text-primary font-bold py-3 rounded-xl transition-all duration-200"
+                onClick={() => setMostrarTodosAlertasMaquinas(true)}
               >
                 Ver todos os alertas ({stats.alertas.length})
-              </Link>
+              </button>
+            )}
+            {mostrarTodosAlertasMaquinas && (
+              <div className="mt-6 space-y-3">
+                {stats.alertas.map((alerta, index) => (
+                  <div
+                    key={index}
+                    className="p-5 rounded-xl border-l-4 bg-gradient-to-r from-red-50 to-red-100/50 border-red-500 shadow-red-100 shadow-md transition-all duration-200 hover:scale-[1.02]"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-2xl">
+                            {alerta.produto?.emoji || "📦"}
+                          </span>
+                          <span className="font-bold text-lg text-gray-900">
+                            {alerta.produto?.nome || alerta.nome}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 flex items-center gap-1">
+                          <svg
+                            className="w-4 h-4"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          {alerta.lojaNome || alerta.local}
+                        </p>
+                        {alerta.produto?.codigo && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Código: {alerta.produto.codigo}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-3xl font-bold text-gray-900">
+                            {alerta.quantidade || alerta.estoqueAtual}
+                          </span>
+                          <span className="text-lg text-gray-600">un</span>
+                        </div>
+                        <p className="text-xs text-gray-600 mt-1 bg-white/60 px-2 py-1 rounded-full">
+                          Min: {alerta.estoqueMinimo || alerta.capacidadePadrao}{" "}
+                          ·{" "}
+                          {alerta.percentualAtual ||
+                            Math.round(
+                              (alerta.estoqueAtual / alerta.capacidadePadrao) *
+                                100
+                            )}
+                          %
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <button
+                  className="mt-4 w-full text-center bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 rounded-xl transition-all duration-200"
+                  onClick={() => setMostrarTodosAlertasMaquinas(false)}
+                >
+                  Fechar lista de alertas
+                </button>
+              </div>
             )}
           </div>
         )}
