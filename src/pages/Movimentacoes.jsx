@@ -14,16 +14,37 @@ import { useAuth } from "../contexts/AuthContext";
 
 export function Movimentacoes() {
   const { usuario } = useAuth();
+
+  // --- ESTADOS ---
   const [movimentacoes, setMovimentacoes] = useState([]);
+  const [movimentacoesEstoqueLoja, setMovimentacoesEstoqueLoja] = useState([]);
+
+  // Filtros Estoque Loja
+  const [filtroLojaEstoque, setFiltroLojaEstoque] = useState("");
+  const [filtroDataEstoque, setFiltroDataEstoque] = useState("");
+  const [filtroResponsavelEstoque, setFiltroResponsavelEstoque] = useState("");
+
+  // Ações Estoque Loja
+  const [editandoEstoqueLoja, setEditandoEstoqueLoja] = useState(null);
+  const [excluindoEstoqueLoja, setExcluindoEstoqueLoja] = useState(null);
+
+  // Dados Gerais
   const [maquinas, setMaquinas] = useState([]);
   const [produtos, setProdutos] = useState([]);
   const [lojas, setLojas] = useState([]);
+
+  // UI States
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [salvandoMovimentacao, setSalvandoMovimentacao] = useState(false);
+
+  // Filtros Movimentações
   const [filtroLojaForm, setFiltroLojaForm] = useState("");
   const [filtroLojaListagem, setFiltroLojaListagem] = useState("");
+
+  // Edição
   const [editandoMovimentacao, setEditandoMovimentacao] = useState(null);
   const [formEdicao, setFormEdicao] = useState({
     fichas: "",
@@ -32,6 +53,7 @@ export function Movimentacoes() {
     valor_entrada_maquininha_pix: "",
   });
 
+  // Formulário Nova Movimentação
   const [formData, setFormData] = useState({
     maquina_id: "",
     produto_id: "",
@@ -46,14 +68,26 @@ export function Movimentacoes() {
     retiradaEstoque: false,
   });
 
-  // Estados auxiliares para exibir cálculos
+  // Estados auxiliares
   const [estoqueAnterior, setEstoqueAnterior] = useState(0);
-  const [salvandoMovimentacao, setSalvandoMovimentacao] = useState(false);
 
+  // --- EFEITOS ---
   useEffect(() => {
     carregarDados();
+    carregarMovimentacoesEstoqueLoja();
   }, []);
 
+  // Atualizar estoque anterior quando seleciona máquina
+  useEffect(() => {
+    if (formData.maquina_id) {
+      const maquina = maquinas.find((m) => m.id === formData.maquina_id);
+      if (maquina) {
+        setEstoqueAnterior(maquina.estoqueAtual || 0);
+      }
+    }
+  }, [formData.maquina_id, maquinas]);
+
+  // --- FUNÇÕES DE CARREGAMENTO ---
   const carregarDados = async () => {
     try {
       setLoading(true);
@@ -63,139 +97,72 @@ export function Movimentacoes() {
         api.get("/produtos"),
         api.get("/lojas"),
       ]);
-      console.log("Movimentações recebidas:", movRes.data);
-      console.log("Máquinas recebidas:", maqRes.data);
-      console.log("Produtos recebidos:", prodRes.data);
 
-      // Debug: Mostrar estrutura da primeira movimentação
-      if (movRes.data.length > 0) {
-        console.log("Estrutura da movimentação:", movRes.data[0]);
-      }
-
-      setMovimentacoes(movRes.data);
-      setMaquinas(maqRes.data); // Backend já retorna apenas ativas
-      setProdutos(prodRes.data.filter((p) => p.ativo));
-      setLojas(lojasRes.data);
-    } catch (error) {
-      setError(
-        "Erro ao carregar dados: " +
-          (error.response?.data?.error || error.message)
-      );
+      setMovimentacoes(movRes.data || []);
+      setMaquinas(maqRes.data || []);
+      setProdutos(prodRes.data || []);
+      setLojas(lojasRes.data || []);
+    } catch (err) {
+      console.error("Erro ao carregar dados:", err);
+      setError("Erro ao carregar dados iniciais.");
     } finally {
       setLoading(false);
     }
   };
 
+  const carregarMovimentacoesEstoqueLoja = async () => {
+    try {
+      const res = await api.get("/movimentacao-estoque-loja");
+      setMovimentacoesEstoqueLoja(res.data || []);
+    } catch (error) {
+      console.error(
+        "Erro ao carregar movimentações de estoque de loja:",
+        error
+      );
+      setMovimentacoesEstoqueLoja([]);
+    }
+  };
+
+  // --- HANDLERS ---
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    const newValue = type === "checkbox" ? checked : value;
-
-    // Se marcar retirada de estoque, zerar fichas
-    if (name === "retiradaEstoque" && checked) {
-      setFormData({ ...formData, [name]: newValue, fichas: "0" });
-    } else {
-      setFormData({ ...formData, [name]: newValue });
-    }
-
-    // Quando selecionar máquina, buscar estoque atual
-    if (name === "maquina_id" && value) {
-      buscarEstoqueAtual(value);
-    }
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
-  const buscarEstoqueAtual = async (maquinaId) => {
-    try {
-      console.log("🔍 [Frontend] Buscando estoque para máquina:", maquinaId);
-
-      const estoqueRes = await api.get(`/maquinas/${maquinaId}/estoque`);
-
-      console.log(
-        "📦 [Frontend] Resposta completa do backend:",
-        estoqueRes.data
-      );
-
-      const estoqueAtual = estoqueRes.data.estoqueAtual || 0;
-
-      console.log("✅ [Frontend] Estoque definido:", estoqueAtual);
-
-      setEstoqueAnterior(estoqueAtual);
-    } catch (error) {
-      console.error("❌ [Frontend] Erro ao buscar estoque:", error);
-      console.error("Detalhes do erro:", error.response?.data);
-      setEstoqueAnterior(0);
-    }
-  };
-
+  // --- CORREÇÃO AQUI: Função handleSubmit recriada com o TRY ---
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSalvandoMovimentacao(true);
     setError("");
     setSuccess("");
 
-    // Evitar múltiplos cliques
-    if (salvandoMovimentacao) {
-      return;
-    }
-
     try {
-      setSalvandoMovimentacao(true);
-
-      // Validação
-      if (!formData.maquina_id) {
-        setError("Por favor, selecione uma máquina");
-        return;
-      }
-
-      if (!formData.produto_id) {
-        setError("Por favor, selecione um produto");
-        return;
-      }
-
-      const quantidadeAtual =
-        parseInt(formData.quantidadeAtualMaquina, 10) || 0;
-      const quantidadeAdicionada =
-        parseInt(formData.quantidadeAdicionada, 10) || 0;
-      // Se for retirada de estoque, fichas = 0
-      const fichas = formData.retiradaEstoque
-        ? 0
-        : parseInt(formData.fichas, 10) || 0;
-
-      // Validação: deve informar pelo menos a quantidade atual
-      if (quantidadeAtual === 0 && quantidadeAdicionada === 0) {
-        setError(
-          "Por favor, informe a quantidade atual na máquina ou a quantidade adicionada"
-        );
-        return;
-      }
+      // <--- O TRY QUE FALTAVA
+      // Converter valores do formulário
+      const quantidadeAtual = parseInt(formData.quantidadeAtualMaquina) || 0;
+      const quantidadeAdicionada = parseInt(formData.quantidadeAdicionada) || 0;
+      const fichas = parseInt(formData.fichas) || 0;
 
       // Calcular quantidades baseado na lógica:
       // quantidadeSaiu = estoqueAnterior - quantidadeAtual
       // novoEstoque = quantidadeAtual + quantidadeAdicionada
-
       const quantidadeSaiu = Math.max(0, estoqueAnterior - quantidadeAtual);
-      const novoEstoque = quantidadeAtual + quantidadeAdicionada;
+      // O novo estoque é calculado automaticamente no backend ou derivado,
+      // mas a lógica de validação visual é: novoEstoque = quantidadeAtual + quantidadeAdicionada;
 
       console.log("📊 [handleSubmit] Cálculos da movimentação:");
-      console.log("  📌 Estoque anterior (totalPre):", estoqueAnterior);
-      console.log("  📌 Quantidade atual informada:", quantidadeAtual);
+      console.log("   📌 Estoque anterior (totalPre):", estoqueAnterior);
+      console.log("   📌 Quantidade atual informada:", quantidadeAtual);
       console.log(
-        "  📌 Quantidade adicionada (abastecidas):",
+        "   📌 Quantidade adicionada (abastecidas):",
         quantidadeAdicionada
       );
-      console.log("  📌 Calculado que saiu (sairam):", quantidadeSaiu);
-      console.log("  📌 Novo estoque (totalPos):", novoEstoque);
-      console.log("  🧮 Fórmula: totalPos = totalPre - sairam + abastecidas");
-      console.log(
-        "  🧮 Verificação:",
-        estoqueAnterior,
-        "-",
-        quantidadeSaiu,
-        "+",
-        quantidadeAdicionada,
-        "=",
-        novoEstoque
-      );
+      console.log("   📌 Calculado que saiu (sairam):", quantidadeSaiu);
 
-      // Preparar observação - se for retirada de estoque, adicionar nota automática
+      // Preparar observação
       let observacaoFinal = formData.observacao?.trim() || "";
       if (formData.retiradaEstoque) {
         const notaRetirada = "⚠️ RETIRADA DE ESTOQUE - NÃO É VENDA";
@@ -232,22 +199,17 @@ export function Movimentacoes() {
       };
 
       console.log(
-        "📤 [handleSubmit] Dados da movimentação enviados:",
+        "📤 [handleSubmit] Dados enviados:",
         JSON.stringify(data, null, 2)
       );
 
       const response = await api.post("/movimentacoes", data);
 
-      console.log(
-        "✅ [handleSubmit] Movimentação criada com sucesso:",
-        response.data
-      );
-      console.log(
-        "  📊 Verifique se totalPos está correto:",
-        response.data.totalPos
-      );
+      console.log("✅ [handleSubmit] Sucesso:", response.data);
 
       setSuccess("Movimentação registrada com sucesso!");
+
+      // Limpar formulário
       setFormData({
         maquina_id: "",
         produto_id: "",
@@ -256,21 +218,19 @@ export function Movimentacoes() {
         fichas: "",
         contadorIn: "",
         contadorOut: "",
+        quantidade_notas_entrada: "",
+        valor_entrada_maquininha_pix: "",
         observacao: "",
         retiradaEstoque: false,
       });
       setEstoqueAnterior(0);
       setFiltroLojaForm("");
       setShowForm(false);
+
+      // Recarregar dados
       carregarDados();
     } catch (error) {
-      console.error("❌ [handleSubmit] Erro ao registrar movimentação:", error);
-      console.error("  📋 Detalhes do erro:", {
-        mensagem: error.message,
-        status: error.response?.status,
-        dados: error.response?.data,
-        config: error.config,
-      });
+      console.error("❌ [handleSubmit] Erro:", error);
       setError(
         error.response?.data?.error ||
           error.response?.data?.message ||
@@ -320,16 +280,47 @@ export function Movimentacoes() {
       cancelarEdicao();
       carregarDados();
     } catch (error) {
-      console.error("Erro ao atualizar movimentação:", error);
-      setError(
-        error.response?.data?.error ||
-          error.response?.data?.message ||
-          "Erro ao atualizar movimentação"
-      );
+      console.error("Erro ao atualizar:", error);
+      setError("Erro ao atualizar movimentação");
+    }
+  };
+  const confirmarExclusaoLoja = async () => {
+    if (!excluindoEstoqueLoja) return;
+
+    try {
+      await api.delete(`/movimentacao-estoque-loja/${excluindoEstoqueLoja.id}`);
+      setSuccess("Movimentação de estoque de loja excluída com sucesso!");
+      carregarMovimentacoesEstoqueLoja(); // Recarrega a lista
+    } catch (err) {
+      console.error("Erro ao excluir:", err);
+      setError("Erro ao excluir movimentação de loja.");
+    } finally {
+      setExcluindoEstoqueLoja(null); // Fecha o modal
     }
   };
 
-  // Estatísticas - Calcular baseado em abastecidas/sairam
+  // Função para salvar edição de loja (Exemplo editando o Responsável)
+  const salvarEdicaoLoja = async (e) => {
+    e.preventDefault();
+    if (!editandoEstoqueLoja) return;
+
+    try {
+      // Ajuste aqui conforme os campos que sua API aceita editar
+      await api.put(`/movimentacao-estoque-loja/${editandoEstoqueLoja.id}`, {
+        responsavel: editandoEstoqueLoja.responsavel,
+        // Adicione outros campos se necessário
+      });
+
+      setSuccess("Movimentação de loja atualizada!");
+      carregarMovimentacoesEstoqueLoja();
+      setEditandoEstoqueLoja(null);
+    } catch (err) {
+      console.error("Erro ao editar:", err);
+      setError("Erro ao atualizar movimentação de loja.");
+    }
+  };
+
+  // --- CÁLCULOS DE ESTATÍSTICAS ---
   const entradas = movimentacoes.filter((m) => m.abastecidas > 0);
   const saidas = movimentacoes.filter((m) => m.sairam > 0);
   const totalEntradas = entradas.reduce(
@@ -338,7 +329,6 @@ export function Movimentacoes() {
   );
   const totalSaidas = saidas.reduce((sum, m) => sum + (m.sairam || 0), 0);
 
-  // Filtrar movimentações por loja
   const movimentacoesFiltradas = filtroLojaListagem
     ? movimentacoes.filter((mov) => {
         const maquina = maquinas.find((m) => m.id === mov.maquinaId);
@@ -423,7 +413,6 @@ export function Movimentacoes() {
       key: "produto",
       label: "Produto",
       render: (mov) => {
-        // Buscar produto do detalhesProdutos
         const produtoId = mov.detalhesProdutos?.[0]?.produtoId;
         const produto = produtos.find((p) => p.id === produtoId);
         return produto ? (
@@ -443,7 +432,6 @@ export function Movimentacoes() {
         const maquina =
           mov.maquina || maquinas.find((m) => m.id === mov.maquinaId);
         if (!maquina) return `N/A (ID: ${mov.maquinaId})`;
-
         const loja = lojas.find((l) => l.id === maquina.lojaId);
         return (
           <div>
@@ -501,7 +489,6 @@ export function Movimentacoes() {
     },
   ];
 
-  // Adicionar coluna de ações apenas para ADMIN
   if (usuario?.role === "ADMIN") {
     columns.push({
       key: "acoes",
@@ -814,8 +801,6 @@ export function Movimentacoes() {
                 </label>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -1010,134 +995,303 @@ export function Movimentacoes() {
             )}
           </div>
         )}
-      </div>
 
-      {/* Modal de Edição */}
-      {editandoMovimentacao && usuario?.role === "ADMIN" && (
+        {/* Seção Movimentações de Estoque de Loja */}
+        <div className="mt-12">
+          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+            <span className="text-3xl">🏪</span>
+            Movimentações de Estoque de Loja
+          </h2>
+          {/* Filtros */}
+          <div className="mb-4 flex flex-wrap gap-4">
+            <select
+              className="input-field"
+              value={filtroLojaEstoque}
+              onChange={(e) => setFiltroLojaEstoque(e.target.value)}
+            >
+              <option value="">Todas as lojas</option>
+              {lojas.map((loja) => (
+                <option key={loja.id} value={loja.id}>
+                  {loja.nome}
+                </option>
+              ))}
+            </select>
+            <input
+              type="date"
+              className="input-field"
+              value={filtroDataEstoque}
+              onChange={(e) => setFiltroDataEstoque(e.target.value)}
+            />
+            <input
+              type="text"
+              className="input-field"
+              placeholder="Responsável"
+              value={filtroResponsavelEstoque}
+              onChange={(e) => setFiltroResponsavelEstoque(e.target.value)}
+            />
+          </div>
+          <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+            <table className="min-w-full table-auto">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="px-4 py-2">Data/Hora</th>
+                  <th className="px-4 py-2">Loja de Destino</th>
+                  <th className="px-4 py-2">Responsável</th>
+                  <th className="px-4 py-2">Produtos Enviados</th>
+                  <th className="px-4 py-2">Editar</th>
+                </tr>
+              </thead>
+              <tbody>
+                {movimentacoesEstoqueLoja
+                  .filter(
+                    (mov) =>
+                      (!filtroLojaEstoque ||
+                        mov.loja?.id === filtroLojaEstoque) &&
+                      (!filtroResponsavelEstoque ||
+                        (mov.usuario?.nome &&
+                          mov.usuario.nome
+                            .toLowerCase()
+                            .includes(
+                              filtroResponsavelEstoque.toLowerCase()
+                            ))) &&
+                      (!filtroDataEstoque ||
+                        (mov.dataMovimentacao &&
+                          mov.dataMovimentacao.startsWith(filtroDataEstoque)))
+                  )
+                  .map((mov) => (
+                    <tr key={mov.id} className="border-b">
+                      <td className="px-4 py-2">
+                        {mov.dataMovimentacao
+                          ? new Date(mov.dataMovimentacao).toLocaleString(
+                              "pt-BR"
+                            )
+                          : "-"}
+                      </td>
+                      <td className="px-4 py-2">
+                        {mov.loja?.nome || mov.lojaId || "-"}
+                      </td>
+                      <td className="px-4 py-2">{mov.usuario?.nome || "-"}</td>
+                      <td className="px-4 py-2">
+                        {mov.produtosEnviados &&
+                        mov.produtosEnviados.length > 0 ? (
+                          <ul className="list-disc ml-4">
+                            {mov.produtosEnviados.map((prod) => (
+                              <li key={prod.id}>
+                                {prod.produto?.nome || prod.produtoId} —
+                                <span className="font-bold">
+                                  {prod.quantidade}
+                                </span>{" "}
+                                <span
+                                  className={
+                                    prod.tipoMovimentacao === "entrada"
+                                      ? "text-green-600"
+                                      : "text-red-600"
+                                  }
+                                >
+                                  [{prod.tipoMovimentacao}]
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                      <td className="px-4 py-2">
+                        <button
+                          className="btn-primary px-3 py-1"
+                          onClick={() => setEditandoEstoqueLoja(mov)}
+                        >
+                          Editar
+                        </button>
+                      </td>
+                      <td className="px-4 py-2">
+                        <button
+                          className="btn-danger px-3 py-1"
+                          onClick={() => {
+                            setExcluindoEstoqueLoja(mov);
+                          }}
+                        >
+                          Deletar
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Modal de Edição */}
+        {editandoMovimentacao && usuario?.role === "ADMIN" && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <span className="text-2xl">✏️</span>
+                  Editar Movimentação
+                </h3>
+                <button
+                  onClick={cancelarEdicao}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-600">
+                    <strong>Data:</strong>{" "}
+                    {new Date(
+                      editandoMovimentacao.dataColeta ||
+                        editandoMovimentacao.createdAt
+                    ).toLocaleString("pt-BR")}
+                  </p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    <strong>Máquina:</strong>{" "}
+                    {maquinas.find(
+                      (m) => m.id === editandoMovimentacao.maquinaId
+                    )?.codigo || "N/A"}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    🎫 Quantidade de Fichas
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formEdicao.fichas}
+                    onChange={(e) =>
+                      setFormEdicao({ ...formEdicao, fichas: e.target.value })
+                    }
+                    className="input-field"
+                    placeholder="0"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    📦 Quantidade Abastecida
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formEdicao.abastecidas}
+                    onChange={(e) =>
+                      setFormEdicao({
+                        ...formEdicao,
+                        abastecidas: e.target.value,
+                      })
+                    }
+                    className="input-field"
+                    placeholder="0"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    💵 Quantidade de Notas
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formEdicao.quantidade_notas_entrada}
+                    onChange={(e) =>
+                      setFormEdicao({
+                        ...formEdicao,
+                        quantidade_notas_entrada: e.target.value,
+                      })
+                    }
+                    className="input-field"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    💳 Valor Digital (Pix/Maquininha) (R$)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formEdicao.valor_entrada_maquininha_pix}
+                    onChange={(e) =>
+                      setFormEdicao({
+                        ...formEdicao,
+                        valor_entrada_maquininha_pix: e.target.value,
+                      })
+                    }
+                    className="input-field"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={cancelarEdicao}
+                    className="flex-1 btn-secondary"
+                  >
+                    Cancelar
+                  </button>
+                  <button onClick={salvarEdicao} className="flex-1 btn-primary">
+                    Salvar Alterações
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+      {/* --- MODAL DE EXCLUSÃO DE ESTOQUE LOJA --- */}
+      {excluindoEstoqueLoja && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <span className="text-2xl">✏️</span>
-                Editar Movimentação
-              </h3>
-              <button
-                onClick={cancelarEdicao}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
                 <svg
-                  className="w-6 h-6"
+                  className="h-6 w-6 text-red-600"
                   fill="none"
-                  stroke="currentColor"
                   viewBox="0 0 24 24"
+                  stroke="currentColor"
                 >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
+                    strokeWidth="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                   />
                 </svg>
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600">
-                  <strong>Data:</strong>{" "}
-                  {new Date(
-                    editandoMovimentacao.dataColeta ||
-                      editandoMovimentacao.createdAt
-                  ).toLocaleString("pt-BR")}
-                </p>
-                <p className="text-sm text-gray-600 mt-1">
-                  <strong>Máquina:</strong>{" "}
-                  {maquinas.find((m) => m.id === editandoMovimentacao.maquinaId)
-                    ?.codigo || "N/A"}
-                </p>
               </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  🎫 Quantidade de Fichas
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formEdicao.fichas}
-                  onChange={(e) =>
-                    setFormEdicao({ ...formEdicao, fichas: e.target.value })
-                  }
-                  className="input-field"
-                  placeholder="0"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  📦 Quantidade Abastecida
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formEdicao.abastecidas}
-                  onChange={(e) =>
-                    setFormEdicao({
-                      ...formEdicao,
-                      abastecidas: e.target.value,
-                    })
-                  }
-                  className="input-field"
-                  placeholder="0"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  💵 Quantidade de Notas
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formEdicao.quantidade_notas_entrada}
-                  onChange={(e) =>
-                    setFormEdicao({
-                      ...formEdicao,
-                      quantidade_notas_entrada: e.target.value,
-                    })
-                  }
-                  className="input-field"
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  💳 Valor Digital (Pix/Maquininha) (R$)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={formEdicao.valor_entrada_maquininha_pix}
-                  onChange={(e) =>
-                    setFormEdicao({
-                      ...formEdicao,
-                      valor_entrada_maquininha_pix: e.target.value,
-                    })
-                  }
-                  className="input-field"
-                  placeholder="0.00"
-                />
-              </div>
-              <div className="flex gap-3 pt-4">
+              <h3 className="text-lg font-medium text-gray-900">
+                Excluir Movimentação?
+              </h3>
+              <p className="text-sm text-gray-500 mt-2">
+                Tem certeza que deseja excluir esta movimentação de estoque da
+                loja? Esta ação não pode ser desfeita.
+              </p>
+              <div className="mt-6 flex justify-center gap-3">
                 <button
-                  onClick={cancelarEdicao}
-                  className="flex-1 btn-secondary"
+                  onClick={() => setExcluindoEstoqueLoja(null)}
+                  className="btn-secondary"
                 >
                   Cancelar
                 </button>
-                <button onClick={salvarEdicao} className="flex-1 btn-primary">
-                  Salvar Alterações
+                <button onClick={confirmarExclusaoLoja} className="btn-danger">
+                  Sim, Excluir
                 </button>
               </div>
             </div>
@@ -1145,6 +1299,57 @@ export function Movimentacoes() {
         </div>
       )}
 
+      {/* --- MODAL DE EDIÇÃO DE ESTOQUE LOJA --- */}
+      {editandoEstoqueLoja && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">
+              ✏️ Editar Movimentação Loja
+            </h3>
+
+            <form onSubmit={salvarEdicaoLoja}>
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Responsável
+                </label>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={editandoEstoqueLoja.responsavel || ""}
+                  onChange={(e) =>
+                    setEditandoEstoqueLoja({
+                      ...editandoEstoqueLoja,
+                      responsavel: e.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              {/* Nota: Se precisar editar produtos, a lógica é mais complexa. 
+                    Por enquanto deixei apenas o responsável como exemplo. */}
+              <div className="p-3 bg-gray-50 rounded mb-4">
+                <p className="text-xs text-gray-500">
+                  Data:{" "}
+                  {new Date(editandoEstoqueLoja.data).toLocaleString("pt-BR")}
+                </p>
+              </div>
+
+              <div className="flex gap-3 justify-end mt-6">
+                <button
+                  type="button"
+                  onClick={() => setEditandoEstoqueLoja(null)}
+                  className="btn-secondary"
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="btn-primary">
+                  Salvar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       <Footer />
     </div>
   );

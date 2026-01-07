@@ -11,6 +11,215 @@ import { useAuth } from "../contexts/AuthContext";
 export function Dashboard() {
   const [mostrarTodosAlertasMaquinas, setMostrarTodosAlertasMaquinas] =
     useState(false);
+  // Estado para modal de movimentação de estoque
+  const [mostrarModalMovimentacao, setMostrarModalMovimentacao] =
+    useState(false);
+  // Estados para busca e navegação (deve vir antes do uso em modais)
+  const [searchTerm, setSearchTerm] = useState("");
+  const [lojas, setLojas] = useState([]);
+  const [maquinas, setMaquinas] = useState([]);
+  const [produtos, setProdutos] = useState([]);
+  // Estado para modal de movimentação de estoque de loja
+  const [movimentacaoLojaId, setMovimentacaoLojaId] = useState("");
+  const [movimentacaoEnviando, setMovimentacaoEnviando] = useState(false);
+  const [movimentacaoErro, setMovimentacaoErro] = useState("");
+  const [movimentacaoSucesso, setMovimentacaoSucesso] = useState("");
+  // Estado para lista de produtos da movimentação
+  const [produtosMovimentacao, setProdutosMovimentacao] = useState([
+    { produtoId: "", quantidade: "", tipoMovimentacao: "saida" },
+  ]);
+
+  // Sempre deve haver pelo menos um produto na lista
+  const handleAddProduto = () => {
+    setProdutosMovimentacao((prev) => [
+      ...prev,
+      { produtoId: "", quantidade: "", tipoMovimentacao: "saida" },
+    ]);
+  };
+
+  const handleRemoveProduto = (index) => {
+    setProdutosMovimentacao((prev) => {
+      if (prev.length === 1) {
+        // Não permite remover o último produto
+        return prev;
+      }
+      const novos = [...prev];
+      novos.splice(index, 1);
+      return novos;
+    });
+  };
+
+  const handleProdutoChange = (index, field, value) => {
+    setProdutosMovimentacao((prev) => {
+      const novos = [...prev];
+      if (field === "quantidade") {
+        // Garante que só aceita números inteiros positivos
+        const val = value.replace(/\D/g, "");
+        novos[index][field] = val;
+      } else {
+        novos[index][field] = value;
+      }
+      return novos;
+    });
+  };
+  // ...já declarado acima...
+  const enviarMovimentacaoEstoqueLoja = async (e) => {
+    if (e) e.preventDefault();
+    setMovimentacaoEnviando(true);
+    setMovimentacaoErro("");
+    setMovimentacaoSucesso("");
+    try {
+      const produtosValidos = produtosMovimentacao.filter(
+        (p) => p.produtoId && Number(p.quantidade) > 0
+      );
+      if (!movimentacaoLojaId || produtosValidos.length === 0) {
+        setMovimentacaoErro(
+          "Preencha todos os campos obrigatórios e adicione pelo menos um produto válido."
+        );
+        setMovimentacaoEnviando(false);
+        return;
+      }
+      const payload = {
+        lojaId: movimentacaoLojaId,
+        usuarioId: usuario?.id,
+        produtos: produtosValidos.map((p) => ({
+          produtoId: p.produtoId,
+          quantidade: parseInt(p.quantidade),
+          tipoMovimentacao: p.tipoMovimentacao || "saida",
+        })),
+        observacao: "",
+        dataMovimentacao: new Date().toISOString(),
+      };
+      await api.post("/movimentacao-estoque-loja", payload);
+      setMovimentacaoSucesso("Movimentação registrada com sucesso!");
+      setMostrarModalMovimentacao(false);
+      setMovimentacaoLojaId("");
+      setProdutosMovimentacao([
+        { produtoId: "", quantidade: "", tipoMovimentacao: "saida" },
+      ]);
+      // ...atualize dados se necessário
+    } catch (erro) {
+      setMovimentacaoErro("Erro ao registrar movimentação", erro);
+    } finally {
+      setMovimentacaoEnviando(false);
+    }
+  };
+  // Botão no topo do dashboard para abrir o modal
+  // Adicione ao JSX principal, ao lado do botão de impressão:
+  // <button onClick={() => setMostrarModalMovimentacao(true)} className="btn-primary">Movimentação de Estoque</button>
+
+  // Modal de movimentação de estoque de loja
+  {
+    mostrarModalMovimentacao && (
+      <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+        <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6">
+          <h2 className="text-xl font-bold mb-4">
+            Movimentação de Estoque de Loja
+          </h2>
+          <div className="mb-4">
+            <label className="block text-sm font-semibold mb-2">
+              Loja de destino
+            </label>
+            <select
+              value={movimentacaoLojaId}
+              onChange={(e) => setMovimentacaoLojaId(e.target.value)}
+              className="input-field"
+            >
+              <option value="">Selecione a loja</option>
+              {(lojas || []).map((loja) => (
+                <option key={loja.id} value={loja.id}>
+                  {loja.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-semibold mb-2">
+              Produtos enviados
+            </label>
+            {produtosMovimentacao.map((p, idx) => (
+              <div key={idx} className="flex gap-2 mb-2">
+                <select
+                  value={p.produtoId}
+                  onChange={(e) =>
+                    handleProdutoChange(idx, "produtoId", e.target.value)
+                  }
+                  className="input-field"
+                >
+                  <option value="">Produto</option>
+                  {(produtos || []).map((prod) => (
+                    <option key={prod.id} value={prod.id}>
+                      {prod.nome}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min="1"
+                  value={p.quantidade}
+                  onChange={(e) =>
+                    handleProdutoChange(idx, "quantidade", e.target.value)
+                  }
+                  placeholder="Quantidade"
+                  className="input-field w-24"
+                />
+                <select
+                  value={p.tipoMovimentacao || "saida"}
+                  onChange={(e) =>
+                    handleProdutoChange(idx, "tipoMovimentacao", e.target.value)
+                  }
+                  className="input-field w-28"
+                >
+                  <option value="saida">Saída</option>
+                  <option value="entrada">Entrada</option>
+                </select>
+                {produtosMovimentacao.length > 1 && (
+                  <button
+                    type="button"
+                    className="btn-danger"
+                    onClick={() => handleRemoveProduto(idx)}
+                  >
+                    Remover
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={handleAddProduto}
+            >
+              Adicionar mais um produto
+            </button>
+          </div>
+          <div className="flex gap-4 justify-end mt-6">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setMostrarModalMovimentacao(false)}
+              disabled={movimentacaoEnviando}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={enviarMovimentacaoEstoqueLoja}
+              disabled={movimentacaoEnviando}
+            >
+              {movimentacaoEnviando ? "Enviando..." : "Enviar"}
+            </button>
+          </div>
+          {movimentacaoErro && (
+            <div className="text-red-600 mt-2">{movimentacaoErro}</div>
+          )}
+          {movimentacaoSucesso && (
+            <div className="text-green-600 mt-2">{movimentacaoSucesso}</div>
+          )}
+        </div>
+      </div>
+    );
+  }
   const { usuario } = useAuth();
   const [stats, setStats] = useState({
     alertas: [],
@@ -19,10 +228,7 @@ export function Dashboard() {
   });
 
   // Estados para busca e navegação
-  const [searchTerm, setSearchTerm] = useState("");
-  const [lojas, setLojas] = useState([]);
-  const [maquinas, setMaquinas] = useState([]);
-  const [produtos, setProdutos] = useState([]);
+
   const [movimentacoes, setMovimentacoes] = useState([]);
   const [lojaSelecionada, setLojaSelecionada] = useState(null);
   const [maquinaSelecionada, setMaquinaSelecionada] = useState(null);
@@ -1237,89 +1443,339 @@ export function Dashboard() {
 
         {/* Estoque dos Depósitos - Apenas para ADMIN */}
         {usuario?.role === "ADMIN" && lojasComEstoque.length > 0 && (
-          <div className="card mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                  <span className="text-3xl">📦</span>
-                  Estoque dos Depósitos
-                </h2>
-                <p className="text-gray-600 mt-1">
-                  Visualização rápida do estoque em cada loja
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={imprimirRelatorioConsolidado}
-                  className="px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all font-semibold text-sm flex items-center gap-2"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+          <>
+            {/* Modal de Movimentação de Estoque */}
+            {mostrarModalMovimentacao && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-8 relative">
+                  <button
+                    className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 text-2xl"
+                    onClick={() => setMostrarModalMovimentacao(false)}
+                    aria-label="Fechar"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-                    />
-                  </svg>
-                  Imprimir Relatório Consolidado
-                </button>
-                {loadingEstoque && (
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              {lojasComEstoque.map((loja) => (
-                <div
-                  key={loja.id}
-                  className="border-2 border-gray-200 rounded-xl overflow-hidden hover:border-gray-300 transition-colors"
-                >
-                  {/* Header - sempre visível */}
-                  <div className="p-5 bg-gray-50">
-                    <div className="flex items-center justify-between">
-                      <div
-                        className="flex items-center gap-4 flex-1 cursor-pointer hover:opacity-80 transition-opacity"
-                        onClick={() => toggleLojaEstoque(loja.id)}
+                    ×
+                  </button>
+                  <h2 className="text-2xl font-bold mb-4 text-gray-900 flex items-center gap-2">
+                    <span className="text-3xl">🔄</span>
+                    Movimentação de Estoque
+                  </h2>
+                  <form
+                    className="space-y-6"
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      setMovimentacaoEnviando(true);
+                      setMovimentacaoErro("");
+                      setMovimentacaoSucesso("");
+                      try {
+                        await api.post("/movimentacao-estoque-loja", {
+                          lojaId: movimentacaoLojaId,
+                          // usuarioId: usuario?.id, // Se o backend pegar do token, pode remover isso
+                          produtos: produtosMovimentacao.map((p) => ({
+                            produtoId: p.produtoId,
+                            tipoMovimentacao: p.tipoMovimentacao,
+                            quantidade: Number(p.quantidade),
+                          })),
+                        });
+                        setMovimentacaoSucesso(
+                          "Movimentação registrada com sucesso!"
+                        );
+                      } catch (erro) {
+                        setMovimentacaoErro(
+                          "Erro ao registrar movimentação. Tente novamente.",
+                          erro.response?.data?.error || erro.message
+                        );
+                      } finally {
+                        setMovimentacaoEnviando(false);
+                      }
+                    }}
+                  >
+                    {/* Campo para selecionar a loja */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Loja de destino
+                      </label>
+                      <select
+                        className="input-field w-full"
+                        value={movimentacaoLojaId}
+                        onChange={(e) => setMovimentacaoLojaId(e.target.value)}
+                        required
                       >
-                        <span className="text-3xl">🏪</span>
-                        <div>
-                          <h3 className="font-bold text-gray-900 text-lg">
+                        <option value="">Selecione a loja</option>
+                        {(lojas || []).map((loja) => (
+                          <option key={loja.id} value={loja.id}>
                             {loja.nome}
-                          </h3>
-                          <p className="text-sm text-gray-600 mt-1">
-                            <span className="font-semibold">
-                              {loja.totalProdutos}
-                            </span>{" "}
-                            {loja.totalProdutos === 1 ? "produto" : "produtos"}{" "}
-                            ·{" "}
-                            <span className="font-semibold">
-                              {loja.totalUnidades}
-                            </span>{" "}
-                            unidades totais
-                          </p>
-                          {loja.endereco && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              📍 {loja.endereco}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            imprimirRelatorioLoja(loja);
-                          }}
-                          className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all font-medium text-sm flex items-center gap-2"
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {/* O reset dos campos já está dentro do try/catch do onSubmit. */}
+                    {/* Loop dos Produtos */}
+                    {produtosMovimentacao.map((p, idx) => (
+                      <div key={idx} className="flex gap-2 mb-2 items-center">
+                        {/* Select de Produto */}
+                        <select
+                          value={p.produtoId}
+                          onChange={(e) =>
+                            handleProdutoChange(
+                              idx,
+                              "produtoId",
+                              e.target.value
+                            )
+                          }
+                          className="input-field flex-1"
+                          required
                         >
+                          <option value="">Produto...</option>
+                          {produtos.map((prod) => (
+                            <option key={prod.id} value={prod.id}>
+                              {prod.nome}
+                            </option>
+                          ))}
+                        </select>
+
+                        {/* Input de Quantidade */}
+                        <input
+                          type="number"
+                          min="1"
+                          value={p.quantidade}
+                          onChange={(e) =>
+                            handleProdutoChange(
+                              idx,
+                              "quantidade",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Qtd"
+                          className="input-field w-20"
+                          required
+                        />
+
+                        {/* Select de Tipo (Entrada/Saída) */}
+                        <select
+                          value={p.tipoMovimentacao || "saida"}
+                          onChange={(e) =>
+                            handleProdutoChange(
+                              idx,
+                              "tipoMovimentacao",
+                              e.target.value
+                            )
+                          }
+                          className="input-field w-28"
+                          required
+                        >
+                          <option value="saida">Saída</option>
+                          <option value="entrada">Entrada</option>
+                        </select>
+
+                        {/* Botão Remover (X) */}
+                        {produtosMovimentacao.length > 1 && (
+                          <button
+                            type="button"
+                            className="text-red-500 hover:text-red-700 font-bold p-2"
+                            onClick={() => handleRemoveProduto(idx)}
+                            title="Remover item"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ))}
+
+                    {/* Botão Adicionar Mais Produtos */}
+                    <button
+                      type="button"
+                      className="text-sm text-primary hover:text-primary-dark font-semibold flex items-center gap-1 mt-2"
+                      onClick={handleAddProduto}
+                    >
+                      + Adicionar outro produto
+                    </button>
+
+                    {/* Mensagens de Erro/Sucesso */}
+                    {movimentacaoErro && (
+                      <div className="text-red-600 text-sm mt-2">
+                        {movimentacaoErro}
+                      </div>
+                    )}
+                    {movimentacaoSucesso && (
+                      <div className="text-green-600 text-sm mt-2">
+                        {movimentacaoSucesso}
+                      </div>
+                    )}
+
+                    {/* Botões de Ação (Cancelar e Registrar) */}
+                    <div className="flex gap-4 justify-end pt-4 border-t border-gray-200 mt-4">
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => setMostrarModalMovimentacao(false)}
+                        disabled={movimentacaoEnviando}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        className="btn-primary"
+                        disabled={movimentacaoEnviando}
+                      >
+                        {movimentacaoEnviando ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Enviando...
+                          </>
+                        ) : (
+                          <>
+                            <svg
+                              className="w-5 h-5 mr-2"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                            Registrar Movimentação
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+            <div className="card mb-8">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                    <span className="text-3xl">📦</span>
+                    Estoque dos Depósitos
+                  </h2>
+                  <p className="text-gray-600 mt-1">
+                    Visualização rápida do estoque em cada loja
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={imprimirRelatorioConsolidado}
+                    className="px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all font-semibold text-sm flex items-center gap-2"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                      />
+                    </svg>
+                    Imprimir Relatório Consolidado
+                  </button>
+                  <button
+                    onClick={() => setMostrarModalMovimentacao(true)}
+                    className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:shadow-lg transition-all font-semibold text-sm flex items-center gap-2"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 4v16m8-8H4"
+                      />
+                    </svg>
+                    Movimentação de Estoque
+                  </button>
+                  {loadingEstoque && (
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {lojasComEstoque.map((loja) => (
+                  <div
+                    key={loja.id}
+                    className="border-2 border-gray-200 rounded-xl overflow-hidden hover:border-gray-300 transition-colors"
+                  >
+                    {/* Header - sempre visível */}
+                    <div className="p-5 bg-gray-50">
+                      <div className="flex items-center justify-between">
+                        <div
+                          className="flex items-center gap-4 flex-1 cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => toggleLojaEstoque(loja.id)}
+                        >
+                          <span className="text-3xl">🏪</span>
+                          <div>
+                            <h3 className="font-bold text-gray-900 text-lg">
+                              {loja.nome}
+                            </h3>
+                            <p className="text-sm text-gray-600 mt-1">
+                              <span className="font-semibold">
+                                {loja.totalProdutos}
+                              </span>{" "}
+                              {loja.totalProdutos === 1
+                                ? "produto"
+                                : "produtos"}{" "}
+                              ·{" "}
+                              <span className="font-semibold">
+                                {loja.totalUnidades}
+                              </span>{" "}
+                              unidades totais
+                            </p>
+                            {loja.endereco && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                📍 {loja.endereco}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              imprimirRelatorioLoja(loja);
+                            }}
+                            className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all font-medium text-sm flex items-center gap-2"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                              />
+                            </svg>
+                            Imprimir
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              abrirEdicaoEstoque(loja);
+                            }}
+                            className="px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/90 transition-colors font-medium text-sm flex items-center gap-2"
+                          >
+                            ✏️ Editar Estoque
+                          </button>
                           <svg
-                            className="w-4 h-4"
+                            className={`w-6 h-6 text-gray-500 transition-transform ${
+                              lojaEstoqueExpanded[loja.id] ? "rotate-180" : ""
+                            }`}
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -1328,170 +1784,145 @@ export function Dashboard() {
                               strokeLinecap="round"
                               strokeLinejoin="round"
                               strokeWidth={2}
-                              d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                              d="M19 9l-7 7-7-7"
                             />
                           </svg>
-                          Imprimir
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            abrirEdicaoEstoque(loja);
-                          }}
-                          className="px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/90 transition-colors font-medium text-sm flex items-center gap-2"
-                        >
-                          ✏️ Editar Estoque
-                        </button>
-                        <svg
-                          className={`w-6 h-6 text-gray-500 transition-transform ${
-                            lojaEstoqueExpanded[loja.id] ? "rotate-180" : ""
-                          }`}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Conteúdo - expansível */}
-                  {lojaEstoqueExpanded[loja.id] && (
-                    <div className="p-5 bg-white border-t-2 border-gray-100">
-                      {loja.estoque.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {loja.estoque
-                            .sort((a, b) => b.quantidade - a.quantidade)
-                            .map((item) => {
-                              const abaixoDoMinimo =
-                                item.estoqueMinimo > 0 &&
-                                item.quantidade < item.estoqueMinimo;
+                    {/* Conteúdo - expansível */}
+                    {lojaEstoqueExpanded[loja.id] && (
+                      <div className="p-5 bg-white border-t-2 border-gray-100">
+                        {loja.estoque.length > 0 ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {loja.estoque
+                              .sort((a, b) => b.quantidade - a.quantidade)
+                              .map((item) => {
+                                const abaixoDoMinimo =
+                                  item.estoqueMinimo > 0 &&
+                                  item.quantidade < item.estoqueMinimo;
 
-                              return (
-                                <div
-                                  key={item.id}
-                                  className={`p-4 rounded-lg border-2 hover:shadow-md transition-all ${
-                                    abaixoDoMinimo
-                                      ? "bg-red-50 border-red-300 shadow-md"
-                                      : "bg-gray-50 border-gray-200 hover:border-gray-300"
-                                  }`}
-                                >
-                                  <div className="flex items-start gap-3 mb-3">
-                                    <span className="text-3xl">
-                                      {item.produto.emoji || "📦"}
-                                    </span>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-2">
-                                        <p className="font-bold text-gray-900 text-base truncate">
-                                          {item.produto.nome}
-                                        </p>
-                                        {abaixoDoMinimo && (
-                                          <span className="px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse">
-                                            ⚠️
-                                          </span>
-                                        )}
-                                      </div>
-                                      {item.produto.codigo && (
-                                        <p className="text-xs text-gray-500 mt-1">
-                                          Cód: {item.produto.codigo}
-                                        </p>
-                                      )}
-                                    </div>
-                                  </div>
+                                return (
                                   <div
-                                    className={`flex items-end justify-between mt-3 pt-3 border-t ${
+                                    key={item.id}
+                                    className={`p-4 rounded-lg border-2 hover:shadow-md transition-all ${
                                       abaixoDoMinimo
-                                        ? "border-red-200"
-                                        : "border-gray-200"
+                                        ? "bg-red-50 border-red-300 shadow-md"
+                                        : "bg-gray-50 border-gray-200 hover:border-gray-300"
                                     }`}
                                   >
-                                    <div>
-                                      <p
-                                        className={`text-xs mb-1 ${
-                                          abaixoDoMinimo
-                                            ? "text-red-700 font-semibold"
-                                            : "text-gray-600"
-                                        }`}
-                                      >
-                                        Quantidade
-                                      </p>
-                                      <span
-                                        className={`text-3xl font-bold ${
-                                          abaixoDoMinimo
-                                            ? "text-red-600"
-                                            : "text-gray-900"
-                                        }`}
-                                      >
-                                        {item.quantidade}
+                                    <div className="flex items-start gap-3 mb-3">
+                                      <span className="text-3xl">
+                                        {item.produto.emoji || "📦"}
                                       </span>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                          <p className="font-bold text-gray-900 text-base truncate">
+                                            {item.produto.nome}
+                                          </p>
+                                          {abaixoDoMinimo && (
+                                            <span className="px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse">
+                                              ⚠️
+                                            </span>
+                                          )}
+                                        </div>
+                                        {item.produto.codigo && (
+                                          <p className="text-xs text-gray-500 mt-1">
+                                            Cód: {item.produto.codigo}
+                                          </p>
+                                        )}
+                                      </div>
                                     </div>
-                                    <div className="text-right">
-                                      <p
-                                        className={`text-xs mb-1 ${
-                                          abaixoDoMinimo
-                                            ? "text-red-700 font-semibold"
-                                            : "text-gray-600"
-                                        }`}
-                                      >
-                                        Estoque mín.
-                                      </p>
-                                      <span
-                                        className={`text-lg font-semibold ${
-                                          abaixoDoMinimo
-                                            ? "text-red-600"
-                                            : "text-gray-600"
-                                        }`}
-                                      >
-                                        {item.estoqueMinimo}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  {abaixoDoMinimo && (
-                                    <div className="mt-3 p-2 bg-red-100 rounded-lg border border-red-200">
-                                      <p className="text-xs text-red-800 font-semibold flex items-center gap-1">
-                                        <svg
-                                          className="w-4 h-4"
-                                          fill="currentColor"
-                                          viewBox="0 0 20 20"
+                                    <div
+                                      className={`flex items-end justify-between mt-3 pt-3 border-t ${
+                                        abaixoDoMinimo
+                                          ? "border-red-200"
+                                          : "border-gray-200"
+                                      }`}
+                                    >
+                                      <div>
+                                        <p
+                                          className={`text-xs mb-1 ${
+                                            abaixoDoMinimo
+                                              ? "text-red-700 font-semibold"
+                                              : "text-gray-600"
+                                          }`}
                                         >
-                                          <path
-                                            fillRule="evenodd"
-                                            d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                                            clipRule="evenodd"
-                                          />
-                                        </svg>
-                                        Estoque abaixo do mínimo!
-                                      </p>
+                                          Quantidade
+                                        </p>
+                                        <span
+                                          className={`text-3xl font-bold ${
+                                            abaixoDoMinimo
+                                              ? "text-red-600"
+                                              : "text-gray-900"
+                                          }`}
+                                        >
+                                          {item.quantidade}
+                                        </span>
+                                      </div>
+                                      <div className="text-right">
+                                        <p
+                                          className={`text-xs mb-1 ${
+                                            abaixoDoMinimo
+                                              ? "text-red-700 font-semibold"
+                                              : "text-gray-600"
+                                          }`}
+                                        >
+                                          Estoque mín.
+                                        </p>
+                                        <span
+                                          className={`text-lg font-semibold ${
+                                            abaixoDoMinimo
+                                              ? "text-red-600"
+                                              : "text-gray-600"
+                                          }`}
+                                        >
+                                          {item.estoqueMinimo}
+                                        </span>
+                                      </div>
                                     </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                        </div>
-                      ) : (
-                        <div className="text-center py-12">
-                          <p className="text-5xl mb-3">📭</p>
-                          <p className="text-gray-500 font-medium">
-                            Nenhum produto no estoque
-                          </p>
-                          <p className="text-sm text-gray-400 mt-1">
-                            Clique em "Editar Estoque" acima para adicionar
-                            produtos
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
+                                    {abaixoDoMinimo && (
+                                      <div className="mt-3 p-2 bg-red-100 rounded-lg border border-red-200">
+                                        <p className="text-xs text-red-800 font-semibold flex items-center gap-1">
+                                          <svg
+                                            className="w-4 h-4"
+                                            fill="currentColor"
+                                            viewBox="0 0 20 20"
+                                          >
+                                            <path
+                                              fillRule="evenodd"
+                                              d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                              clipRule="evenodd"
+                                            />
+                                          </svg>
+                                          Estoque abaixo do mínimo!
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            <p className="text-5xl mb-3">📭</p>
+                            <p className="text-gray-500 font-medium">
+                              Nenhum produto no estoque
+                            </p>
+                            <p className="text-sm text-gray-400 mt-1">
+                              Clique em "Editar Estoque" acima para adicionar
+                              produtos
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          </>
         )}
 
         {/* Busca de Lojas e Máquinas */}
