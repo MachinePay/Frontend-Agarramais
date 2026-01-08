@@ -329,9 +329,9 @@ export function Dashboard() {
       setLojas([]);
       setMaquinas([]);
     }
-  },[usuario]);
+  }, [usuario]);
 
-   useEffect(() => {
+  useEffect(() => {
     carregarDados();
   }, [carregarDados]);
 
@@ -1679,7 +1679,8 @@ export function Dashboard() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={imprimirRelatorioConsolidado}
-                    className="px-4 py-2 bg-linear-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all font-semibold text-sm flex items-center gap-2"
+                    className="w-full sm:w-auto px-3 py-2 bg-linear-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all font-semibold text-sm flex items-center justify-center gap-2 break-words"
+                    style={{ minWidth: 0, maxWidth: "100%" }}
                   >
                     <svg
                       className="w-5 h-5"
@@ -1765,7 +1766,8 @@ export function Dashboard() {
                               e.stopPropagation();
                               imprimirRelatorioLoja(loja);
                             }}
-                            className="px-4 py-2 bg-linear-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all font-medium text-sm flex items-center gap-2"
+                            className="w-full sm:w-auto px-3 py-2 bg-linear-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all font-medium text-sm flex items-center justify-center gap-2 break-words"
+                            style={{ minWidth: 0, maxWidth: "100%" }}
                           >
                             <svg
                               className="w-4 h-4"
