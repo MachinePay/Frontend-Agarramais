@@ -2517,7 +2517,7 @@ export function Dashboard() {
             )}
             {mostrarTodosAlertasMaquinas && (
               <div className="mt-6 space-y-3">
-                {stats.alertas.map((alerta, index) => (
+                {stats.alertas.slice(5).map((alerta, index) => (
                   <div
                     key={index}
                     className={`p-5 rounded-xl border-l-4 transition-all duration-200 hover:scale-[1.02] ${
