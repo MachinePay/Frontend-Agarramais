@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import api from "../services/api";
 
-// Componente para avisar máquinas sem movimentação nas últimas 18h de uma loja
+// Componente para avisar máquinas sem movimentação nas últimas 12h de uma loja
 export default function AvisosMaquinasFaltam({ lojas }) {
   const [lojaSelecionada, setLojaSelecionada] = useState("");
   const [maquinas, setMaquinas] = useState([]);
@@ -24,13 +24,13 @@ export default function AvisosMaquinasFaltam({ lojas }) {
         return res.data || [];
       })
       .then(async (maqs) => {
-        // Buscar movimentações das últimas 18h
-        const desde = new Date(Date.now() - 18 * 60 * 60 * 1000);
+        // Buscar movimentações das últimas 12h
+        const desde = new Date(Date.now() - 12 * 60 * 60 * 1000);
         const movRes = await api.get(
           `/movimentacoes?lojaId=${lojaSelecionada}&desde=${desde.toISOString()}`
         );
         const movimentacoes = movRes.data || [];
-        // Mapear máquinas que tiveram movimentação nas últimas 18h (garantindo data)
+        // Mapear máquinas que tiveram movimentação nas últimas 12h (garantindo data)
         const maquinasComMovSet = new Set();
         movimentacoes.forEach((m) => {
           // Use o campo correto de data, ex: createdAt, data, dataMovimentacao
@@ -82,12 +82,12 @@ export default function AvisosMaquinasFaltam({ lojas }) {
           {/* Aviso logo abaixo do select */}
           {maquinas.length > 0 && maquinasSemMov.length === 0 ? (
             <div className="bg-green-100 border-l-4 border-green-600 p-3 mb-4 font-bold text-green-800 text-lg">
-              ✅ Todas as máquinas tiveram movimentação nas últimas 18 horas.
+              ✅ Todas as máquinas tiveram movimentação nas últimas 12 horas.
             </div>
           ) : maquinasSemMov.length > 0 ? (
             <div className="bg-yellow-100 border-l-4 border-yellow-500 p-3 mb-2">
               <strong>Atenção:</strong> As máquinas abaixo não tiveram
-              movimentação nas últimas 18 horas:
+              movimentação nas últimas 12 horas:
               <ul className="mt-2">
                 {maquinasSemMov.map((m) => (
                   <li key={m.id} className="text-red-600 font-bold">
@@ -105,7 +105,7 @@ export default function AvisosMaquinasFaltam({ lojas }) {
                 {maquinasComMov.has(m.id) && (
                   <span
                     className="text-green-600 font-bold"
-                    title="Teve movimentação nas últimas 18h"
+                    title="Teve movimentação nas últimas 12h"
                   >
                     ✔️
                   </span>

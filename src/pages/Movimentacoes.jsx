@@ -12,6 +12,7 @@ import {
 import { PageLoader, EmptyState } from "../components/Loading";
 import { useAuth } from "../contexts/AuthContext";
 import AvisosMaquinasFaltam from "../components/AvisosMaquinasFaltam";
+import TabelaMovimentacoesEstoqueDeLoja from "../components/TabelaMovimentacoesEstoqueDeLoja";
 
 export function Movimentacoes() {
   const { usuario } = useAuth();
@@ -152,11 +153,20 @@ export function Movimentacoes() {
       // Buscar a última movimentação da máquina selecionada para pegar o totalPos anterior
       let ultimoTotalPos = 0;
       const movimentacoesMaquina = movimentacoes
-        .filter((m) => m.maquinaId === formData.maquina_id)
+        .filter((m) => {
+          // Considera tanto maquinaId quanto maquina_id
+          return (
+            m.maquinaId === formData.maquina_id ||
+            m.maquina_id === formData.maquina_id
+          );
+        })
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
       if (movimentacoesMaquina.length > 0) {
-        ultimoTotalPos = movimentacoesMaquina[0].totalPos || 0;
+        ultimoTotalPos =
+          movimentacoesMaquina[0].totalPos ||
+          movimentacoesMaquina[0].totalPos ||
+          0;
       }
 
       // sairam = totalPos da movimentação anterior - totalPre da atual
@@ -327,6 +337,7 @@ export function Movimentacoes() {
 
       setSuccess("Movimentação de loja atualizada!");
       carregarMovimentacoesEstoqueLoja();
+      if (typeof carregarDados === "function") carregarDados();
       setEditandoEstoqueLoja(null);
     } catch (err) {
       console.error("Erro ao editar:", err);
@@ -461,18 +472,6 @@ export function Movimentacoes() {
       },
     },
     {
-      key: "entrada",
-      label: "Entrada",
-      render: (mov) => (
-        <div className="flex items-center gap-1">
-          <span className="text-lg">📥</span>
-          <span className="font-bold text-green-600">
-            {mov.abastecidas > 0 ? `+${mov.abastecidas}` : "-"}
-          </span>
-        </div>
-      ),
-    },
-    {
       key: "saida",
       label: "Saída",
       render: (mov) => (
@@ -480,6 +479,18 @@ export function Movimentacoes() {
           <span className="text-lg">📤</span>
           <span className="font-bold text-red-600">
             {mov.sairam > 0 ? `-${mov.sairam}` : "-"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "entrada",
+      label: "Entrada",
+      render: (mov) => (
+        <div className="flex items-center gap-1">
+          <span className="text-lg">📥</span>
+          <span className="font-bold text-green-600">
+            {mov.abastecidas > 0 ? `+${mov.abastecidas}` : "-"}
           </span>
         </div>
       ),
@@ -1046,96 +1057,16 @@ export function Movimentacoes() {
               onChange={(e) => setFiltroResponsavelEstoque(e.target.value)}
             />
           </div>
-          <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
-            <table className="min-w-full table-auto">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="px-4 py-2">Data/Hora</th>
-                  <th className="px-4 py-2">Loja de Destino</th>
-                  <th className="px-4 py-2">Responsável</th>
-                  <th className="px-4 py-2">Produtos Enviados</th>
-                  <th className="px-4 py-2">Editar</th>
-                </tr>
-              </thead>
-              <tbody>
-                {movimentacoesEstoqueLoja
-                  .filter(
-                    (mov) =>
-                      (!filtroLojaEstoque ||
-                        mov.loja?.id === filtroLojaEstoque) &&
-                      (!filtroResponsavelEstoque ||
-                        (mov.usuario?.nome &&
-                          mov.usuario.nome
-                            .toLowerCase()
-                            .includes(
-                              filtroResponsavelEstoque.toLowerCase()
-                            ))) &&
-                      (!filtroDataEstoque ||
-                        (mov.dataMovimentacao &&
-                          mov.dataMovimentacao.startsWith(filtroDataEstoque)))
-                  )
-                  .map((mov) => (
-                    <tr key={mov.id} className="border-b">
-                      <td className="px-4 py-2">
-                        {mov.dataMovimentacao
-                          ? new Date(mov.dataMovimentacao).toLocaleString(
-                              "pt-BR"
-                            )
-                          : "-"}
-                      </td>
-                      <td className="px-4 py-2">
-                        {mov.loja?.nome || mov.lojaId || "-"}
-                      </td>
-                      <td className="px-4 py-2">{mov.usuario?.nome || "-"}</td>
-                      <td className="px-4 py-2">
-                        {mov.produtosEnviados &&
-                        mov.produtosEnviados.length > 0 ? (
-                          <ul className="list-disc ml-4">
-                            {mov.produtosEnviados.map((prod) => (
-                              <li key={prod.id}>
-                                {prod.produto?.nome || prod.produtoId} —
-                                <span className="font-bold">
-                                  {prod.quantidade}
-                                </span>{" "}
-                                <span
-                                  className={
-                                    prod.tipoMovimentacao === "entrada"
-                                      ? "text-green-600"
-                                      : "text-red-600"
-                                  }
-                                >
-                                  [{prod.tipoMovimentacao}]
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          "-"
-                        )}
-                      </td>
-                      <td className="px-4 py-2">
-                        <button
-                          className="btn-primary px-3 py-1"
-                          onClick={() => setEditandoEstoqueLoja(mov)}
-                        >
-                          Editar
-                        </button>
-                      </td>
-                      <td className="px-4 py-2">
-                        <button
-                          className="btn-danger px-3 py-1"
-                          onClick={() => {
-                            setExcluindoEstoqueLoja(mov);
-                          }}
-                        >
-                          Deletar
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
+          <TabelaMovimentacoesEstoqueDeLoja
+            movimentacoesEstoqueLoja={movimentacoesEstoqueLoja}
+            lojas={lojas}
+            filtroLojaEstoque={filtroLojaEstoque}
+            filtroDataEstoque={filtroDataEstoque}
+            filtroResponsavelEstoque={filtroResponsavelEstoque}
+            setEditandoEstoqueLoja={setEditandoEstoqueLoja}
+            setExcluindoEstoqueLoja={setExcluindoEstoqueLoja}
+            onChangeEstoqueLoja={carregarDados}
+          />
         </div>
 
         {/* Modal de Edição */}

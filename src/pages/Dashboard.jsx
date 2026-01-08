@@ -1,5 +1,5 @@
 // ...existing code...
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import api from "../services/api";
 import { Navbar } from "../components/Navbar";
@@ -250,11 +250,7 @@ export function Dashboard() {
 
   // Função para remover produto do estoque da loja (usando o id do registro)
 
-  useEffect(() => {
-    carregarDados();
-  }, [carregarDados]);
-
-  const carregarDados = async () => {
+  const carregarDados = useCallback(async () => {
     try {
       const isAdmin = usuario?.role === "ADMIN";
 
@@ -333,7 +329,11 @@ export function Dashboard() {
       setLojas([]);
       setMaquinas([]);
     }
-  };
+  },[usuario]);
+
+   useEffect(() => {
+    carregarDados();
+  }, [carregarDados]);
 
   const carregarAlertasEstoqueLoja = async (lojasData) => {
     try {
