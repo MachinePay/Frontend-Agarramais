@@ -95,7 +95,7 @@ export function Dashboard() {
       setMostrarModalMovimentacao(false);
       setMovimentacaoLojaId("");
       setProdutosMovimentacao([
-        { produtoId: "", quantidade: "", tipoMovimentacao: "saida" },
+        { produtoId: "", quantidade: "", tipoMovimentacao: "entrada" },
       ]);
       // ...atualize dados se necessário
     } catch (erro) {
@@ -164,7 +164,7 @@ export function Dashboard() {
                   className="input-field w-24"
                 />
                 <select
-                  value={p.tipoMovimentacao || "saida"}
+                  value={p.tipoMovimentacao || "entrada"}
                   onChange={(e) =>
                     handleProdutoChange(idx, "tipoMovimentacao", e.target.value)
                   }
@@ -247,6 +247,27 @@ export function Dashboard() {
   // Estados para edição de estoque
   const [estoqueEditando, setEstoqueEditando] = useState(null); // { lojaId, estoque: [...] }
   const [salvandoEstoque, setSalvandoEstoque] = useState(false);
+
+  // Função para remover produto do estoque da loja (usando o id do registro)
+  const removerProdutoEstoque = async (item) => {
+    if (!item.id) {
+      // Produto ainda não existe no banco, só remove do array local
+      setEstoqueEditando((prev) => ({
+        ...prev,
+        estoque: prev.estoque.filter((i) => i.produtoId !== item.produtoId),
+      }));
+      return;
+    }
+    try {
+      await api.delete(`/estoque-lojas/${item.id}`);
+      setEstoqueEditando((prev) => ({
+        ...prev,
+        estoque: prev.estoque.filter((i) => i.produtoId !== item.produtoId),
+      }));
+    } catch (error) {
+      alert("Erro ao remover produto do estoque!", error);
+    }
+  };
 
   useEffect(() => {
     carregarDados();
@@ -552,7 +573,7 @@ export function Dashboard() {
         produtoCodigo: produto.codigo,
         quantidade: itemExistente?.quantidade || 0,
         estoqueMinimo: itemExistente?.estoqueMinimo || 0,
-        ativo: itemExistente ? true : false, // só ativo se já existe no estoque
+        ativo: itemExistente?.ativo ?? false, // respeita valor real do backend
       };
     });
 
@@ -562,6 +583,10 @@ export function Dashboard() {
       estoque: estoqueTodos,
     });
   };
+
+  // ...
+  // Exemplo de uso no JSX (dentro do modal de edição de estoque):
+  // <button onClick={() => removerProdutoEstoque(item)}>Remover</button>
 
   const fecharEdicaoEstoque = () => {
     setEstoqueEditando(null);
@@ -1042,6 +1067,7 @@ export function Dashboard() {
               {
                 quantidade: item.quantidade || 0,
                 estoqueMinimo: item.estoqueMinimo || 0,
+                ativo: item.ativo,
               }
             );
           } else {
@@ -1052,6 +1078,7 @@ export function Dashboard() {
               produtoId: item.produtoId,
               quantidade: item.quantidade || 0,
               estoqueMinimo: item.estoqueMinimo || 0,
+              ativo: item.ativo,
             });
           }
         } catch (itemError) {
@@ -1068,8 +1095,17 @@ export function Dashboard() {
       );
 
       for (const item of produtosInativos) {
+        console.log("Tentando remover produto inativo:", {
+          id: item.id,
+          produtoId: item.produtoId,
+          produtoNome: item.produtoNome,
+          lojaId: estoqueEditando.lojaId,
+          itemCompleto: item,
+        });
         try {
-          await api.delete(`/estoque-lojas/${item.id}`);
+          await api.delete(
+            `/estoque-lojas/${estoqueEditando.lojaId}/${item.produtoId}`
+          );
           console.log(`🗑️ Removido produto ${item.produtoNome} do estoque`);
         } catch (deleteError) {
           console.error(
