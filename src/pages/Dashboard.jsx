@@ -249,29 +249,10 @@ export function Dashboard() {
   const [salvandoEstoque, setSalvandoEstoque] = useState(false);
 
   // Função para remover produto do estoque da loja (usando o id do registro)
-  const removerProdutoEstoque = async (item) => {
-    if (!item.id) {
-      // Produto ainda não existe no banco, só remove do array local
-      setEstoqueEditando((prev) => ({
-        ...prev,
-        estoque: prev.estoque.filter((i) => i.produtoId !== item.produtoId),
-      }));
-      return;
-    }
-    try {
-      await api.delete(`/estoque-lojas/${item.id}`);
-      setEstoqueEditando((prev) => ({
-        ...prev,
-        estoque: prev.estoque.filter((i) => i.produtoId !== item.produtoId),
-      }));
-    } catch (error) {
-      alert("Erro ao remover produto do estoque!", error);
-    }
-  };
 
   useEffect(() => {
     carregarDados();
-  }, []);
+  }, [carregarDados]);
 
   const carregarDados = async () => {
     try {
@@ -1246,8 +1227,8 @@ export function Dashboard() {
 
         {/* Cards de Resumo com design moderno - Apenas para ADMIN */}
         {usuario?.role === "ADMIN" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="stat-card bg-gradient-to-br from-yellow-500 to-orange-500">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
+            <div className="stat-card bg-linear-to-br from-yellow-500 to-orange-500 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30">
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-medium opacity-90">
@@ -1276,7 +1257,7 @@ export function Dashboard() {
               </div>
             </div>
 
-            <div className="stat-card bg-gradient-to-br from-blue-500 to-blue-600">
+            <div className="stat-card bg-linear-to-br from-blue-500 to-blue-600 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30">
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-medium opacity-90">
@@ -1305,7 +1286,7 @@ export function Dashboard() {
               </div>
             </div>
 
-            <div className="stat-card bg-gradient-to-br from-green-500 to-green-600">
+            <div className="stat-card bg-linear-to-br from-green-500 to-green-600 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30">
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-medium opacity-90">
@@ -1332,7 +1313,7 @@ export function Dashboard() {
               </div>
             </div>
 
-            <div className="stat-card bg-gradient-to-br from-red-500 to-red-600">
+            <div className="stat-card bg-linear-to-br from-red-500 to-red-600 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30">
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-medium opacity-90">
@@ -1367,34 +1348,36 @@ export function Dashboard() {
         {/* Estatísticas de Produtos Totais - Apenas para ADMIN */}
         {usuario?.role === "ADMIN" &&
           stats.balanco?.distribuicaoLojas?.length > 0 && (
-            <div className="card-gradient mb-8 border-l-4 border-pink-500">
+            <div className="card-gradient mb-8 border-l-4 border-pink-500 p-4 sm:p-8 rounded-xl shadow-md">
               <div
-                className="flex items-center justify-between cursor-pointer hover:bg-pink-50/50 transition-colors rounded-xl p-2 -m-2"
+                className="flex flex-col sm:flex-row items-start sm:items-center justify-between cursor-pointer hover:bg-pink-50/50 transition-colors rounded-xl p-2 sm:p-4 -m-2"
                 onClick={toggleDetalhesProdutos}
               >
-                <div>
-                  <h2 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-                    <span className="bg-gradient-to-br from-pink-500 to-pink-600 p-3 rounded-xl text-white">
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+                    <span className="bg-linear-to-br from-pink-500 to-pink-600 p-2 sm:p-3 rounded-xl text-white">
                       🎁
                     </span>
                     Total de Produtos Vendidos
                   </h2>
-                  <p className="text-gray-600">
+                  <p className="text-gray-600 text-sm sm:text-base">
                     Soma de todas as lojas no período
                   </p>
                 </div>
-                <div className="text-right">
+                <div className="text-left sm:text-right mt-4 sm:mt-0">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-5xl font-bold text-gradient">
+                    <span className="text-3xl sm:text-5xl font-bold text-gradient">
                       {stats.balanco.distribuicaoLojas.reduce(
                         (total, loja) =>
                           total + (loja.produtosVendidos || loja.sairam || 0),
                         0
                       )}
                     </span>
-                    <span className="text-2xl text-gray-600">unidades</span>
+                    <span className="text-lg sm:text-2xl text-gray-600">
+                      unidades
+                    </span>
                   </div>
-                  <p className="text-sm text-gray-500 mt-2">
+                  <p className="text-xs sm:text-sm text-gray-500 mt-2">
                     📊 {stats.balanco.distribuicaoLojas.length}{" "}
                     {stats.balanco.distribuicaoLojas.length === 1
                       ? "loja"
@@ -1420,7 +1403,7 @@ export function Dashboard() {
                       {vendasPorProduto.map((produto) => (
                         <div
                           key={produto.id}
-                          className="bg-gradient-to-r from-pink-50 to-purple-50 p-5 rounded-xl border-2 border-pink-200 hover:shadow-md transition-all"
+                          className="bg-linear-to-r from-pink-50 to-purple-50 p-5 rounded-xl border-2 border-pink-200 hover:shadow-md transition-all"
                         >
                           <div className="flex items-center justify-between mb-3">
                             <h4 className="text-lg font-bold text-gray-900 flex items-center gap-3">
@@ -1696,7 +1679,7 @@ export function Dashboard() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={imprimirRelatorioConsolidado}
-                    className="px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all font-semibold text-sm flex items-center gap-2"
+                    className="px-4 py-2 bg-linear-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all font-semibold text-sm flex items-center gap-2"
                   >
                     <svg
                       className="w-5 h-5"
@@ -1715,7 +1698,7 @@ export function Dashboard() {
                   </button>
                   <button
                     onClick={() => setMostrarModalMovimentacao(true)}
-                    className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:shadow-lg transition-all font-semibold text-sm flex items-center gap-2"
+                    className="px-4 py-2 bg-linear-to-r from-green-500 to-green-600 text-white rounded-lg hover:shadow-lg transition-all font-semibold text-sm flex items-center gap-2"
                   >
                     <svg
                       className="w-5 h-5"
@@ -1782,7 +1765,7 @@ export function Dashboard() {
                               e.stopPropagation();
                               imprimirRelatorioLoja(loja);
                             }}
-                            className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all font-medium text-sm flex items-center gap-2"
+                            className="px-4 py-2 bg-linear-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all font-medium text-sm flex items-center gap-2"
                           >
                             <svg
                               className="w-4 h-4"
@@ -2144,7 +2127,7 @@ export function Dashboard() {
           {maquinaSelecionada && (
             <div className="space-y-6">
               {/* Informações da Máquina */}
-              <div className="bg-gradient-to-br from-primary/10 to-secondary/10 p-6 rounded-xl">
+              <div className="bg-linear-to-br from-primary/10 to-secondary/10 p-6 rounded-xl">
                 <h3 className="text-xl font-bold text-gray-900 mb-4">
                   📊 Informações da Máquina
                 </h3>
@@ -2524,7 +2507,7 @@ export function Dashboard() {
             </div>
             {stats.alertas.length > 5 && !mostrarTodosAlertasMaquinas && (
               <button
-                className="block mt-6 w-full text-center bg-gradient-to-r from-primary/10 to-accent-yellow/10 hover:from-primary/20 hover:to-accent-yellow/20 text-primary font-bold py-3 rounded-xl transition-all duration-200"
+                className="block mt-6 w-full text-center bg-linear-to-r from-primary/10 to-accent-yellow/10 hover:from-primary/20 hover:to-accent-yellow/20 text-primary font-bold py-3 rounded-xl transition-all duration-200"
                 onClick={() => setMostrarTodosAlertasMaquinas(true)}
               >
                 Ver todos os alertas ({stats.alertas.length})
@@ -2628,10 +2611,10 @@ export function Dashboard() {
                     key={`${alerta.lojaId}-${alerta.produtoId}-${index}`}
                     className={`p-5 rounded-xl border-l-4 transition-all duration-200 hover:scale-[1.02] ${
                       nivelAlerta === "CRÍTICO"
-                        ? "bg-gradient-to-r from-red-50 to-red-100/50 border-red-500 shadow-red-100 shadow-md"
+                        ? "bg-linear-to-r from-red-50 to-red-100/50 border-red-500 shadow-red-100 shadow-md"
                         : nivelAlerta === "ALTO"
-                        ? "bg-gradient-to-r from-orange-50 to-orange-100/50 border-orange-500 shadow-orange-100 shadow-md"
-                        : "bg-gradient-to-r from-yellow-50 to-yellow-100/50 border-yellow-500 shadow-yellow-100 shadow-md"
+                        ? "bg-linear-to-r from-orange-50 to-orange-100/50 border-orange-500 shadow-orange-100 shadow-md"
+                        : "bg-linear-to-r from-yellow-50 to-yellow-100/50 border-yellow-500 shadow-yellow-100 shadow-md"
                     }`}
                   >
                     <div className="flex justify-between items-start">
@@ -2683,7 +2666,7 @@ export function Dashboard() {
             {alertasEstoqueLoja.length > 5 && (
               <Link
                 to="/lojas"
-                className="block mt-6 text-center bg-gradient-to-r from-orange-500/10 to-orange-600/10 hover:from-orange-500/20 hover:to-orange-600/20 text-orange-700 font-bold py-3 rounded-xl transition-all duration-200"
+                className="block mt-6 text-center bg-linear-to-r from-orange-500/10 to-orange-600/10 hover:from-orange-500/20 hover:to-orange-600/20 text-orange-700 font-bold py-3 rounded-xl transition-all duration-200"
               >
                 Ver todos os alertas de lojas ({alertasEstoqueLoja.length})
               </Link>
@@ -2696,7 +2679,7 @@ export function Dashboard() {
           <div className="card">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <span className="bg-gradient-to-br from-primary to-accent-yellow p-2 rounded-lg">
+                <span className="bg-linear-to-br from-primary to-accent-yellow p-2 rounded-lg">
                   <svg
                     className="w-6 h-6 text-white"
                     fill="currentColor"
@@ -2815,7 +2798,7 @@ export function Dashboard() {
                     <tr key={index}>
                       <td className="font-bold text-gray-900">
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-gradient-to-r from-primary to-accent-yellow"></div>
+                          <div className="w-2 h-2 rounded-full bg-linear-to-r from-primary to-accent-yellow"></div>
                           {loja.nome}
                         </div>
                       </td>
@@ -2881,7 +2864,7 @@ export function Dashboard() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
             {/* Header do Modal */}
-            <div className="bg-gradient-to-r from-primary to-accent-yellow p-6 text-white">
+            <div className="bg-linear-to-r from-primary to-accent-yellow p-6 text-white">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold flex items-center gap-3">
@@ -2989,7 +2972,7 @@ export function Dashboard() {
 
               {/* Estatísticas */}
               <div className="mb-6 grid grid-cols-2 gap-4">
-                <div className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg border-2 border-green-200">
+                <div className="p-4 bg-linear-to-br from-green-50 to-emerald-50 rounded-lg border-2 border-green-200">
                   <p className="text-sm text-green-700 font-semibold mb-1">
                     ✅ Produtos Ativos
                   </p>
@@ -2997,7 +2980,7 @@ export function Dashboard() {
                     {estoqueEditando.estoque.filter((i) => i.ativo).length}
                   </p>
                 </div>
-                <div className="p-4 bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg border-2 border-orange-200">
+                <div className="p-4 bg-linear-to-br from-orange-50 to-amber-50 rounded-lg border-2 border-orange-200">
                   <p className="text-sm text-orange-700 font-semibold mb-1">
                     ⚠️ Abaixo do Mínimo
                   </p>
@@ -3160,7 +3143,7 @@ export function Dashboard() {
               </button>
               <button
                 onClick={salvarEstoque}
-                className="px-6 py-3 bg-gradient-to-r from-primary to-accent-yellow text-black rounded-lg font-semibold hover:shadow-lg transition-all flex items-center gap-2"
+                className="px-6 py-3 bg-linear-to-r from-primary to-accent-yellow text-black rounded-lg font-semibold hover:shadow-lg transition-all flex items-center gap-2"
                 disabled={salvandoEstoque}
               >
                 {salvandoEstoque ? (

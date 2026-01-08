@@ -11,6 +11,7 @@ import {
 } from "../components/UIComponents";
 import { PageLoader, EmptyState } from "../components/Loading";
 import { useAuth } from "../contexts/AuthContext";
+import AvisosMaquinasFaltam from "../components/AvisosMaquinasFaltam";
 
 export function Movimentacoes() {
   const { usuario } = useAuth();
@@ -559,6 +560,8 @@ export function Movimentacoes() {
         )}
 
         {usuario?.role === "ADMIN" && <StatsGrid stats={stats} />}
+
+        <AvisosMaquinasFaltam lojas={lojas} />
 
         {/* Filtro por Loja - Apenas para ADMIN */}
         {usuario?.role === "ADMIN" && (
