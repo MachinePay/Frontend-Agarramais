@@ -140,27 +140,36 @@ export function Movimentacoes() {
     setSuccess("");
 
     try {
-      // <--- O TRY QUE FALTAVA
       // Converter valores do formulário
-      const quantidadeAtual = parseInt(formData.quantidadeAtualMaquina) || 0;
+      const totalPre = parseInt(formData.quantidadeAtualMaquina) || 0; // valor digitado pelo usuário
       const quantidadeAdicionada = parseInt(formData.quantidadeAdicionada) || 0;
       const fichas = parseInt(formData.fichas) || 0;
 
-      // Calcular quantidades baseado na lógica:
-      // quantidadeSaiu = estoqueAnterior - quantidadeAtual
-      // novoEstoque = quantidadeAtual + quantidadeAdicionada
-      const quantidadeSaiu = Math.max(0, estoqueAnterior - quantidadeAtual);
-      // O novo estoque é calculado automaticamente no backend ou derivado,
-      // mas a lógica de validação visual é: novoEstoque = quantidadeAtual + quantidadeAdicionada;
+      // totalPos = totalPre + abastecidas
+      const totalPos = totalPre + quantidadeAdicionada;
+
+      // Buscar a última movimentação da máquina selecionada para pegar o totalPos anterior
+      let ultimoTotalPos = 0;
+      const movimentacoesMaquina = movimentacoes
+        .filter((m) => m.maquinaId === formData.maquina_id)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+      if (movimentacoesMaquina.length > 0) {
+        ultimoTotalPos = movimentacoesMaquina[0].totalPos || 0;
+      }
+
+      // sairam = totalPos da movimentação anterior - totalPre da atual
+      const quantidadeSaiu = Math.max(0, ultimoTotalPos - totalPre);
 
       console.log("📊 [handleSubmit] Cálculos da movimentação:");
-      console.log("   📌 Estoque anterior (totalPre):", estoqueAnterior);
-      console.log("   📌 Quantidade atual informada:", quantidadeAtual);
+      console.log("   📌 totalPos anterior:", ultimoTotalPos);
+      console.log("   📌 Quantidade atual informada (totalPre):", totalPre);
       console.log(
         "   📌 Quantidade adicionada (abastecidas):",
         quantidadeAdicionada
       );
       console.log("   📌 Calculado que saiu (sairam):", quantidadeSaiu);
+      console.log("   📌 Novo total (totalPos):", totalPos);
 
       // Preparar observação
       let observacaoFinal = formData.observacao?.trim() || "";
@@ -174,9 +183,10 @@ export function Movimentacoes() {
       // Transformar para o formato do backend
       const data = {
         maquinaId: formData.maquina_id,
-        totalPre: estoqueAnterior,
+        totalPre: totalPre,
         sairam: quantidadeSaiu,
         abastecidas: quantidadeAdicionada,
+        totalPos: totalPos,
         fichas: fichas,
         contadorIn: parseInt(formData.contadorIn) || null,
         contadorOut: parseInt(formData.contadorOut) || null,
@@ -305,10 +315,13 @@ export function Movimentacoes() {
     if (!editandoEstoqueLoja) return;
 
     try {
-      // Ajuste aqui conforme os campos que sua API aceita editar
       await api.put(`/movimentacao-estoque-loja/${editandoEstoqueLoja.id}`, {
-        responsavel: editandoEstoqueLoja.responsavel,
-        // Adicione outros campos se necessário
+        usuarioId: usuario.id,
+        produtos: editandoEstoqueLoja.produtosEnviados.map((p) => ({
+          produtoId: p.produto?.id || p.produtoId,
+          quantidade: Number(p.quantidade),
+          tipoMovimentacao: p.tipoMovimentacao || "saida",
+        })),
       });
 
       setSuccess("Movimentação de loja atualizada!");
@@ -1304,36 +1317,74 @@ export function Movimentacoes() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
             <h3 className="text-xl font-bold text-gray-900 mb-4">
-              ✏️ Editar Movimentação Loja
+              ✏️ Editar Produtos Enviados
             </h3>
-
             <form onSubmit={salvarEdicaoLoja}>
-              <div className="mb-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Responsável
-                </label>
-                <input
-                  type="text"
-                  className="input-field"
-                  value={editandoEstoqueLoja.responsavel || ""}
-                  onChange={(e) =>
-                    setEditandoEstoqueLoja({
-                      ...editandoEstoqueLoja,
-                      responsavel: e.target.value,
-                    })
-                  }
-                />
-              </div>
-
-              {/* Nota: Se precisar editar produtos, a lógica é mais complexa. 
-                    Por enquanto deixei apenas o responsável como exemplo. */}
               <div className="p-3 bg-gray-50 rounded mb-4">
                 <p className="text-xs text-gray-500">
                   Data:{" "}
-                  {new Date(editandoEstoqueLoja.data).toLocaleString("pt-BR")}
+                  {editandoEstoqueLoja.data
+                    ? new Date(editandoEstoqueLoja.data).toLocaleString("pt-BR")
+                    : "-"}
                 </p>
               </div>
-
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Produtos Enviados
+                </label>
+                {editandoEstoqueLoja.produtosEnviados &&
+                editandoEstoqueLoja.produtosEnviados.length > 0 ? (
+                  editandoEstoqueLoja.produtosEnviados.map((prod, idx) => (
+                    <div
+                      key={prod.id || idx}
+                      className="flex gap-2 mb-2 items-center"
+                    >
+                      <span className="min-w-[120px]">
+                        {prod.produto?.nome || prod.produtoId}
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={prod.quantidade}
+                        onChange={(e) => {
+                          const novaLista =
+                            editandoEstoqueLoja.produtosEnviados.map((p, i) =>
+                              i === idx
+                                ? { ...p, quantidade: e.target.value }
+                                : p
+                            );
+                          setEditandoEstoqueLoja({
+                            ...editandoEstoqueLoja,
+                            produtosEnviados: novaLista,
+                          });
+                        }}
+                        className="input-field w-24"
+                      />
+                      <select
+                        value={prod.tipoMovimentacao}
+                        onChange={(e) => {
+                          const novaLista =
+                            editandoEstoqueLoja.produtosEnviados.map((p, i) =>
+                              i === idx
+                                ? { ...p, tipoMovimentacao: e.target.value }
+                                : p
+                            );
+                          setEditandoEstoqueLoja({
+                            ...editandoEstoqueLoja,
+                            produtosEnviados: novaLista,
+                          });
+                        }}
+                        className="input-field w-28"
+                      >
+                        <option value="entrada">Entrada</option>
+                        <option value="saida">Saída</option>
+                      </select>
+                    </div>
+                  ))
+                ) : (
+                  <span className="text-gray-500">Nenhum produto enviado</span>
+                )}
+              </div>
               <div className="flex gap-3 justify-end mt-6">
                 <button
                   type="button"
