@@ -364,7 +364,7 @@ export function LojaDetalhes() {
                         <div>
                           <div className="flex justify-between text-sm mb-1">
                             <span className="text-gray-600">Ocupação:</span>
-                            <span className="font-semibold">{ocupacao}%</span>
+                            <span className="font-semibold">{ocupacao}%  ({maquina.capacidadePadrao - estoqueAtual} faltam)</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
                             <div
