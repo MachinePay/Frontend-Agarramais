@@ -1344,7 +1344,17 @@ export function Dashboard() {
               </div>
             </div>
 
-            <div className="stat-card bg-linear-to-br from-red-500 to-red-600 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30">
+            <div
+              className="stat-card bg-linear-to-br from-red-500 to-red-600 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 cursor-pointer"
+              onClick={() => {
+                const alertSection = document.getElementById(
+                  "alertas-estoque-maquinas"
+                );
+                if (alertSection) {
+                  alertSection.scrollIntoView({ behavior: "smooth" });
+                }
+              }}
+            >
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-medium opacity-90">
@@ -2477,7 +2487,7 @@ export function Dashboard() {
 
         {/* Alertas de Estoque - Apenas para ADMIN */}
         {usuario?.role === "ADMIN" && stats.alertas.length > 0 && (
-          <div className="card mb-8 border-l-4 border-red-500">
+          <div className="card mb-8 border-l-4 border-red-500" id="alertas-estoque-maquinas">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                 <span className="bg-red-100 p-2 rounded-lg">⚠️</span>
