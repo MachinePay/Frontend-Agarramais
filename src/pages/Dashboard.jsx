@@ -99,7 +99,7 @@ export function Dashboard() {
       ]);
       setTimeout(() => {
         window.location.reload();
-      }, 300);
+      }, 1000);
       // ...atualize dados se necessário
     } catch (erro) {
       setMovimentacaoErro("Erro ao registrar movimentação", erro);
