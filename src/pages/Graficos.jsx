@@ -106,7 +106,6 @@ export function Graficos() {
       const faturamento = totalFichas * (parseFloat(maquina.valorFicha) || 0);
 
       // Calcular estoque atual baseado nas movimentações
-      // Se a última movimentação tem totalPre, usar como base
       const ultimaMov =
         movsMaquina.length > 0
           ? movsMaquina.sort(
@@ -120,6 +119,25 @@ export function Graficos() {
           (ultimaMov.sairam || 0)
         : maquina.estoqueAtual || 0;
 
+      // --- CORREÇÃO AQUI: O código continua dentro do map ---
+
+      // Produtos que passaram pela máquina no período
+      const produtosPassaram = {};
+      movsMaquina.forEach((mov) => {
+        const detalhes = mov.detalhesProdutos || mov.produtos;
+        if (detalhes && Array.isArray(detalhes)) {
+          detalhes.forEach((detalhe) => {
+            const produtoId = detalhe.produtoId;
+            if (produtoId) produtosPassaram[produtoId] = true;
+          });
+        }
+      });
+
+      const produtosDaMaquina = Object.keys(produtosPassaram)
+        .map((id) => produtosLista.find((p) => p.id === id))
+        .filter(Boolean);
+
+      // Agora sim retornamos o objeto completo
       return {
         id: maquina.id,
         nome: maquina.nome,
@@ -131,44 +149,43 @@ export function Graficos() {
         estoqueAtual,
         capacidade: maquina.capacidadePadrao || 0,
         numeroMovimentacoes: movsMaquina.length,
+        produtosPassaram: produtosDaMaquina,
       };
-    });
+    }); // Fim do map
 
-    // Vendas por produto
+    // Vendas por produto (quantidade total que saiu de cada produto)
     const vendasPorProduto = {};
     movimentacoesLista.forEach((mov) => {
-      // Verificar tanto detalhesProdutos quanto produtos
       const detalhes = mov.detalhesProdutos || mov.produtos;
-
       if (detalhes && Array.isArray(detalhes)) {
         detalhes.forEach((detalhe) => {
           const produtoId = detalhe.produtoId;
           const quantidadeSaiu =
             detalhe.quantidadeSaiu || detalhe.quantidadeSaida || 0;
-
           if (!vendasPorProduto[produtoId]) {
-            vendasPorProduto[produtoId] = 0;
+            vendasPorProduto[produtoId] = {
+              quantidade: 0,
+              produto: produtosLista.find((p) => p.id === produtoId) || {
+                nome: "Produto Desconhecido",
+                emoji: "🧸",
+              },
+            };
           }
-          vendasPorProduto[produtoId] += quantidadeSaiu;
+          vendasPorProduto[produtoId].quantidade += quantidadeSaiu;
         });
       }
     });
 
-    console.log("Vendas por produto:", vendasPorProduto);
-    console.log("Movimentações:", movimentacoesLista);
-
-    // Criar array de produtos vendidos com informações completas
+    // Criar array de produtos vendidos (com nome, emoji, quantidade)
     const produtosVendidos = Object.entries(vendasPorProduto)
-      .map(([produtoId, quantidade]) => {
-        const produto = produtosLista.find((p) => p.id === produtoId);
-        return {
-          produtoId,
-          nome: produto?.nome || "Produto Desconhecido",
-          quantidade,
-        };
-      })
+      .map(([produtoId, obj]) => ({
+        produtoId,
+        nome: obj.produto.nome,
+        emoji: obj.produto.emoji || "🧸",
+        quantidade: obj.quantidade,
+      }))
       .sort((a, b) => b.quantidade - a.quantidade)
-      .slice(0, 10); // Top 10 produtos
+      .slice(0, 10);
 
     // Dados totais
     const totais = {
@@ -626,6 +643,9 @@ export function Graficos() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Ocupação
                       </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Produtos
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -672,6 +692,21 @@ export function Graficos() {
                             >
                               {ocupacao.toFixed(0)}%
                             </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            {maquina.produtosPassaram &&
+                            maquina.produtosPassaram.length > 0 ? (
+                              maquina.produtosPassaram.map((prod) => (
+                                <span
+                                  key={prod.id}
+                                  className="inline-block mr-2"
+                                >
+                                  {prod.emoji || "🧸"} {prod.nome}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-gray-400">Nenhum</span>
+                            )}
                           </td>
                         </tr>
                       );

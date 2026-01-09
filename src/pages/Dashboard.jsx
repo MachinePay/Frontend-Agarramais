@@ -2377,8 +2377,7 @@ export function Dashboard() {
                                 </p>
                                 <p className="font-semibold text-purple-600">
                                   {(mov.totalPre || 0) +
-                                    (mov.abastecidas || 0) -
-                                    (mov.sairam || 0)}
+                                    (mov.abastecidas || 0)}
                                 </p>
                               </div>
                               <div>
