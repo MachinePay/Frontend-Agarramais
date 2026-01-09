@@ -8,6 +8,7 @@ import { PageLoader } from "../components/Loading";
 import { Badge } from "../components/UIComponents";
 import { useAuth } from "../contexts/AuthContext";
 
+import Swal from "sweetalert2";
 export function Dashboard() {
   const [mostrarTodosAlertasMaquinas, setMostrarTodosAlertasMaquinas] =
     useState(false);
@@ -107,13 +108,14 @@ export function Dashboard() {
         if (typeof carregarDados === "function") carregarDados();
       }, 200);
       // ...atualize dados se necessário
-    } catch (erro) {
+    } catch (error) {
       Swal.fire({
         icon: "error",
         title: "Erro",
         text: "Erro ao registrar movimentação!",
         confirmButtonColor: "#ef4444",
       });
+      console.error("Erro ao enviar movimentação de estoque de loja:", error);
     } finally {
       setMovimentacaoEnviando(false);
     }
