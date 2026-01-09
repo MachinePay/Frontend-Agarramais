@@ -26,14 +26,14 @@ export function Dashboard() {
   const [movimentacaoSucesso, setMovimentacaoSucesso] = useState("");
   // Estado para lista de produtos da movimentação
   const [produtosMovimentacao, setProdutosMovimentacao] = useState([
-    { produtoId: "", quantidade: "", tipoMovimentacao: "saida" },
+    { produtoId: "", quantidade: "", tipoMovimentacao: "entrada" },
   ]);
 
   // Sempre deve haver pelo menos um produto na lista
   const handleAddProduto = () => {
     setProdutosMovimentacao((prev) => [
       ...prev,
-      { produtoId: "", quantidade: "", tipoMovimentacao: "saida" },
+      { produtoId: "", quantidade: "", tipoMovimentacao: "entrada" },
     ]);
   };
 
@@ -2376,8 +2376,7 @@ export function Dashboard() {
                                   <span>📦</span> Total Atual
                                 </p>
                                 <p className="font-semibold text-purple-600">
-                                  {(mov.totalPre || 0) +
-                                    (mov.abastecidas || 0)}
+                                  {(mov.totalPre || 0) + (mov.abastecidas || 0)}
                                 </p>
                               </div>
                               <div>
