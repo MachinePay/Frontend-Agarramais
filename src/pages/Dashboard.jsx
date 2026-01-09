@@ -2199,12 +2199,14 @@ export function Dashboard() {
                       {maquinaSelecionada.capacidadePadrao || 0}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Estoque Atual</p>
-                    <p className="text-lg font-semibold">
-                      {maquinaSelecionada.estoqueAtual || 0}
-                    </p>
-                  </div>
+                  {usuario?.role === "ADMIN" && (
+                    <div>
+                      <p className="text-sm text-gray-600">Estoque Atual</p>
+                      <p className="text-lg font-semibold">
+                        {maquinaSelecionada.estoqueAtual || 0}
+                      </p>
+                    </div>
+                  )}
                   {maquinaSelecionada.valorFicha && (
                     <div>
                       <p className="text-sm text-gray-600">Valor da Ficha</p>
