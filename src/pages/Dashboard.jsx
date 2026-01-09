@@ -197,24 +197,38 @@ export function Dashboard() {
               Adicionar mais um produto
             </button>
           </div>
-          <div className="flex gap-4 justify-end mt-6">
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => setMostrarModalMovimentacao(false)}
-              disabled={movimentacaoEnviando}
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={enviarMovimentacaoEstoqueLoja}
-              disabled={movimentacaoEnviando}
-            >
-              {movimentacaoEnviando ? "Enviando..." : "Enviar"}
-            </button>
-          </div>
+          <form onSubmit={enviarMovimentacaoEstoqueLoja}>
+            <div className="flex gap-4 justify-end mt-6">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setMostrarModalMovimentacao(false)}
+                disabled={movimentacaoEnviando}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={movimentacaoEnviando}
+              >
+                <svg
+                  className="w-5 h-5 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M5 13l4 4L19 7"
+                  ></path>
+                </svg>
+                Registrar Movimentação
+              </button>
+            </div>
+          </form>
           {movimentacaoErro && (
             <div className="text-red-600 mt-2">{movimentacaoErro}</div>
           )}
