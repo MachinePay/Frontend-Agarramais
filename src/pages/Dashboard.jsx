@@ -23,7 +23,7 @@ export function Dashboard() {
   const [movimentacaoLojaId, setMovimentacaoLojaId] = useState("");
   const [movimentacaoEnviando, setMovimentacaoEnviando] = useState(false);
   const [movimentacaoErro, setMovimentacaoErro] = useState("");
-  const [movimentacaoSucesso, setMovimentacaoSucesso] = useState("");
+  // Removido movimentacaoSucesso, feedback só via alert externo
   // Estado para lista de produtos da movimentação
   const [produtosMovimentacao, setProdutosMovimentacao] = useState([
     { produtoId: "", quantidade: "", tipoMovimentacao: "entrada" },
@@ -63,12 +63,12 @@ export function Dashboard() {
     });
   };
   // ...já declarado acima...
-  const [reloadAfterModal, setReloadAfterModal] = useState(false);
+  // removido reloadAfterModal/setReloadAfterModal pois não são usados
   const enviarMovimentacaoEstoqueLoja = async (e) => {
     if (e) e.preventDefault();
     setMovimentacaoEnviando(true);
     setMovimentacaoErro("");
-    setMovimentacaoSucesso("");
+    // Removido setMovimentacaoSucesso
     try {
       const produtosValidos = produtosMovimentacao.filter(
         (p) => p.produtoId && Number(p.quantidade) > 0
@@ -92,18 +92,28 @@ export function Dashboard() {
         dataMovimentacao: new Date().toISOString(),
       };
       await api.post("/movimentacao-estoque-loja", payload);
-      alert("Movimentação registrada com sucesso!");
+      Swal.fire({
+        icon: "success",
+        title: "Sucesso",
+        text: "Movimentação registrada com sucesso!",
+        confirmButtonColor: "#fbbf24",
+      });
       setMostrarModalMovimentacao(false);
       setMovimentacaoLojaId("");
       setProdutosMovimentacao([
         { produtoId: "", quantidade: "", tipoMovimentacao: "entrada" },
       ]);
       setTimeout(() => {
-        window.location.reload();
-      }, 150);
+        if (typeof carregarDados === "function") carregarDados();
+      }, 200);
       // ...atualize dados se necessário
     } catch (erro) {
-      alert("Erro ao registrar movimentação!");
+      Swal.fire({
+        icon: "error",
+        title: "Erro",
+        text: "Erro ao registrar movimentação!",
+        confirmButtonColor: "#ef4444",
+      });
     } finally {
       setMovimentacaoEnviando(false);
     }
@@ -234,9 +244,7 @@ export function Dashboard() {
           {movimentacaoErro && (
             <div className="text-red-600 mt-2">{movimentacaoErro}</div>
           )}
-          {movimentacaoSucesso && (
-            <div className="text-green-600 mt-2">{movimentacaoSucesso}</div>
-          )}
+          {/* Mensagem de sucesso removida, feedback só via alert externo */}
         </div>
       </div>
     );
@@ -1505,7 +1513,7 @@ export function Dashboard() {
                       e.preventDefault();
                       setMovimentacaoEnviando(true);
                       setMovimentacaoErro("");
-                      setMovimentacaoSucesso("");
+                      // Removido setMovimentacaoSucesso (não existe mais)
                       try {
                         await api.post("/movimentacao-estoque-loja", {
                           lojaId: movimentacaoLojaId,
@@ -1516,9 +1524,16 @@ export function Dashboard() {
                             quantidade: Number(p.quantidade),
                           })),
                         });
-                        setMovimentacaoSucesso(
-                          "Movimentação registrada com sucesso!"
-                        );
+                        alert("Movimentação registrada com sucesso!");
+                        setMostrarModalMovimentacao(false);
+                        setMovimentacaoLojaId("");
+                        setProdutosMovimentacao([
+                          {
+                            produtoId: "",
+                            quantidade: "",
+                            tipoMovimentacao: "entrada",
+                          },
+                        ]);
                       } catch (erro) {
                         setMovimentacaoErro(
                           "Erro ao registrar movimentação. Tente novamente.",
@@ -1636,11 +1651,7 @@ export function Dashboard() {
                         {movimentacaoErro}
                       </div>
                     )}
-                    {movimentacaoSucesso && (
-                      <div className="text-green-600 text-sm mt-2">
-                        {movimentacaoSucesso}
-                      </div>
-                    )}
+                    {/* Removido renderização condicional de movimentacaoSucesso */}
 
                     {/* Botões de Ação (Cancelar e Registrar) */}
                     <div className="flex gap-4 justify-end pt-4 border-t border-gray-200 mt-4">
@@ -1700,7 +1711,7 @@ export function Dashboard() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={imprimirRelatorioConsolidado}
-                    className="w-full sm:w-auto px-3 py-2 bg-linear-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all font-semibold text-sm flex items-center justify-center gap-2 break-words"
+                    className="w-full sm:w-auto px-3 py-2 bg-linear-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all font-semibold text-sm flex items-center justify-center gap-2 wrap-break-word"
                     style={{ minWidth: 0, maxWidth: "100%" }}
                   >
                     <svg
@@ -1787,7 +1798,7 @@ export function Dashboard() {
                               e.stopPropagation();
                               imprimirRelatorioLoja(loja);
                             }}
-                            className="w-full sm:w-auto px-3 py-2 bg-linear-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all font-medium text-sm flex items-center justify-center gap-2 break-words"
+                            className="w-full sm:w-auto px-3 py-2 bg-linear-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all font-medium text-sm flex items-center justify-center gap-2 wrap-break-word"
                             style={{ minWidth: 0, maxWidth: "100%" }}
                           >
                             <svg
