@@ -98,7 +98,7 @@ export function Dashboard() {
       setProdutosMovimentacao([
         { produtoId: "", quantidade: "", tipoMovimentacao: "entrada" },
       ]);
-      setReloadAfterModal(true);
+      window.location.reload();
       // ...atualize dados se necessário
     } catch (erro) {
       setMovimentacaoErro("Erro ao registrar movimentação", erro);
@@ -108,13 +108,7 @@ export function Dashboard() {
   };
 
   // Faz o reload só depois que o modal sumiu
-  useEffect(() => {
-    if (reloadAfterModal && !mostrarModalMovimentacao) {
-      setTimeout(() => {
-        window.location.reload();
-      }, 300);
-    }
-  }, [reloadAfterModal, mostrarModalMovimentacao]);
+  // (removido reloadAfterModal/useEffect pois reload é imediato)
   // Botão no topo do dashboard para abrir o modal
   // Adicione ao JSX principal, ao lado do botão de impressão:
   // <button onClick={() => setMostrarModalMovimentacao(true)} className="btn-primary">Movimentação de Estoque</button>
