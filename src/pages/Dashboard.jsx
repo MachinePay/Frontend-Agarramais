@@ -92,7 +92,7 @@ export function Dashboard() {
         dataMovimentacao: new Date().toISOString(),
       };
       await api.post("/movimentacao-estoque-loja", payload);
-      setMovimentacaoSucesso("Movimentação registrada com sucesso!");
+      alert("Movimentação registrada com sucesso!");
       setMostrarModalMovimentacao(false);
       setMovimentacaoLojaId("");
       setProdutosMovimentacao([
@@ -101,7 +101,7 @@ export function Dashboard() {
       window.location.reload();
       // ...atualize dados se necessário
     } catch (erro) {
-      setMovimentacaoErro("Erro ao registrar movimentação", erro);
+      alert("Erro ao registrar movimentação!");
     } finally {
       setMovimentacaoEnviando(false);
     }
