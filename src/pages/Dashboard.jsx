@@ -98,7 +98,9 @@ export function Dashboard() {
       setProdutosMovimentacao([
         { produtoId: "", quantidade: "", tipoMovimentacao: "entrada" },
       ]);
-      window.location.reload();
+      setTimeout(() => {
+        window.location.reload();
+      }, 150);
       // ...atualize dados se necessário
     } catch (erro) {
       alert("Erro ao registrar movimentação!");
