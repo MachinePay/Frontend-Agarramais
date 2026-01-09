@@ -429,6 +429,10 @@ export function Graficos() {
                         <Cell
                           key={`cell-${index}`}
                           fill={COLORS[index % COLORS.length]}
+                          name={`${entry.nome}: ${entry.totalSaidas} (${(
+                            (entry.totalSaidas /
+                              dadosProcessados.totais.totalSaidas || 1) * 100
+                          ).toFixed(0)}%)`}
                         />
                       );
                     })}

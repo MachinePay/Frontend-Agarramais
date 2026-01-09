@@ -327,6 +327,7 @@ export function Movimentacoes() {
 
     try {
       await api.put(`/movimentacao-estoque-loja/${editandoEstoqueLoja.id}`, {
+        lojaId: editandoEstoqueLoja.loja?.id || editandoEstoqueLoja.lojaId,
         usuarioId: usuario.id,
         produtos: editandoEstoqueLoja.produtosEnviados.map((p) => ({
           produtoId: p.produto?.id || p.produtoId,
