@@ -99,6 +99,7 @@ export function LojaDetalhes() {
       setLoadingMovimentacoes(true);
       const movRes = await api.get(`/movimentacoes?maquinaId=${maquinaId}`);
       setMovimentacoes(movRes.data || []);
+      console.log("Movimentações recebidas:", movRes.data);
     } catch (error) {
       console.error("Erro ao carregar movimentações:", error);
       setMovimentacoes([]);
@@ -364,7 +365,10 @@ export function LojaDetalhes() {
                         <div>
                           <div className="flex justify-between text-sm mb-1">
                             <span className="text-gray-600">Ocupação:</span>
-                            <span className="font-semibold">{ocupacao}%  ({maquina.capacidadePadrao - estoqueAtual} faltam)</span>
+                            <span className="font-semibold">
+                              {ocupacao}% (
+                              {maquina.capacidadePadrao - estoqueAtual} faltam)
+                            </span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
                             <div
