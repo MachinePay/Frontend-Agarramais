@@ -1209,7 +1209,11 @@ export function Dashboard() {
 
   // Máquinas da loja selecionada
   const maquinasDaLoja = lojaSelecionada
-    ? maquinas.filter((m) => m.lojaId === lojaSelecionada.id)
+    ? (() => {
+        const result = maquinas.filter((m) => m.lojaId === lojaSelecionada.id);
+        console.log("Máquinas da loja selecionada:", result);
+        return result;
+      })()
     : [];
 
   if (stats.loading) {
@@ -2487,7 +2491,10 @@ export function Dashboard() {
 
         {/* Alertas de Estoque - Apenas para ADMIN */}
         {usuario?.role === "ADMIN" && stats.alertas.length > 0 && (
-          <div className="card mb-8 border-l-4 border-red-500" id="alertas-estoque-maquinas">
+          <div
+            className="card mb-8 border-l-4 border-red-500"
+            id="alertas-estoque-maquinas"
+          >
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                 <span className="bg-red-100 p-2 rounded-lg">⚠️</span>
