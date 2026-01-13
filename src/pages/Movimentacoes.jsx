@@ -674,7 +674,44 @@ export function Movimentacoes() {
                   </div>
                 </div>
               )}
+              {/* Contadores da Máquina */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    📥 Contador IN (Entrada)
+                  </label>
+                  <input
+                    type="number"
+                    name="contadorIn"
+                    value={formData.contadorIn}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="0"
+                    min="0"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Número do contador IN da máquina
+                  </p>
+                </div>
 
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    📤 Contador OUT (Saída)
+                  </label>
+                  <input
+                    type="number"
+                    name="contadorOut"
+                    value={formData.contadorOut}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="0"
+                    min="0"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Número do contador OUT da máquina
+                  </p>
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -788,44 +825,7 @@ export function Movimentacoes() {
                 </div>
               </div>
 
-              {/* Contadores da Máquina */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    📥 Contador IN (Entrada)
-                  </label>
-                  <input
-                    type="number"
-                    name="contadorIn"
-                    value={formData.contadorIn}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="0"
-                    min="0"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Número do contador IN da máquina
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    📤 Contador OUT (Saída)
-                  </label>
-                  <input
-                    type="number"
-                    name="contadorOut"
-                    value={formData.contadorOut}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="0"
-                    min="0"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Número do contador OUT da máquina
-                  </p>
-                </div>
-              </div>
+              
 
               {/* Checkbox de Retirada de Estoque */}
               <div className="p-4 bg-gradient-to-r from-orange-50 to-yellow-50 border-2 border-orange-200 rounded-lg">
