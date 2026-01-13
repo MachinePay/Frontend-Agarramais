@@ -27,12 +27,14 @@ export function Graficos() {
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [dadosProcessados, setDadosProcessados] = useState(null);
+  const [erro, setErro] = useState("");
 
   useEffect(() => {
     carregarLojas();
   }, []);
 
   const carregarDados = useCallback(async () => {
+    setErro("");
     try {
       setLoading(true);
       const [maquinasRes, movimentacoesRes, produtosRes] = await Promise.all([
@@ -41,8 +43,9 @@ export function Graficos() {
         api.get("/produtos"),
       ]);
 
+      // Corrigir comparação de lojaId (string/number)
       const maquinasDaLoja = maquinasRes.data.filter(
-        (m) => m.lojaId === lojaSelecionada
+        (m) => String(m.lojaId) === String(lojaSelecionada)
       );
 
       // Filtrar movimentações por máquinas da loja e período
@@ -60,6 +63,10 @@ export function Graficos() {
 
       processarDados(maquinasDaLoja, movFiltradas, produtosRes.data);
     } catch (error) {
+      setErro(
+        "Erro ao carregar dados dos gráficos. Tente novamente mais tarde."
+      );
+      setDadosProcessados(null);
       console.error("Erro ao carregar dados:", error);
     } finally {
       setLoading(false);
@@ -68,6 +75,12 @@ export function Graficos() {
 
   useEffect(() => {
     if (lojaSelecionada && dataInicio && dataFim) {
+      // Checar se datas são válidas
+      if (new Date(dataInicio) > new Date(dataFim)) {
+        setErro("A data inicial não pode ser maior que a data final.");
+        setDadosProcessados(null);
+        return;
+      }
       carregarDados();
     }
   }, [lojaSelecionada, dataInicio, dataFim, carregarDados]);
@@ -78,6 +91,8 @@ export function Graficos() {
       const lojasRes = await api.get("/lojas");
       setLojas(lojasRes.data || []);
     } catch (error) {
+      setErro("Erro ao carregar lista de lojas.");
+      setLojas([]);
       console.error("Erro ao carregar lojas:", error);
     } finally {
       setLoading(false);
@@ -228,6 +243,23 @@ export function Graficos() {
   };
 
   if (loading && lojas.length === 0) return <PageLoader />;
+
+  // Exibir mensagem de erro se houver
+  if (erro) {
+    return (
+      <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
+        <Navbar />
+        <div className="max-w-2xl mx-auto py-16">
+          <div className="card text-center text-red-700 bg-red-100 border border-red-300">
+            <div className="text-4xl mb-4">❌</div>
+            <div className="text-lg font-bold mb-2">Ocorreu um erro</div>
+            <div>{erro}</div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">

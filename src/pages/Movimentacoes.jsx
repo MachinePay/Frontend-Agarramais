@@ -152,7 +152,7 @@ export function Movimentacoes() {
 
       // Buscar a última movimentação da máquina selecionada para pegar o totalPos anterior
       let ultimoTotalPos = 0;
-      const movimentacoesMaquina = movimentacoes
+      let movimentacoesMaquina = movimentacoes
         .filter((m) => {
           // Considera tanto maquinaId quanto maquina_id
           return (
@@ -218,19 +218,41 @@ export function Movimentacoes() {
           },
         ],
       };
+      await api.post("/movimentacoes", data);
 
+      // Logs para depuração do filtro
+      console.log("Todas movimentações:", movimentacoes);
       console.log(
-        "📤 [handleSubmit] Dados enviados:",
-        JSON.stringify(data, null, 2)
+        "ID da máquina selecionada:",
+        formData.maquina_id,
+        "(tipo:",
+        typeof formData.maquina_id,
+        ")"
       );
+      movimentacoesMaquina = movimentacoes
+        .filter((m) => {
+          const id1 = m.maquinaId !== undefined ? m.maquinaId : m.maquina_id;
+          console.log(
+            "Comparando:",
+            id1,
+            "(tipo:",
+            typeof id1,
+            ") com",
+            formData.maquina_id,
+            "(tipo:",
+            typeof formData.maquina_id,
+            ")"
+          );
+          return id1 === formData.maquina_id;
+        })
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      console.log("Movimentações filtradas:", movimentacoesMaquina);
+      ultimoTotalPos = 0;
+      if (movimentacoesMaquina.length > 0) {
+        ultimoTotalPos = movimentacoesMaquina[0].totalPos || 0;
+      }
+      console.log("Último totalPos encontrado:", ultimoTotalPos);
 
-      const response = await api.post("/movimentacoes", data);
-
-      console.log("✅ [handleSubmit] Sucesso:", response.data);
-
-      setSuccess("Movimentação registrada com sucesso!");
-
-      // Limpar formulário
       setFormData({
         maquina_id: "",
         produto_id: "",

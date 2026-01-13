@@ -6,6 +6,7 @@ import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { PageLoader } from "../components/Loading";
 import { Badge } from "../components/UIComponents";
+import AlertAdmin from "../components/AlertAdmin";
 import { useAuth } from "../contexts/AuthContext";
 
 import Swal from "sweetalert2";
@@ -1390,6 +1391,45 @@ export function Dashboard() {
           </div>
         )}
 
+        {/* Alerta de Movimentação Inconsistente - ADMIN */}
+        {usuario?.role === "ADMIN" && (
+          <div className="card-gradient mb-8 border-l-4 border-yellow-500 p-4 sm:p-8 rounded-xl shadow-md  sm:flex-row items-center justify-between gap-6">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+                <span className="bg-linear-to-br from-yellow-400 to-yellow-600 p-2 sm:p-3 rounded-xl text-white">
+                  ⚠️
+                </span>
+                Alertas de Movimentação Inconsistente
+              </h2>
+              <p className="text-gray-600 text-sm sm:text-base">
+                Avisos de inconsistência entre OUT, IN e fichas nas máquinas.
+                Clique para ver detalhes e corrigir.
+              </p>
+            </div>
+            <div className="text-left sm:text-right mt-4 sm:mt-0 flex flex-col items-end">
+              <button
+                className="btn-warning font-bold text-yellow-900 px-6 py-2 rounded-lg shadow hover:bg-yellow-400 transition-colors flex items-center gap-2"
+                onClick={() => {
+                  const el = document.getElementById(
+                    "alertas-movimentacao-inconsistente"
+                  );
+                  if (el) el.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
+                <span className="text-2xl">⚠️</span> Ver Alertas
+              </button>
+            </div>
+            <div>
+            {/* Seção detalhada dos alertas de movimentação inconsistentes */}
+                {usuario?.role === "ADMIN" && (
+                  <div id="alertas-movimentacao-inconsistente" className="mb-8">
+                    <AlertAdmin />
+                  </div>
+                )}
+            </div>
+          </div>
+        )}
+
         {/* Estatísticas de Produtos Totais - Apenas para ADMIN */}
         {usuario?.role === "ADMIN" &&
           stats.balanco?.distribuicaoLojas?.length > 0 && (
@@ -2121,47 +2161,62 @@ export function Dashboard() {
           {lojaSelecionada && !maquinaSelecionada && (
             <div className="space-y-3">
               {maquinasDaLoja.length > 0 ? (
-                maquinasDaLoja.map((maquina) => (
-                  <div
-                    key={maquina.id}
-                    onClick={() => handleSelecionarMaquina(maquina)}
-                    className="p-5 border-2 border-gray-200 rounded-xl hover:border-primary hover:shadow-lg transition-all cursor-pointer bg-white"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-bold text-gray-900 mb-1">
-                          🎰 {maquina.codigo} - {maquina.nome}
-                        </h3>
-                        <div className="flex items-center gap-4 mt-2">
-                          {maquina.tipo && (
-                            <span className="text-xs text-gray-600">
-                              Tipo: {maquina.tipo}
+                maquinasDaLoja.map((maquina) => {
+                  console.log("Dados da máquina:", maquina);
+                  if (maquina.movimentacoes) {
+                    console.log(
+                      `Movimentações da máquina ${maquina.codigo}:`,
+                      maquina.movimentacoes
+                    );
+                  }
+                  if (maquina.sairam !== undefined) {
+                    console.log(
+                      `Saíram da máquina ${maquina.codigo}:`,
+                      maquina.sairam
+                    );
+                  }
+                  return (
+                    <div
+                      key={maquina.id}
+                      onClick={() => handleSelecionarMaquina(maquina)}
+                      className="p-5 border-2 border-gray-200 rounded-xl hover:border-primary hover:shadow-lg transition-all cursor-pointer bg-white"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-bold text-gray-900 mb-1">
+                            🎰 {maquina.codigo} - {maquina.nome}
+                          </h3>
+                          <div className="flex items-center gap-4 mt-2">
+                            {maquina.tipo && (
+                              <span className="text-xs text-gray-600">
+                                Tipo: {maquina.tipo}
+                              </span>
+                            )}
+                            <span className="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-semibold">
+                              Capacidade: {maquina.capacidadePadrao || 0}
                             </span>
-                          )}
-                          <span className="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-semibold">
-                            Capacidade: {maquina.capacidadePadrao || 0}
-                          </span>
-                          {maquina.ativo && (
-                            <Badge variant="success">Ativa</Badge>
-                          )}
+                            {maquina.ativo && (
+                              <Badge variant="success">Ativa</Badge>
+                            )}
+                          </div>
                         </div>
+                        <svg
+                          className="w-6 h-6 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
                       </div>
-                      <svg
-                        className="w-6 h-6 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 5l7 7-7 7"
-                        />
-                      </svg>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="text-center py-12">
                   <p className="text-6xl mb-4">🎰</p>
