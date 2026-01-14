@@ -23,7 +23,7 @@ export default function AlertAdmin() {
     // eslint-disable-next-line
   }, [usuario]);
 
-  // Busca alertas de inconsistência de movimentação
+  // Busca alertas de inconsistência de movimentação e de abastecimento incompleto
   const carregarAlertas = async () => {
     setLoading(true);
     setErro("");
@@ -32,7 +32,16 @@ export default function AlertAdmin() {
       const res = await api.get(
         "/relatorios/alertas-movimentacao-inconsistente"
       );
-      setAlertas(res.data?.alertas || []);
+      let alertasInconsistencia = res.data?.alertas || [];
+
+      // Buscar alertas de abastecimento incompleto
+      const resAbastecimento = await api.get(
+        "/relatorios/alertas-abastecimento-incompleto"
+      );
+      let alertasAbastecimento = resAbastecimento.data?.alertas || [];
+
+      // Junta os dois tipos de alerta
+      setAlertas([...alertasInconsistencia, ...alertasAbastecimento]);
     } catch (error) {
       setErro("Erro ao buscar alertas de movimentação.", error);
       setAlertas([]);
@@ -110,7 +119,13 @@ export default function AlertAdmin() {
                 <div className="text-sm text-gray-700 mb-1">
                   <span className="font-bold">Detalhe:</span>{" "}
                   {alerta.mensagem ||
-                    `Inconsistência detectada: OUT (${alerta.contador_out})/IN (${alerta.contador_in}) não bate com fichas (${alerta.fichas}).`}
+                    (alerta.tipo === "abastecimento_incompleto"
+                      ? `Abastecimento incompleto: padrão ${
+                          alerta.padrao
+                        }, tinha ${alerta.anterior}, abastecido ${
+                          alerta.abastecido
+                        }. Motivo: ${alerta.observacao || "-"}`
+                      : `Inconsistência detectada: OUT (${alerta.contador_out})/IN (${alerta.contador_in}) não bate com fichas (${alerta.fichas}).`)}
                 </div>
                 <div className="text-xs text-gray-500">
                   <span className="font-bold">OUT registrado:</span>{" "}

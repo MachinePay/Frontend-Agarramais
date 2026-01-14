@@ -68,6 +68,7 @@ export function Movimentacoes() {
     valor_entrada_maquininha_pix: "",
     observacao: "",
     retiradaEstoque: false,
+    ignoreInOut: false,
   });
 
   // Estados auxiliares
@@ -653,27 +654,6 @@ export function Movimentacoes() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Indicador de Estoque Anterior */}
-              {formData.maquina_id && (
-                <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-blue-900">
-                        📊 Estoque Anterior da Máquina
-                      </p>
-                      <p className="text-xs text-blue-700 mt-1">
-                        Última contagem registrada no sistema
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-3xl font-bold text-blue-900">
-                        {estoqueAnterior}
-                      </p>
-                      <p className="text-xs text-blue-600">unidades</p>
-                    </div>
-                  </div>
-                </div>
-              )}
               {/* Contadores da Máquina */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -688,6 +668,8 @@ export function Movimentacoes() {
                     className="input-field"
                     placeholder="0"
                     min="0"
+                    required={!formData.ignoreInOut}
+                    disabled={formData.ignoreInOut}
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Número do contador IN da máquina
@@ -706,11 +688,27 @@ export function Movimentacoes() {
                     className="input-field"
                     placeholder="0"
                     min="0"
+                    required={!formData.ignoreInOut}
+                    disabled={formData.ignoreInOut}
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Número do contador OUT da máquina
                   </p>
                 </div>
+              </div>
+              {/* Checkbox para ignorar IN/OUT */}
+              <div className="flex items-center mt-2 mb-4">
+                <input
+                  type="checkbox"
+                  id="ignoreInOut"
+                  name="ignoreInOut"
+                  checked={formData.ignoreInOut || false}
+                  onChange={handleChange}
+                  className="mr-2"
+                />
+                <label htmlFor="ignoreInOut" className="text-sm text-gray-700">
+                  Não preciso informar IN/OUT nesta movimentação
+                </label>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
@@ -825,10 +823,8 @@ export function Movimentacoes() {
                 </div>
               </div>
 
-              
-
               {/* Checkbox de Retirada de Estoque */}
-              <div className="p-4 bg-gradient-to-r from-orange-50 to-yellow-50 border-2 border-orange-200 rounded-lg">
+              <div className="p-4 bg-linear-to-r from-orange-50 to-yellow-50 border-2 border-orange-200 rounded-lg">
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
                     type="checkbox"
@@ -945,6 +941,13 @@ export function Movimentacoes() {
               </div>
 
               <div className="flex gap-4 justify-end pt-4 border-t border-gray-200">
+                {error && (
+                  <AlertBox
+                    type="error"
+                    message={error}
+                    onClose={() => setError("")}
+                  />
+                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -1296,7 +1299,7 @@ export function Movimentacoes() {
                       key={prod.id || idx}
                       className="flex gap-2 mb-2 items-center"
                     >
-                      <span className="min-w-[120px]">
+                      <span className="min-w-30">
                         {prod.produto?.nome || prod.produtoId}
                       </span>
                       <input
