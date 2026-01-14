@@ -1,6 +1,6 @@
-// ...existing code...
 import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+
 import api from "../services/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
@@ -10,7 +10,9 @@ import AlertAdmin from "../components/AlertAdmin";
 import { useAuth } from "../contexts/AuthContext";
 
 import Swal from "sweetalert2";
+
 export function Dashboard() {
+  const navigate = useNavigate();
   const [mostrarTodosAlertasMaquinas, setMostrarTodosAlertasMaquinas] =
     useState(false);
   // Estado para modal de movimentação de estoque
@@ -1409,23 +1411,10 @@ export function Dashboard() {
             <div className="text-left sm:text-right mt-4 sm:mt-0 flex flex-col items-end">
               <button
                 className="btn-warning font-bold text-yellow-900 px-6 py-2 rounded-lg shadow hover:bg-yellow-400 transition-colors flex items-center gap-2"
-                onClick={() => {
-                  const el = document.getElementById(
-                    "alertas-movimentacao-inconsistente"
-                  );
-                  if (el) el.scrollIntoView({ behavior: "smooth" });
-                }}
+                onClick={() => navigate("/alertas")}
               >
                 <span className="text-2xl">⚠️</span> Ver Alertas
               </button>
-            </div>
-            <div>
-            {/* Seção detalhada dos alertas de movimentação inconsistentes */}
-                {usuario?.role === "ADMIN" && (
-                  <div id="alertas-movimentacao-inconsistente" className="mb-8">
-                    <AlertAdmin />
-                  </div>
-                )}
             </div>
           </div>
         )}

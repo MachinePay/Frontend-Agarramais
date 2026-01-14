@@ -1,3 +1,4 @@
+import Alertas from "./pages/Alertas";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { PrivateRoute } from "./components/PrivateRoute";
@@ -25,6 +26,15 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route
+            path="/alertas"
+            element={
+              <PrivateRoute adminOnly>
+                <Alertas />
+              </PrivateRoute>
+            }
+          />
+          ;
           <Route path="/registrar" element={<Registrar />} />
           <Route path="/style-guide" element={<StyleGuide />} />
           <Route
