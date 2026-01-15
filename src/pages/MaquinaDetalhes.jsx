@@ -22,6 +22,19 @@ export function MaquinaDetalhes() {
     // eslint-disable-next-line
   }, [id]);
 
+  // Atualiza o estoque atual sempre que as movimentações mudam
+  useEffect(() => {
+    if (movimentacoes && movimentacoes.length > 0) {
+      // Considera o campo totalPos, se existir, senão tenta outros nomes comuns
+      const ultimaMov = movimentacoes[0];
+      const totalPos =
+        ultimaMov.totalPos ?? ultimaMov.total_pos ?? ultimaMov.totalpos ?? null;
+      setEstoqueAtual(totalPos);
+    } else {
+      setEstoqueAtual(null);
+    }
+  }, [movimentacoes]);
+
   const carregarDados = async () => {
     try {
       setLoading(true);
@@ -139,12 +152,6 @@ export function MaquinaDetalhes() {
                   ? maquina.valorFicha.toFixed(2)
                   : maquina.valorFicha || "-"}
               </p>
-              <p>
-                <strong>Status:</strong>{" "}
-                <Badge variant={maquina.ativa ? "success" : "danger"}>
-                  {maquina.ativa ? "Ativa" : "Inativa"}
-                </Badge>
-              </p>
             </div>
             <div>
               <p>
@@ -163,7 +170,7 @@ export function MaquinaDetalhes() {
             </div>
           </div>
         </div>
-        
+
         <h2 className="text-xl font-bold mb-4">Movimentações</h2>
         <div className="bg-white rounded-lg shadow p-4 mb-4">
           {movimentacoes.length === 0 ? (
