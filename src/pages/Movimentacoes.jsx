@@ -1049,51 +1049,53 @@ export function Movimentacoes() {
           </div>
         )}
 
-        {/* Seção Movimentações de Estoque de Loja */}
-        <div className="mt-12">
-          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-            <span className="text-3xl">🏪</span>
-            Movimentações de Estoque de Loja
-          </h2>
-          {/* Filtros */}
-          <div className="mb-4 flex flex-wrap gap-4">
-            <select
-              className="input-field"
-              value={filtroLojaEstoque}
-              onChange={(e) => setFiltroLojaEstoque(e.target.value)}
-            >
-              <option value="">Todas as lojas</option>
-              {lojas.map((loja) => (
-                <option key={loja.id} value={loja.id}>
-                  {loja.nome}
-                </option>
-              ))}
-            </select>
-            <input
-              type="date"
-              className="input-field"
-              value={filtroDataEstoque}
-              onChange={(e) => setFiltroDataEstoque(e.target.value)}
-            />
-            <input
-              type="text"
-              className="input-field"
-              placeholder="Responsável"
-              value={filtroResponsavelEstoque}
-              onChange={(e) => setFiltroResponsavelEstoque(e.target.value)}
+        {/* Seção Movimentações de Estoque de Loja - visível apenas para ADMIN */}
+        {usuario?.role === "ADMIN" && (
+          <div className="mt-12">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+              <span className="text-3xl">🏪</span>
+              Movimentações de Estoque de Loja
+            </h2>
+            {/* Filtros */}
+            <div className="mb-4 flex flex-wrap gap-4">
+              <select
+                className="input-field"
+                value={filtroLojaEstoque}
+                onChange={(e) => setFiltroLojaEstoque(e.target.value)}
+              >
+                <option value="">Todas as lojas</option>
+                {lojas.map((loja) => (
+                  <option key={loja.id} value={loja.id}>
+                    {loja.nome}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="date"
+                className="input-field"
+                value={filtroDataEstoque}
+                onChange={(e) => setFiltroDataEstoque(e.target.value)}
+              />
+              <input
+                type="text"
+                className="input-field"
+                placeholder="Responsável"
+                value={filtroResponsavelEstoque}
+                onChange={(e) => setFiltroResponsavelEstoque(e.target.value)}
+              />
+            </div>
+            <TabelaMovimentacoesEstoqueDeLoja
+              movimentacoesEstoqueLoja={movimentacoesEstoqueLoja}
+              lojas={lojas}
+              filtroLojaEstoque={filtroLojaEstoque}
+              filtroDataEstoque={filtroDataEstoque}
+              filtroResponsavelEstoque={filtroResponsavelEstoque}
+              setEditandoEstoqueLoja={setEditandoEstoqueLoja}
+              setExcluindoEstoqueLoja={setExcluindoEstoqueLoja}
+              onChangeEstoqueLoja={carregarDados}
             />
           </div>
-          <TabelaMovimentacoesEstoqueDeLoja
-            movimentacoesEstoqueLoja={movimentacoesEstoqueLoja}
-            lojas={lojas}
-            filtroLojaEstoque={filtroLojaEstoque}
-            filtroDataEstoque={filtroDataEstoque}
-            filtroResponsavelEstoque={filtroResponsavelEstoque}
-            setEditandoEstoqueLoja={setEditandoEstoqueLoja}
-            setExcluindoEstoqueLoja={setExcluindoEstoqueLoja}
-            onChangeEstoqueLoja={carregarDados}
-          />
-        </div>
+        )}
 
         {/* Modal de Edição */}
         {editandoMovimentacao && usuario?.role === "ADMIN" && (
