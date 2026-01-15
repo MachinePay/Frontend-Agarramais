@@ -12,6 +12,7 @@ import { LojaForm } from "./pages/LojaForm";
 import { LojaDetalhes } from "./pages/LojaDetalhes";
 import { Maquinas } from "./pages/Maquinas";
 import { MaquinaForm } from "./pages/MaquinaForm";
+import { MaquinaDetalhes } from "./pages/MaquinaDetalhes";
 import { Produtos } from "./pages/Produtos";
 import { ProdutoForm } from "./pages/ProdutoForm";
 import { Movimentacoes } from "./pages/Movimentacoes";
@@ -122,6 +123,14 @@ function App() {
             element={
               <PrivateRoute>
                 <MaquinaForm />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/maquinas/:id"
+            element={
+              <PrivateRoute>
+                <MaquinaDetalhes />
               </PrivateRoute>
             }
           />

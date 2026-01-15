@@ -28,7 +28,6 @@ export default function AlertAdmin() {
     setLoading(true);
     setErro("");
     try {
-      // Endpoint fictício: ajuste conforme seu backend
       const res = await api.get(
         "/relatorios/alertas-movimentacao-inconsistente"
       );
@@ -140,9 +139,7 @@ export default function AlertAdmin() {
               <div className="flex flex-col gap-2 min-w:[120px]">
                 <button
                   className="btn-primary btn-sm"
-                  onClick={() =>
-                    navigate(`/movimentacoes?maquina=${alerta.maquinaId}`)
-                  }
+                  onClick={() => navigate(`/maquinas/${alerta.maquinaId}`)}
                 >
                   Ver Movimentações
                 </button>
