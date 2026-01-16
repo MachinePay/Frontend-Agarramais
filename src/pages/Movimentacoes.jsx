@@ -73,6 +73,7 @@ export function Movimentacoes() {
 
   // Estados auxiliares
   const [estoqueAnterior, setEstoqueAnterior] = useState(0);
+  const [alertaDivergencia, setAlertaDivergencia] = useState(null);
 
   // --- EFEITOS ---
   useEffect(() => {
@@ -89,6 +90,78 @@ export function Movimentacoes() {
       }
     }
   }, [formData.maquina_id, maquinas]);
+
+  // Verificar divergência entre contador OUT e total pre informado
+  useEffect(() => {
+    const verificarDivergencia = async () => {
+      // Só verificar se temos máquina selecionada, contador OUT e total pre preenchidos
+      if (
+        !formData.maquina_id ||
+        !formData.contadorOut ||
+        !formData.quantidadeAtualMaquina
+      ) {
+        setAlertaDivergencia(null);
+        return;
+      }
+
+      const contadorOutAtual = parseInt(formData.contadorOut);
+      const totalPreInformado = parseInt(formData.quantidadeAtualMaquina);
+
+      // Validar se são números válidos
+      if (isNaN(contadorOutAtual) || isNaN(totalPreInformado)) {
+        setAlertaDivergencia(null);
+        return;
+      }
+
+      try {
+        // Buscar última movimentação da máquina
+        const response = await api.get(
+          `/movimentacoes?maquinaId=${formData.maquina_id}&limite=1`,
+        );
+        const movimentacoes = response.data;
+
+        if (movimentacoes && movimentacoes.length > 0) {
+          const ultimaMov = movimentacoes[0];
+          const contadorOutAnterior = ultimaMov.contadorOut || 0;
+          const totalPosAnterior = ultimaMov.totalPos || 0;
+
+          // Calcular quantos produtos saíram baseado no contador OUT
+          const saidaCalculada = contadorOutAtual - contadorOutAnterior;
+
+          // Calcular qual deveria ser o total pre esperado
+          const totalPreEsperado = totalPosAnterior - saidaCalculada;
+
+          // Se houver divergência, mostrar alerta
+          const diferenca = Math.abs(totalPreInformado - totalPreEsperado);
+          if (diferenca > 0) {
+            setAlertaDivergencia({
+              totalPreInformado,
+              totalPreEsperado,
+              diferenca,
+              saidaCalculada,
+              totalPosAnterior,
+              contadorOutAnterior,
+              contadorOutAtual,
+            });
+          } else {
+            setAlertaDivergencia(null);
+          }
+        } else {
+          // Não há movimentação anterior, não há como comparar
+          setAlertaDivergencia(null);
+        }
+      } catch (error) {
+        console.error("Erro ao verificar divergência:", error);
+        setAlertaDivergencia(null);
+      }
+    };
+
+    verificarDivergencia();
+  }, [
+    formData.maquina_id,
+    formData.contadorOut,
+    formData.quantidadeAtualMaquina,
+  ]);
 
   // --- FUNÇÕES DE CARREGAMENTO ---
   const carregarDados = async () => {
@@ -120,7 +193,7 @@ export function Movimentacoes() {
     } catch (error) {
       console.error(
         "Erro ao carregar movimentações de estoque de loja:",
-        error
+        error,
       );
       setMovimentacoesEstoqueLoja([]);
     }
@@ -133,6 +206,9 @@ export function Movimentacoes() {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+    // Limpar mensagens de erro/sucesso ao editar
+    if (error) setError("");
+    if (success) setSuccess("");
   };
 
   // --- CORREÇÃO AQUI: Função handleSubmit recriada com o TRY ---
@@ -178,7 +254,7 @@ export function Movimentacoes() {
       console.log("   📌 Quantidade atual informada (totalPre):", totalPre);
       console.log(
         "   📌 Quantidade adicionada (abastecidas):",
-        quantidadeAdicionada
+        quantidadeAdicionada,
       );
       console.log("   📌 Calculado que saiu (sairam):", quantidadeSaiu);
       console.log("   📌 Novo total (totalPos):", totalPos);
@@ -228,7 +304,7 @@ export function Movimentacoes() {
         formData.maquina_id,
         "(tipo:",
         typeof formData.maquina_id,
-        ")"
+        ")",
       );
       movimentacoesMaquina = movimentacoes
         .filter((m) => {
@@ -242,7 +318,7 @@ export function Movimentacoes() {
             formData.maquina_id,
             "(tipo:",
             typeof formData.maquina_id,
-            ")"
+            ")",
           );
           return id1 === formData.maquina_id;
         })
@@ -278,7 +354,7 @@ export function Movimentacoes() {
       setError(
         error.response?.data?.error ||
           error.response?.data?.message ||
-          "Erro ao registrar movimentação"
+          "Erro ao registrar movimentação",
       );
     } finally {
       setSalvandoMovimentacao(false);
@@ -374,7 +450,7 @@ export function Movimentacoes() {
   const saidas = movimentacoes.filter((m) => m.sairam > 0);
   const totalEntradas = entradas.reduce(
     (sum, m) => sum + (m.abastecidas || 0),
-    0
+    0,
   );
   const totalSaidas = saidas.reduce((sum, m) => sum + (m.sairam || 0), 0);
 
@@ -733,10 +809,26 @@ export function Movimentacoes() {
                       {Math.max(
                         0,
                         estoqueAnterior -
-                          parseInt(formData.quantidadeAtualMaquina || 0)
+                          parseInt(formData.quantidadeAtualMaquina || 0),
                       )}{" "}
                       unidades
                     </p>
+                  )}
+                  {alertaDivergencia && (
+                    <div className="mt-2 p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded">
+                      <div className="flex items-start">
+                        <span className="text-yellow-600 text-lg mr-2">⚠️</span>
+                        <div className="flex-1">
+                          <p className="text-xs font-bold text-yellow-800 mb-1">
+                            Atenção: Possível erro de contagem!
+                          </p>
+                          <p className="text-xs text-yellow-700">
+                            Reconte por favor
+                          </p>
+                          
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
 
@@ -891,7 +983,7 @@ export function Movimentacoes() {
                     </option>
                     {maquinas
                       .filter(
-                        (m) => !filtroLojaForm || m.lojaId === filtroLojaForm
+                        (m) => !filtroLojaForm || m.lojaId === filtroLojaForm,
                       )
                       .map((maquina) => (
                         <option key={maquina.id} value={maquina.id}>
@@ -1132,13 +1224,13 @@ export function Movimentacoes() {
                     <strong>Data:</strong>{" "}
                     {new Date(
                       editandoMovimentacao.dataColeta ||
-                        editandoMovimentacao.createdAt
+                        editandoMovimentacao.createdAt,
                     ).toLocaleString("pt-BR")}
                   </p>
                   <p className="text-sm text-gray-600 mt-1">
                     <strong>Máquina:</strong>{" "}
                     {maquinas.find(
-                      (m) => m.id === editandoMovimentacao.maquinaId
+                      (m) => m.id === editandoMovimentacao.maquinaId,
                     )?.codigo || "N/A"}
                   </p>
                 </div>
@@ -1313,7 +1405,7 @@ export function Movimentacoes() {
                             editandoEstoqueLoja.produtosEnviados.map((p, i) =>
                               i === idx
                                 ? { ...p, quantidade: e.target.value }
-                                : p
+                                : p,
                             );
                           setEditandoEstoqueLoja({
                             ...editandoEstoqueLoja,
@@ -1329,7 +1421,7 @@ export function Movimentacoes() {
                             editandoEstoqueLoja.produtosEnviados.map((p, i) =>
                               i === idx
                                 ? { ...p, tipoMovimentacao: e.target.value }
-                                : p
+                                : p,
                             );
                           setEditandoEstoqueLoja({
                             ...editandoEstoqueLoja,

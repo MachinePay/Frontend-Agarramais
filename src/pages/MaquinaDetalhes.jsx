@@ -47,18 +47,31 @@ export function MaquinaDetalhes() {
         api.get(`/maquinas/${id}`),
         api.get(`/movimentacoes?maquinaId=${id}`),
         api.get(
-          `/relatorios/alertas-movimentacao-inconsistente?maquinaId=${id}`
+          `/relatorios/alertas-movimentacao-inconsistente?maquinaId=${id}`,
         ),
         api.get(`/relatorios/alertas-abastecimento-incompleto?maquinaId=${id}`),
       ]);
       setMaquina(maquinaRes.data);
       setMovimentacoes(movimentacoesRes.data);
-      setAlertaInconsistencia(resInconsistencia.data?.alertas?.[0] || null);
-      setAlertaAbastecimento(resAbastecimento.data?.alertas?.[0] || null);
+
+      // Valida se o alerta realmente pertence a esta máquina
+      const alertaInc = resInconsistencia.data?.alertas?.[0];
+      if (alertaInc && String(alertaInc.maquinaId) === String(id)) {
+        setAlertaInconsistencia(alertaInc);
+      } else {
+        setAlertaInconsistencia(null);
+      }
+
+      const alertaAbast = resAbastecimento.data?.alertas?.[0];
+      if (alertaAbast && String(alertaAbast.maquinaId) === String(id)) {
+        setAlertaAbastecimento(alertaAbast);
+      } else {
+        setAlertaAbastecimento(null);
+      }
     } catch (error) {
       setError(
         "Erro ao carregar dados: " +
-          (error.response?.data?.error || error.message)
+          (error.response?.data?.error || error.message),
       );
     } finally {
       setLoading(false);
@@ -93,7 +106,7 @@ export function MaquinaDetalhes() {
               try {
                 await api.delete(
                   `/relatorios/alertas-movimentacao-inconsistente/${maquina.alertaId}`,
-                  { data: { maquinaId: maquina.id } }
+                  { data: { maquinaId: maquina.id } },
                 );
                 window.location.assign("/alertas");
               } catch (error) {
@@ -191,7 +204,7 @@ export function MaquinaDetalhes() {
                   <tr key={mov.id} className="border-b">
                     <td>
                       {new Date(mov.dataColeta || mov.createdAt).toLocaleString(
-                        "pt-BR"
+                        "pt-BR",
                       )}
                     </td>
                     <td className="text-green-600">
