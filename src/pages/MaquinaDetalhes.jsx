@@ -147,7 +147,9 @@ export function MaquinaDetalhes() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <p>
-                <strong>Tipo:</strong> {maquina.tipo || "-"}
+                <strong>Tipo:</strong>{" "}
+                {maquina.emoji ? <span>{maquina.emoji}</span> : null}{" "}
+                {maquina.tipo || "-"}
               </p>
               <p>
                 <strong>Capacidade:</strong>{" "}
