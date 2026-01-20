@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useLocation } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import api from "../services/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
@@ -8,7 +8,7 @@ import { PageLoader } from "../components/Loading";
 
 export function MaquinaDetalhes() {
   const { id } = useParams();
-  const location = useLocation();
+  // const location = useLocation(); // Removido pois não é utilizado
   const [maquina, setMaquina] = useState(null);
   const [movimentacoes, setMovimentacoes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,13 +16,14 @@ export function MaquinaDetalhes() {
   const [estoqueAtual, setEstoqueAtual] = useState(null);
   const [alertaInconsistencia, setAlertaInconsistencia] = useState(null);
   const [alertaAbastecimento, setAlertaAbastecimento] = useState(null);
+  const [produtoUltimaMov, setProdutoUltimaMov] = useState(null);
 
   useEffect(() => {
     carregarDados();
     // eslint-disable-next-line
   }, [id]);
 
-  // Atualiza o estoque atual sempre que as movimentações mudam
+  // Atualiza o estoque atual e produto da última movimentação sempre que as movimentações mudam
   useEffect(() => {
     if (movimentacoes && movimentacoes.length > 0) {
       // Considera o campo totalPos, se existir, senão tenta outros nomes comuns
@@ -30,8 +31,21 @@ export function MaquinaDetalhes() {
       const totalPos =
         ultimaMov.totalPos ?? ultimaMov.total_pos ?? ultimaMov.totalpos ?? null;
       setEstoqueAtual(totalPos);
+
+      // Extrai produto da última movimentação
+      if (
+        ultimaMov.detalhesProdutos &&
+        Array.isArray(ultimaMov.detalhesProdutos) &&
+        ultimaMov.detalhesProdutos.length > 0
+      ) {
+        const prod = ultimaMov.detalhesProdutos[0];
+        setProdutoUltimaMov({ nome: prod.nome, emoji: prod.emoji });
+      } else {
+        setProdutoUltimaMov(null);
+      }
     } else {
       setEstoqueAtual(null);
+      setProdutoUltimaMov(null);
     }
   }, [movimentacoes]);
 
@@ -148,8 +162,19 @@ export function MaquinaDetalhes() {
             <div>
               <p>
                 <strong>Tipo:</strong>{" "}
-                {maquina.emoji ? <span>{maquina.emoji}</span> : null}{" "}
-                {maquina.tipo || "-"}
+                {produtoUltimaMov ? (
+                  <span>
+                    {produtoUltimaMov.emoji ? (
+                      <span>{produtoUltimaMov.emoji}</span>
+                    ) : null}{" "}
+                    {produtoUltimaMov.nome}
+                  </span>
+                ) : (
+                  <>
+                    {maquina.emoji ? <span>{maquina.emoji}</span> : null}{" "}
+                    {maquina.tipo || "-"}
+                  </>
+                )}
               </p>
               <p>
                 <strong>Capacidade:</strong>{" "}
