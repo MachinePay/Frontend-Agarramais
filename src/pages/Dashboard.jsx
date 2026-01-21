@@ -1648,6 +1648,7 @@ export function Dashboard() {
                           placeholder="Qtd"
                           className="input-field w-20"
                           required
+                          onWheel={e => e.target.blur()}
                         />
 
                         {/* Select de Tipo (Entrada/Saída) */}
