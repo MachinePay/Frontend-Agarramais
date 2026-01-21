@@ -284,10 +284,18 @@ export function Relatorios() {
                   <div className="text-2xl sm:text-3xl mb-2">💰</div>
                   <div className="text-xl sm:text-2xl font-bold">
                     R${" "}
-                    {Number(relatorio.totais?.lucro || 0).toLocaleString(
-                      "pt-BR",
-                      { minimumFractionDigits: 2 },
-                    )}
+                    {(() => {
+                      const totalFichas = relatorio.totais?.fichas || 0;
+                      const valorFicha =
+                        relatorio.loja?.valorFichaPadrao || 2.5;
+                      const dinheiro = Number(relatorio.totais?.dinheiro || 0);
+                      const pix = Number(relatorio.totais?.pix || 0);
+                      return (
+                        totalFichas * valorFicha +
+                        dinheiro +
+                        pix
+                      ).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+                    })()}
                   </div>
                   <div className="text-xs sm:text-sm opacity-90">
                     Lucro Total da Loja
