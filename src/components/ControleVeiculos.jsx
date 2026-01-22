@@ -177,8 +177,12 @@ export default function ControleVeiculos({
       {veiculos.map((veiculo) => {
         const mov = ultimasMovs[veiculo.id];
         const isRuim = mov?.estado?.toLowerCase() === "ruim";
-        const precisaLimpar = mov?.nivel_limpeza?.toLowerCase().includes("precisa");
-        let cardClass = veiculo.emUso ? "filter grayscale opacity-70" : "bg-white";
+        const precisaLimpar = mov?.nivel_limpeza
+          ?.toLowerCase()
+          .includes("precisa");
+        let cardClass = veiculo.emUso
+          ? "filter grayscale opacity-70"
+          : "bg-white";
         if (isRuim && precisaLimpar) {
           cardClass += " bg-red-100 border-2 border-red-400";
         } else if (isRuim) {
@@ -228,7 +232,7 @@ export default function ControleVeiculos({
                   Em uso
                 </div>
                 <button
-                  className="mt-2 px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                  className="mt-2 px-4 py-1 bg-red-600 text-white rounded hover:bg-red-700"
                   onClick={() => abrirModalFinalizar(veiculo)}
                 >
                   Finalizar
