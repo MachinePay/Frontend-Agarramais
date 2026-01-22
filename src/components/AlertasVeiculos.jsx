@@ -1,3 +1,4 @@
+import api from "../services/api";
 import React, { useEffect, useState } from "react";
 
 const nivelCor = {
@@ -15,15 +16,12 @@ export default function AlertasVeiculos() {
     const fetchAlertas = async () => {
       setLoading(true);
       try {
-        const res = await fetch("/api/alertas-veiculos");
-        const data = await res.json();
+        const { data } = await api.get("/alertas-veiculos");
         setAlertas(data);
       } catch (error) {
-        // Corrigido: adicionado (error) e um log para debug
         console.error("Erro ao buscar alertas:", error);
         setAlertas([]);
       } finally {
-        // O finally garante que o loading pare, dando certo ou errado
         setLoading(false);
       }
     };
