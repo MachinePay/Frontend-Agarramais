@@ -1,3 +1,12 @@
+import Veiculos from "./pages/Veiculos";
+<Route
+  path="/veiculos"
+  element={
+    <PrivateRoute>
+      <Veiculos />
+    </PrivateRoute>
+  }
+/>;
 import Alertas from "./pages/Alertas";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
