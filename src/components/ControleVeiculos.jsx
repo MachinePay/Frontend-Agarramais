@@ -260,8 +260,8 @@ export default function ControleVeiculos({
                 onChange={handleFormFinalizarChange}
                 className="w-full border rounded p-1"
               >
-                <option value="Bom">Bom</option>
-                <option value="Ruim">Ruim</option>
+                <option value="Bom">Sem avaria</option>
+                <option value="Ruim">Com avaria</option>
               </select>
             </div>
             <div className="mb-3">
@@ -353,8 +353,8 @@ export default function ControleVeiculos({
                 onChange={handleFormChange}
                 className="w-full border rounded p-1"
               >
-                <option value="Bom">Bom</option>
-                <option value="Ruim">Ruim</option>
+                <option value="Bom">Sem avaria</option>
+                <option value="Ruim">Com avaria</option>
               </select>
             </div>
             <div className="mb-3">

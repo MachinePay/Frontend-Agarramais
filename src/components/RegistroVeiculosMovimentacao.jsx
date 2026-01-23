@@ -145,7 +145,13 @@ export default function RegistroVeiculos({
                     <td className="px-4 py-2 border-b">
                       {mov.nivel_limpeza || "-"}
                     </td>
-                    <td className="px-4 py-2 border-b">{mov.estado || "-"}</td>
+                    <td className="px-4 py-2 border-b">
+                      {mov.estado === "Bom"
+                        ? "Sem avaria"
+                        : mov.estado === "Ruim"
+                          ? "Com avaria"
+                          : mov.estado || "-"}
+                    </td>
                     <td className="px-4 py-2 border-b">{mov.modo || "-"}</td>
                     <td className="px-4 py-2 border-b text-left">
                       {mov.obs || mov.observacao || "-"}

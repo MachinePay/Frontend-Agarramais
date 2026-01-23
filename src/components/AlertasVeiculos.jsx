@@ -1,4 +1,4 @@
-import api from "../services/api";
+import api from "./";
 import React, { useEffect, useState } from "react";
 
 const nivelCor = {
@@ -17,7 +17,34 @@ export default function AlertasVeiculos() {
       setLoading(true);
       try {
         const { data } = await api.get("/alertas-veiculos");
-        setAlertas(data);
+        // Adiciona lógica extra de alertas
+        let alertasCompletos = [...data];
+        if (Array.isArray(data)) {
+          data.forEach((alerta) => {
+            // Alerta se o estado da moto não for 'bom'
+            if (alerta.estado && alerta.estado.toLowerCase() !== "bom") {
+              alertasCompletos.push({
+                id: `estado-${alerta.id || alerta.veiculo}`,
+                veiculo: alerta.veiculo,
+                mensagem: `Atenção: o estado da moto está como '${alerta.estado}'.`,
+                nivel: "danger",
+              });
+            }
+            // Alerta de revisão a cada 1000 km
+            if (alerta.km && Number.isFinite(Number(alerta.km))) {
+              const km = Number(alerta.km);
+              if (km >= 1000 && km % 1000 === 0) {
+                alertasCompletos.push({
+                  id: `revisao-${alerta.id || alerta.veiculo}-${km}`,
+                  veiculo: alerta.veiculo,
+                  mensagem: `Moto atingiu ${km} km: necessário realizar revisão!`,
+                  nivel: "warning",
+                });
+              }
+            }
+          });
+        }
+        setAlertas(alertasCompletos);
       } catch (error) {
         console.error("Erro ao buscar alertas:", error);
         setAlertas([]);
