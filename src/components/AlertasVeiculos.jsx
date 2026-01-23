@@ -1,4 +1,4 @@
-import api from "./";
+import api from "../services/api";
 import React, { useEffect, useState } from "react";
 
 const nivelCor = {
