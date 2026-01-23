@@ -83,11 +83,11 @@ export default function Veiculos() {
   };
 
   // Função auxiliar para formatar a data para o componente filho (se necessário DD/MM/YYYY)
-  const getDataFormatada = () => {
-    if (!filtroData) return "";
-    const [ano, mes, dia] = filtroData.split("-");
-    return `${dia}/${mes}/${ano}`;
-  };
+//   const getDataFormatada = () => {
+//     if (!filtroData) return "";
+//     const [ano, mes, dia] = filtroData.split("-");
+//     return `${dia}/${mes}/${ano}`;
+//   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-0 md:p-8">

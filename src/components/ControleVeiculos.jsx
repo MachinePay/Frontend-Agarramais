@@ -123,7 +123,7 @@ export default function ControleVeiculos({
       if (onRefresh) onRefresh();
       Swal.fire({
         icon: "success",
-        title: `${usuario?.nome || "Funcionário"} emburacou ${veiculoSelecionado?.nome}`,
+        title: `${usuario?.nome || "Funcionário"} guardou ${veiculoSelecionado?.nome}`,
         showConfirmButton: true,
         confirmButtonText: "OK",
       });
@@ -163,8 +163,9 @@ export default function ControleVeiculos({
         const { data } = await api.get("/movimentacao-veiculos/ultimas");
         // Espera que a API retorne um objeto { [veiculoId]: movimentacao }
         setUltimasMovs(data || {});
-      } catch (e) {
+      } catch (error) {
         setUltimasMovs({});
+        console.error("Erro ao buscar últimas movimentações:", error);
       }
     }
     fetchUltimasMovs();
