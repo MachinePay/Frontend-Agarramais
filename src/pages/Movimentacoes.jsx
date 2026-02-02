@@ -897,6 +897,18 @@ export function Movimentacoes() {
                     Quantidade de produtos retirados (não conta como saída
                     financeira)
                   </p>
+                  <label className="flex items-center mt-2 gap-2">
+                    <input
+                      type="checkbox"
+                      name="retiradaProdutoDevolverEstoque"
+                      checked={formData.retiradaProdutoDevolverEstoque || false}
+                      onChange={handleChange}
+                      className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                    />
+                    <span className="text-xs text-green-700">
+                      Devolver retirada para o estoque da loja
+                    </span>
+                  </label>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
