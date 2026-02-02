@@ -68,6 +68,7 @@ export function Movimentacoes() {
     valor_entrada_maquininha_pix: "",
     observacao: "",
     retiradaEstoque: false,
+    retiradaProduto: 0,
     ignoreInOut: false,
   });
 
@@ -224,8 +225,9 @@ export function Movimentacoes() {
       const quantidadeAdicionada = parseInt(formData.quantidadeAdicionada) || 0;
       const fichas = parseInt(formData.fichas) || 0;
 
-      // totalPos = totalPre + abastecidas
-      const totalPos = totalPre + quantidadeAdicionada;
+      // totalPos = totalPre + abastecidas - retiradaProduto
+      const retiradaProduto = parseInt(formData.retiradaProduto) || 0;
+      const totalPos = totalPre + quantidadeAdicionada - retiradaProduto;
 
       // Buscar a última movimentação da máquina selecionada para pegar o totalPos anterior
       let ultimoTotalPos = 0;
@@ -247,6 +249,7 @@ export function Movimentacoes() {
       }
 
       // sairam = totalPos da movimentação anterior - totalPre da atual
+      // retiradaProduto NÃO conta em quantidadeSaiu nem no financeiro
       const quantidadeSaiu = Math.max(0, ultimoTotalPos - totalPre);
 
       console.log("📊 [handleSubmit] Cálculos da movimentação:");
@@ -292,6 +295,7 @@ export function Movimentacoes() {
             produtoId: formData.produto_id,
             quantidadeSaiu: quantidadeSaiu,
             quantidadeAbastecida: quantidadeAdicionada,
+            retiradaProduto: retiradaProduto,
           },
         ],
       };
@@ -825,7 +829,6 @@ export function Movimentacoes() {
                           <p className="text-xs text-yellow-700">
                             Reconte por favor
                           </p>
-                          
                         </div>
                       </div>
                     </div>
@@ -875,6 +878,24 @@ export function Movimentacoes() {
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Fichas coletadas da máquina
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    ❌ Retirada de Produto
+                  </label>
+                  <input
+                    type="number"
+                    name="retiradaProduto"
+                    value={formData.retiradaProduto}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="0"
+                    min="0"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Quantidade de produtos retirados (não conta como saída
+                    financeira)
                   </p>
                 </div>
                 <div>
