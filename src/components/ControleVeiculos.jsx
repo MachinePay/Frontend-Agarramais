@@ -13,6 +13,8 @@ export default function ControleVeiculos({
   const [modalAberto, setModalAberto] = useState(false);
   const [modalFinalizarAberto, setModalFinalizarAberto] = useState(false);
   const [veiculoSelecionado, setVeiculoSelecionado] = useState(null);
+  const [salvando, setSalvando] = useState(false);
+  const [finalizando, setFinalizando] = useState(false);
   const [form, setForm] = useState({
     estado: "Bom",
     obs: "",
@@ -74,11 +76,17 @@ export default function ControleVeiculos({
 
   // Exemplo: para atualizar o status do veículo na API, use fetch/axios e depois onRefresh()
   const pilotarVeiculo = async () => {
-    if (!veiculoSelecionado) return;
+    if (!veiculoSelecionado || salvando) return;
+    setSalvando(true);
     try {
       await api.put(`/veiculos/${veiculoSelecionado.id}`, {
         ...veiculoSelecionado,
         emUso: true,
+        km: form.km,
+        estado: form.estado,
+        modo: form.modo,
+        nivelCombustivel: getCombustivelLabel(form.combustivel),
+        nivelLimpeza: form.limpeza,
       });
       // Registrar movimentação de retirada
       await api.post("/movimentacao-veiculos", {
@@ -93,20 +101,26 @@ export default function ControleVeiculos({
         obs: form.obs || undefined,
       });
       if (onRefresh) onRefresh();
+      fecharModal();
     } catch (error) {
       console.error("Erro ao pilotar:", error);
       Swal.fire("Erro", "Não foi possível iniciar o uso do veículo.", "error");
+    } finally {
+      setSalvando(false);
     }
-    fecharModal();
   };
 
   const finalizarVeiculo = async () => {
-    if (!veiculoSelecionado) return;
+    if (!veiculoSelecionado || finalizando) return;
+    setFinalizando(true);
     try {
       await api.put(`/veiculos/${veiculoSelecionado.id}`, {
         ...veiculoSelecionado,
         emUso: false,
+        km: formFinalizar.km,
+        estado: formFinalizar.estado,
         nivelCombustivel: getCombustivelLabel(formFinalizar.combustivel),
+        nivelLimpeza: formFinalizar.limpeza,
       });
       // Registrar movimentação de devolução
       await api.post("/movimentacao-veiculos", {
@@ -127,11 +141,13 @@ export default function ControleVeiculos({
         showConfirmButton: true,
         confirmButtonText: "OK",
       });
+      fecharModalFinalizar();
     } catch (error) {
       console.error("Erro ao finalizar:", error);
       Swal.fire("Erro", "Não foi possível finalizar o veículo.", "error");
+    } finally {
+      setFinalizando(false);
     }
-    fecharModalFinalizar();
   };
 
   // Função para exibir o texto do combustível
@@ -322,14 +338,16 @@ export default function ControleVeiculos({
               <button
                 className="px-4 py-1 bg-gray-300 rounded hover:bg-gray-400"
                 onClick={fecharModalFinalizar}
+                disabled={finalizando}
               >
                 Cancelar
               </button>
               <button
-                className="px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                className="px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={finalizarVeiculo}
+                disabled={finalizando}
               >
-                Finalizar
+                {finalizando ? "Finalizando..." : "Finalizar"}
               </button>
             </div>
           </div>
@@ -427,14 +445,16 @@ export default function ControleVeiculos({
               <button
                 className="px-4 py-1 bg-gray-300 rounded hover:bg-gray-400"
                 onClick={fecharModal}
+                disabled={salvando}
               >
                 Cancelar
               </button>
               <button
-                className="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                className="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={pilotarVeiculo}
+                disabled={salvando}
               >
-                Pilotar
+                {salvando ? "Salvando..." : "Pilotar"}
               </button>
             </div>
           </div>
