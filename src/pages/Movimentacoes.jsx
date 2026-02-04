@@ -9,12 +9,14 @@ import {
   Badge,
   AlertBox,
 } from "../components/UIComponents";
+import RegistrarDinheiro from "../components/RegistrarDinheiro";
 import { PageLoader, EmptyState } from "../components/Loading";
 import { useAuth } from "../contexts/AuthContext";
 import AvisosMaquinasFaltam from "../components/AvisosMaquinasFaltam";
 import TabelaMovimentacoesEstoqueDeLoja from "../components/TabelaMovimentacoesEstoqueDeLoja";
 
 export function Movimentacoes() {
+  const [modalRegistrarDinheiro, setModalRegistrarDinheiro] = useState(false);
   const { usuario } = useAuth();
 
   // --- ESTADOS ---
@@ -653,15 +655,60 @@ export function Movimentacoes() {
       <Navbar />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <PageHeader
-          title="Movimentações"
-          subtitle="Registre entradas e saídas de produtos nas máquinas"
-          icon="🔄"
-          action={{
-            label: showForm ? "Cancelar" : "Nova Movimentação",
-            onClick: () => setShowForm(!showForm),
-          }}
-        />
+        {/* Header com dois botões lado a lado */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+          <PageHeader
+            title="Movimentações"
+            subtitle="Registre entradas e saídas de produtos nas máquinas"
+            icon="🔄"
+            action={null}
+          />
+          <div className="flex gap-3">
+            <button
+              className="px-6 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 font-bold shadow text-base"
+              onClick={() => setShowForm((v) => !v)}
+            >
+              {showForm ? "Cancelar" : "Nova Movimentação"}
+            </button>
+            <button
+              className="px-6 py-2 bg-blue-700 text-white rounded hover:bg-blue-800 font-bold shadow text-base"
+              onClick={() => setModalRegistrarDinheiro(true)}
+            >
+              Registrar Dinheiro
+            </button>
+          </div>
+        </div>
+        {/* Modal Registrar Dinheiro */}
+        {modalRegistrarDinheiro && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+            <div
+              className="bg-white rounded-lg p-6 shadow-lg relative"
+              style={{ minWidth: 520 }}
+            >
+              <button
+                onClick={() => setModalRegistrarDinheiro(false)}
+                style={{
+                  position: "absolute",
+                  top: 12,
+                  right: 16,
+                  fontSize: 22,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#888",
+                }}
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+              <RegistrarDinheiro
+                lojas={lojas}
+                maquinas={maquinas}
+                onSubmit={() => setModalRegistrarDinheiro(false)}
+              />
+            </div>
+          </div>
+        )}
 
         {error && (
           <AlertBox type="error" message={error} onClose={() => setError("")} />
