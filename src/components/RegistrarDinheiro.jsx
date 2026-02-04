@@ -15,9 +15,9 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
     setMaquinaSelecionada("");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSubmit({
+    await onSubmit({
       loja: lojaSelecionada,
       maquina: registrarTotalLoja ? null : maquinaSelecionada,
       registrarTotalLoja,
