@@ -704,7 +704,20 @@ export function Movimentacoes() {
               <RegistrarDinheiro
                 lojas={lojas}
                 maquinas={maquinas}
-                onSubmit={() => setModalRegistrarDinheiro(false)}
+                onSubmit={async (data) => {
+                  try {
+                    setError("");
+                    setSuccess("");
+                    await api.post("/registro-dinheiro", data);
+                    setSuccess("Registro de dinheiro salvo com sucesso!");
+                    setModalRegistrarDinheiro(false);
+                  } catch (err) {
+                    setError(
+                      err?.response?.data?.error ||
+                        "Erro ao registrar dinheiro.",
+                    );
+                  }
+                }}
               />
             </div>
           </div>
