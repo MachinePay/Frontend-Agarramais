@@ -17,15 +17,20 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Garantir que campos obrigatórios estejam preenchidos corretamente
+    if (!lojaSelecionada || !inicio || !fim) {
+      alert("Preencha todos os campos obrigatórios: loja, início e fim.");
+      return;
+    }
     await onSubmit({
       loja: lojaSelecionada,
-      maquina: registrarTotalLoja ? null : maquinaSelecionada,
+      maquina: registrarTotalLoja ? null : maquinaSelecionada || null,
       registrarTotalLoja,
       inicio,
       fim,
-      valorDinheiro,
-      valorCartaoPix,
-      observacoes,
+      valorDinheiro: valorDinheiro === "" ? null : valorDinheiro,
+      valorCartaoPix: valorCartaoPix === "" ? null : valorCartaoPix,
+      observacoes: observacoes === "" ? null : observacoes,
     });
   };
 
