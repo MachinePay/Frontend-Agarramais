@@ -6,6 +6,7 @@ import { PageHeader } from "../components/UIComponents";
 import { PageLoader } from "../components/Loading";
 
 export function Relatorios() {
+  const [dashboard, setDashboard] = useState(null);
   const [lojas, setLojas] = useState([]);
   const [lojaSelecionada, setLojaSelecionada] = useState("");
   const [dataInicio, setDataInicio] = useState("");
@@ -14,6 +15,23 @@ export function Relatorios() {
   const [loadingLojas, setLoadingLojas] = useState(true);
   const [relatorio, setRelatorio] = useState(null);
   const [error, setError] = useState("");
+
+  // Buscar dados do dashboard para fichas corretas
+  const carregarDashboard = async (lojaId, dataInicio, dataFim) => {
+    try {
+      const response = await api.get("/relatorios/dashboard", {
+        params: {
+          lojaId,
+          dataInicio,
+          dataFim,
+        },
+      });
+      setDashboard(response.data);
+    } catch (error) {
+      console.error("Erro ao carregar dashboard:", error);
+      setDashboard(null);
+    }
+  };
 
   useEffect(() => {
     carregarLojas();
@@ -61,6 +79,10 @@ export function Relatorios() {
       setLoading(true);
       setError("");
       setRelatorio(null); // Limpar relatório anterior
+      setDashboard(null);
+
+      // Buscar dashboard para fichas corretas
+      await carregarDashboard(lojaSelecionada, dataInicio, dataFim);
 
       // Usar a rota correta para relatório detalhado (produtos que saíram/entraram)
       const response = await api.get("/relatorios/impressao", {
@@ -101,6 +123,7 @@ export function Relatorios() {
 
       setError(errorMessage);
       setRelatorio(null);
+      setDashboard(null);
     } finally {
       setLoading(false);
     }
@@ -215,7 +238,40 @@ export function Relatorios() {
                 <span className="text-2xl sm:text-3xl">📊</span>
                 Resumo Geral da Loja
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3 sm:gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols32 lg:grid-cols-9 gap-4 sm:gap-4">
+                {/* Quantidade de Fichas (DASHBOARD) */}
+                <div className="card bg-gradient-to-br from-blue-400 to-blue-600 text-white">
+                  <div className="text-2xl sm:text-3xl mb-2">🎟️</div>
+                  <div className="text-xl sm:text-2xl font-bold">
+                    {dashboard && dashboard.totais
+                      ? Number(dashboard.totais.fichas || 0).toLocaleString(
+                          "pt-BR",
+                        )
+                      : "-"}
+                  </div>
+                  <div className="text-xs sm:text-sm opacity-90">
+                    Quantidade de Fichas (Dashboard)
+                  </div>
+                </div>
+                {/* Valor das Fichas (Dashboard) */}
+                <div className="card bg-gradient-to-br from-green-400 to-green-600 text-white">
+                  <div className="text-2xl sm:text-3xl mb-2">💸</div>
+                  <div className="text-xl sm:text-2xl font-bold">
+                    ${" "}
+                    {(() => {
+                      const totalFichas = relatorio.totais?.fichas || 0;
+                      const valorFicha =
+                        relatorio.loja?.valorFichaPadrao || 2.5;
+                      return (totalFichas * valorFicha).toLocaleString(
+                        "pt-BR",
+                        { minimumFractionDigits: 2 },
+                      );
+                    })()}
+                  </div>
+                  <div className="text-xs sm:text-sm opacity-90">
+                    Valor das Fichas (Dashboard)
+                  </div>
+                </div>
                 {/* Valor total da loja */}
                 <div className="card bg-gradient-to-br from-yellow-500 to-orange-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">🏪</div>
@@ -300,10 +356,21 @@ export function Relatorios() {
                         relatorio.loja?.valorFichaPadrao || 2.5;
                       const dinheiro = Number(relatorio.totais?.dinheiro || 0);
                       const pix = Number(relatorio.totais?.pix || 0);
+                      // Somar dinheiro e cartaoPix de cada máquina
+                      let dinheiroMaquinas = 0;
+                      let cartaoPixMaquinas = 0;
+                      if (relatorio.maquinas && relatorio.maquinas.length > 0) {
+                        relatorio.maquinas.forEach((m) => {
+                          dinheiroMaquinas += Number(m.totais?.dinheiro || 0);
+                          cartaoPixMaquinas += Number(m.totais?.cartaoPix || 0);
+                        });
+                      }
                       return (
                         totalFichas * valorFicha +
                         dinheiro +
-                        pix
+                        pix +
+                        dinheiroMaquinas +
+                        cartaoPixMaquinas
                       ).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
                     })()}
                   </div>
