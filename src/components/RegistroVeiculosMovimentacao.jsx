@@ -155,7 +155,7 @@ export default function RegistroVeiculos({
                           : mov.estado || "-"}
                     </td>
                     <td className="px-4 py-2 border-b">{mov.modo || "-"}</td>
-                    <td className="px-4 py-2 border-b">{mov.km || "-"}</td>{" "}
+                    <td className="px-4 py-2 border-b">{mov.km ?? "-"}</td>{" "}
                     {/* NOVO DADO */}
                     <td className="px-4 py-2 border-b text-left">
                       {mov.obs || mov.observacao || "-"}
