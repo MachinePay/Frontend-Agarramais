@@ -87,6 +87,8 @@ export default function RegistroVeiculos({
               </th>
               <th className="px-4 py-3 border-b font-semibold">Estado</th>
               <th className="px-4 py-3 border-b font-semibold">Modo</th>
+              <th className="px-4 py-3 border-b font-semibold">Km</th>{" "}
+              {/* NOVA COLUNA */}
               <th className="px-4 py-3 border-b font-semibold">Observação</th>
             </tr>
           </thead>
@@ -94,7 +96,7 @@ export default function RegistroVeiculos({
             {carregandoMov ? (
               <tr>
                 <td
-                  colSpan={9}
+                  colSpan={10}
                   className="text-center p-6 text-blue-700 font-semibold animate-pulse"
                 >
                   Carregando movimentações...
@@ -102,7 +104,7 @@ export default function RegistroVeiculos({
               </tr>
             ) : movimentacoes.length === 0 ? (
               <tr>
-                <td colSpan={9} className="text-center p-6 text-gray-500">
+                <td colSpan={10} className="text-center p-6 text-gray-500">
                   Nenhum registro encontrado.
                 </td>
               </tr>
@@ -153,6 +155,8 @@ export default function RegistroVeiculos({
                           : mov.estado || "-"}
                     </td>
                     <td className="px-4 py-2 border-b">{mov.modo || "-"}</td>
+                    <td className="px-4 py-2 border-b">{mov.km || "-"}</td>{" "}
+                    {/* NOVO DADO */}
                     <td className="px-4 py-2 border-b text-left">
                       {mov.obs || mov.observacao || "-"}
                     </td>
