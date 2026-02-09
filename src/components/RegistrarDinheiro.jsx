@@ -169,20 +169,40 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
         >
           <option value="">Selecione a máquina</option>
           {maquinas &&
-            maquinas
-              .filter(
-                (m) =>
-                  m.lojaId === lojaSelecionada &&
-                  ((typeof m.nome === "string" &&
-                    m.nome.trim().toUpperCase().endsWith("TAKEBALL")) ||
-                    (typeof m.nome === "string" &&
-                      m.nome.toLowerCase().includes("poltrona"))),
-              )
-              .map((maquina) => (
-                <option key={maquina.id} value={maquina.id}>
-                  {maquina.nome}
-                </option>
-              ))}
+            (() => {
+              // Encontrar a loja selecionada pelo id
+              const lojaObj = lojas?.find((l) => l.id === lojaSelecionada);
+              // Se for Agarramais Aeroporto, mostrar todas as máquinas da loja
+              if (
+                lojaObj &&
+                lojaObj.nome &&
+                lojaObj.nome.trim().toLowerCase().includes("aeroporto")
+              ) {
+                return maquinas
+                  .filter((m) => m.lojaId === lojaSelecionada)
+                  .map((maquina) => (
+                    <option key={maquina.id} value={maquina.id}>
+                      {maquina.nome}
+                    </option>
+                  ));
+              } else {
+                // Lógica padrão: só takeball e poltrona
+                return maquinas
+                  .filter(
+                    (m) =>
+                      m.lojaId === lojaSelecionada &&
+                      ((typeof m.nome === "string" &&
+                        m.nome.trim().toUpperCase().endsWith("TAKEBALL")) ||
+                        (typeof m.nome === "string" &&
+                          m.nome.toLowerCase().includes("poltrona"))),
+                  )
+                  .map((maquina) => (
+                    <option key={maquina.id} value={maquina.id}>
+                      {maquina.nome}
+                    </option>
+                  ));
+              }
+            })()}
         </select>
       </div>
       <div style={{ marginBottom: 18 }}>
