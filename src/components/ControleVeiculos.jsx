@@ -79,10 +79,11 @@ export default function ControleVeiculos({
     if (!veiculoSelecionado || salvando) return;
     setSalvando(true);
     try {
+      const kmValue = form.km === "" ? 0 : parseInt(form.km, 10);
       await api.put(`/veiculos/${veiculoSelecionado.id}`, {
         ...veiculoSelecionado,
         emUso: true,
-        km: form.km,
+        km: kmValue,
         estado: form.estado,
         modo: form.modo,
         nivelCombustivel: getCombustivelLabel(form.combustivel),
@@ -99,6 +100,7 @@ export default function ControleVeiculos({
         estado: form.estado,
         modo: form.modo,
         obs: form.obs || undefined,
+        km: kmValue,
       });
       if (onRefresh) onRefresh();
       fecharModal();
@@ -114,10 +116,12 @@ export default function ControleVeiculos({
     if (!veiculoSelecionado || finalizando) return;
     setFinalizando(true);
     try {
+      const kmValue =
+        formFinalizar.km === "" ? 0 : parseInt(formFinalizar.km, 10);
       await api.put(`/veiculos/${veiculoSelecionado.id}`, {
         ...veiculoSelecionado,
         emUso: false,
-        km: formFinalizar.km,
+        km: kmValue,
         estado: formFinalizar.estado,
         nivelCombustivel: getCombustivelLabel(formFinalizar.combustivel),
         nivelLimpeza: formFinalizar.limpeza,
@@ -133,6 +137,7 @@ export default function ControleVeiculos({
         estado: formFinalizar.estado,
         modo: veiculoSelecionado.modo,
         obs: formFinalizar.obs || undefined,
+        km: kmValue,
       });
       if (onRefresh) onRefresh();
       Swal.fire({
