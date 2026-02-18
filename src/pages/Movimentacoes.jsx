@@ -77,6 +77,15 @@ export function Movimentacoes() {
   // Estados auxiliares
   const [estoqueAnterior, setEstoqueAnterior] = useState(0);
   const [alertaDivergencia, setAlertaDivergencia] = useState(null);
+  // Auto-select pelúcia when máquina is chosen
+  useEffect(() => {
+    if (formData.maquina_id && !formData.produto_id) {
+      const maquina = maquinas.find((m) => m.id === formData.maquina_id);
+      if (maquina && maquina.produtoId) {
+        setFormData((prev) => ({ ...prev, produto_id: maquina.produtoId }));
+      }
+    }
+  }, [formData.maquina_id, maquinas, formData.produto_id]);
 
   // --- EFEITOS ---
   useEffect(() => {
@@ -1109,23 +1118,7 @@ export function Movimentacoes() {
                     ))}
                   </select>
                   {/* Auto-select pelúcia da máquina when máquina is chosen */}
-                  {(() => {
-                    // Find pelúcia for selected máquina
-                    if (formData.maquina_id && !formData.produto_id) {
-                      const maquina = maquinas.find(
-                        (m) => m.id === formData.maquina_id,
-                      );
-                      if (maquina && maquina.produtoId) {
-                        // Set produto_id to pelúcia of máquina
-                        setTimeout(() => {
-                          setFormData((prev) => ({
-                            ...prev,
-                            produto_id: maquina.produtoId,
-                          }));
-                        }, 0);
-                      }
-                    }
-                  })()}
+                  {/* Auto-select pelúcia logic moved to useEffect */}
                 </div>
 
                 <div className="md:col-span-2">
