@@ -188,10 +188,17 @@ export function Movimentacoes() {
           produto_id: ultimaMovimentacao.produtos[0].produtoId,
         }));
       } else {
-        // Se não houver movimentação, tenta pelo tipo da máquina
+        // Se não houver movimentação, tenta pelo produtoId da máquina
         const maquina = maquinas.find((m) => m.id === formData.maquina_id);
+        if (maquina && maquina.produtoId) {
+          setFormData((prev) => ({
+            ...prev,
+            produto_id: maquina.produtoId,
+          }));
+          return;
+        }
+        // Se não houver produtoId direto, tenta pelo tipo da máquina
         if (maquina && maquina.tipo) {
-          // Busca produto pelo nome igual ao tipo da máquina
           const produtoDoTipo = produtos.find(
             (p) =>
               p.nome && p.nome.toLowerCase() === maquina.tipo.toLowerCase(),
