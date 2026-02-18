@@ -169,26 +169,33 @@ export function Movimentacoes() {
   // Auto-selecionar produto pelo tipo da máquina se não houver movimentação
   useEffect(() => {
     if (formData.maquina_id) {
-        // Se não houver movimentação, tenta pelo tipo da máquina
-        const maquina = maquinas.find((m) => m.id === formData.maquina_id);
-        if (maquina && maquina.tipo) {
-          // Busca produto pelo nome igual ao tipo da máquina
+      // Se não houver movimentação, tenta pelo tipo da máquina
+      const maquina = maquinas.find((m) => m.id === formData.maquina_id);
+      let produtoIdAuto = "";
+      if (maquina) {
+        // Tenta os campos mais comuns
+        produtoIdAuto =
+          maquina.produtoId ||
+          maquina.peluciaId ||
+          maquina.produto_id ||
+          (maquina.produto && maquina.produto.id) ||
+          maquina.produtoPadrao ||
+          "";
+        // Se não achou, tenta pelo tipo da máquina
+        if (!produtoIdAuto && maquina.tipo) {
           const produtoDoTipo = produtos.find(
             (p) =>
               p.nome && p.nome.toLowerCase() === maquina.tipo.toLowerCase(),
           );
           if (produtoDoTipo) {
-            setFormData((prev) => ({
-              ...prev,
-              produto_id: produtoDoTipo.id,
-            }));
-            return;
+            produtoIdAuto = produtoDoTipo.id;
           }
         }
-        setFormData((prev) => ({
-          ...prev,
-          produto_id: "",
-        }));
+      }
+      setFormData((prev) => ({
+        ...prev,
+        produto_id: produtoIdAuto,
+      }));
     }
   }, [formData.maquina_id, movimentacoes, maquinas, produtos]);
 
