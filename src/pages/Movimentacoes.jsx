@@ -169,36 +169,10 @@ export function Movimentacoes() {
   // Auto-selecionar produto pelo tipo da máquina se não houver movimentação
   useEffect(() => {
     if (formData.maquina_id) {
-      const ultimaMovimentacao = movimentacoes
-        .filter(
-          (m) =>
-            m.maquinaId === formData.maquina_id ||
-            m.maquina_id === formData.maquina_id,
-        )
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
-
-      if (
-        ultimaMovimentacao &&
-        Array.isArray(ultimaMovimentacao.produtos) &&
-        ultimaMovimentacao.produtos.length > 0 &&
-        ultimaMovimentacao.produtos[0].produtoId
-      ) {
-        setFormData((prev) => ({
-          ...prev,
-          produto_id: ultimaMovimentacao.produtos[0].produtoId,
-        }));
-      } else {
-        // Se não houver movimentação, tenta pelo produtoId da máquina
+        // Se não houver movimentação, tenta pelo tipo da máquina
         const maquina = maquinas.find((m) => m.id === formData.maquina_id);
-        if (maquina && maquina.produtoId) {
-          setFormData((prev) => ({
-            ...prev,
-            produto_id: maquina.produtoId,
-          }));
-          return;
-        }
-        // Se não houver produtoId direto, tenta pelo tipo da máquina
         if (maquina && maquina.tipo) {
+          // Busca produto pelo nome igual ao tipo da máquina
           const produtoDoTipo = produtos.find(
             (p) =>
               p.nome && p.nome.toLowerCase() === maquina.tipo.toLowerCase(),
@@ -215,7 +189,6 @@ export function Movimentacoes() {
           ...prev,
           produto_id: "",
         }));
-      }
     }
   }, [formData.maquina_id, movimentacoes, maquinas, produtos]);
 
