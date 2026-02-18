@@ -1108,6 +1108,24 @@ export function Movimentacoes() {
                       </option>
                     ))}
                   </select>
+                  {/* Auto-select pelúcia da máquina when máquina is chosen */}
+                  {(() => {
+                    // Find pelúcia for selected máquina
+                    if (formData.maquina_id && !formData.produto_id) {
+                      const maquina = maquinas.find(
+                        (m) => m.id === formData.maquina_id,
+                      );
+                      if (maquina && maquina.produtoId) {
+                        // Set produto_id to pelúcia of máquina
+                        setTimeout(() => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            produto_id: maquina.produtoId,
+                          }));
+                        }, 0);
+                      }
+                    }
+                  })()}
                 </div>
 
                 <div className="md:col-span-2">
