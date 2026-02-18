@@ -166,7 +166,7 @@ export function Movimentacoes() {
     formData.quantidadeAtualMaquina,
   ]);
 
-  // Buscar automaticamente o último produto da máquina selecionada (com checagem robusta)
+  // Auto-selecionar produto pelo tipo da máquina se não houver movimentação
   useEffect(() => {
     if (formData.maquina_id) {
       const ultimaMovimentacao = movimentacoes
@@ -188,13 +188,29 @@ export function Movimentacoes() {
           produto_id: ultimaMovimentacao.produtos[0].produtoId,
         }));
       } else {
+        // Se não houver movimentação, tenta pelo tipo da máquina
+        const maquina = maquinas.find((m) => m.id === formData.maquina_id);
+        if (maquina && maquina.tipo) {
+          // Busca produto pelo nome igual ao tipo da máquina
+          const produtoDoTipo = produtos.find(
+            (p) =>
+              p.nome && p.nome.toLowerCase() === maquina.tipo.toLowerCase(),
+          );
+          if (produtoDoTipo) {
+            setFormData((prev) => ({
+              ...prev,
+              produto_id: produtoDoTipo.id,
+            }));
+            return;
+          }
+        }
         setFormData((prev) => ({
           ...prev,
           produto_id: "",
         }));
       }
     }
-  }, [formData.maquina_id, movimentacoes]);
+  }, [formData.maquina_id, movimentacoes, maquinas, produtos]);
 
   // --- FUNÇÕES DE CARREGAMENTO ---
   const carregarDados = async () => {
