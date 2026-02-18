@@ -178,7 +178,13 @@ export function Movimentacoes() {
             m.maquina_id === formData.maquina_id,
         )
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
-
+      if (ultimaMovimentacao) {
+        console.log("Máquina selecionada:", formData.maquina_id);
+        console.log(
+          "Produto encontrado no histórico:",
+          ultimaMovimentacao.produtos[0].produtoId,
+        );
+      }
       if (
         ultimaMovimentacao &&
         ultimaMovimentacao.produtos &&
