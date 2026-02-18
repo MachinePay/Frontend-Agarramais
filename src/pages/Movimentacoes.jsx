@@ -77,15 +77,6 @@ export function Movimentacoes() {
   // Estados auxiliares
   const [estoqueAnterior, setEstoqueAnterior] = useState(0);
   const [alertaDivergencia, setAlertaDivergencia] = useState(null);
-  // Auto-select pelúcia when máquina is chosen
-  useEffect(() => {
-    if (formData.maquina_id && !formData.produto_id) {
-      const maquina = maquinas.find((m) => m.id === formData.maquina_id);
-      if (maquina && maquina.produtoId) {
-        setFormData((prev) => ({ ...prev, produto_id: maquina.produtoId }));
-      }
-    }
-  }, [formData.maquina_id, maquinas, formData.produto_id]);
 
   // --- EFEITOS ---
   useEffect(() => {
@@ -174,6 +165,41 @@ export function Movimentacoes() {
     formData.contadorOut,
     formData.quantidadeAtualMaquina,
   ]);
+
+  // Buscar automaticamente o último produto da máquina selecionada
+  useEffect(() => {
+    if (formData.maquina_id) {
+      // 1. Filtra as movimentações da máquina selecionada
+      // 2. Ordena pela data de criação (mais recente primeiro)
+      const ultimaMovimentacao = movimentacoes
+        .filter(
+          (m) =>
+            m.maquinaId === formData.maquina_id ||
+            m.maquina_id === formData.maquina_id,
+        )
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+
+      if (
+        ultimaMovimentacao &&
+        ultimaMovimentacao.produtos &&
+        ultimaMovimentacao.produtos.length > 0
+      ) {
+        // Pega o ID do primeiro produto da lista de produtos da última movimentação
+        const ultimoProdutoId = ultimaMovimentacao.produtos[0].produtoId;
+
+        setFormData((prev) => ({
+          ...prev,
+          produto_id: ultimoProdutoId,
+        }));
+      } else {
+        // Opcional: Limpar o produto se a máquina nunca teve movimentação
+        setFormData((prev) => ({
+          ...prev,
+          produto_id: "",
+        }));
+      }
+    }
+  }, [formData.maquina_id, movimentacoes]);
 
   // --- FUNÇÕES DE CARREGAMENTO ---
   const carregarDados = async () => {
@@ -1050,7 +1076,11 @@ export function Movimentacoes() {
                     value={filtroLojaForm}
                     onChange={(e) => {
                       setFiltroLojaForm(e.target.value);
-                      setFormData({ ...formData, maquina_id: "" });
+                      setFormData({
+                        ...formData,
+                        maquina_id: "",
+                        produto_id: "",
+                      });
                     }}
                     className="select-field"
                     required
@@ -1108,7 +1138,8 @@ export function Movimentacoes() {
                     name="produto_id"
                     value={formData.produto_id}
                     onChange={handleChange}
-                    className="select-field"
+                    className={`select-field ${formData.produto_id ? "border-blue-500 bg-blue-50" : ""}`}
+                    required
                   >
                     <option value="">Nenhum produto</option>
                     {produtos.map((produto) => (
@@ -1117,8 +1148,11 @@ export function Movimentacoes() {
                       </option>
                     ))}
                   </select>
-                  {/* Auto-select pelúcia da máquina when máquina is chosen */}
-                  {/* Auto-select pelúcia logic moved to useEffect */}
+                  {formData.maquina_id && formData.produto_id && (
+                    <p className="text-[10px] text-blue-600 mt-1 animate-pulse">
+                      ✨ Produto sugerido com base na última visita
+                    </p>
+                  )}
                 </div>
 
                 <div className="md:col-span-2">
