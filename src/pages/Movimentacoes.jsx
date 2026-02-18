@@ -166,11 +166,9 @@ export function Movimentacoes() {
     formData.quantidadeAtualMaquina,
   ]);
 
-  // Buscar automaticamente o último produto da máquina selecionada
+  // Buscar automaticamente o último produto da máquina selecionada (com checagem robusta)
   useEffect(() => {
     if (formData.maquina_id) {
-      // 1. Filtra as movimentações da máquina selecionada
-      // 2. Ordena pela data de criação (mais recente primeiro)
       const ultimaMovimentacao = movimentacoes
         .filter(
           (m) =>
@@ -178,27 +176,18 @@ export function Movimentacoes() {
             m.maquina_id === formData.maquina_id,
         )
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
-      if (ultimaMovimentacao) {
-        console.log("Máquina selecionada:", formData.maquina_id);
-        console.log(
-          "Produto encontrado no histórico:",
-          ultimaMovimentacao.produtos[0].produtoId,
-        );
-      }
+
       if (
         ultimaMovimentacao &&
-        ultimaMovimentacao.produtos &&
-        ultimaMovimentacao.produtos.length > 0
+        Array.isArray(ultimaMovimentacao.produtos) &&
+        ultimaMovimentacao.produtos.length > 0 &&
+        ultimaMovimentacao.produtos[0].produtoId
       ) {
-        // Pega o ID do primeiro produto da lista de produtos da última movimentação
-        const ultimoProdutoId = ultimaMovimentacao.produtos[0].produtoId;
-
         setFormData((prev) => ({
           ...prev,
-          produto_id: ultimoProdutoId,
+          produto_id: ultimaMovimentacao.produtos[0].produtoId,
         }));
       } else {
-        // Opcional: Limpar o produto se a máquina nunca teve movimentação
         setFormData((prev) => ({
           ...prev,
           produto_id: "",
