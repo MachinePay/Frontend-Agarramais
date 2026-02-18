@@ -166,38 +166,36 @@ export function Movimentacoes() {
     formData.quantidadeAtualMaquina,
   ]);
 
-  // Auto-selecionar produto pelo tipo da máquina se não houver movimentação
+  // Sugere produto automaticamente ao escolher máquina, mas permite troca manual
   useEffect(() => {
-    if (formData.maquina_id) {
-      // Se não houver movimentação, tenta pelo tipo da máquina
-      const maquina = maquinas.find((m) => m.id === formData.maquina_id);
-      let produtoIdAuto = "";
-      if (maquina) {
-        // Tenta os campos mais comuns
-        produtoIdAuto =
-          maquina.produtoId ||
-          maquina.peluciaId ||
-          maquina.produto_id ||
-          (maquina.produto && maquina.produto.id) ||
-          maquina.produtoPadrao ||
-          "";
-        // Se não achou, tenta pelo tipo da máquina
-        if (!produtoIdAuto && maquina.tipo) {
-          const produtoDoTipo = produtos.find(
-            (p) =>
-              p.nome && p.nome.toLowerCase() === maquina.tipo.toLowerCase(),
-          );
-          if (produtoDoTipo) {
-            produtoIdAuto = produtoDoTipo.id;
-          }
-        }
+    if (!formData.maquina_id) return;
+    // Só sugere se produto_id estiver vazio
+    if (formData.produto_id) return;
+    const maquina = maquinas.find((m) => m.id === formData.maquina_id);
+    if (!maquina) return;
+    // 1. Tenta campos mais comuns
+    let produtoIdAuto =
+      maquina.produtoId ||
+      maquina.peluciaId ||
+      maquina.produto_id ||
+      (maquina.produto && maquina.produto.id) ||
+      maquina.produtoPadrao ||
+      "";
+    // 2. Se não achou, tenta pelo tipo da máquina (nome ou tipo)
+    if (!produtoIdAuto && maquina.tipo && produtos.length > 0) {
+      const prodSugerido = produtos.find(
+        (p) =>
+          (p.tipo && p.tipo.toLowerCase() === maquina.tipo.toLowerCase()) ||
+          (p.nome && p.nome.toLowerCase().includes(maquina.tipo.toLowerCase())),
+      );
+      if (prodSugerido) {
+        produtoIdAuto = prodSugerido.id;
       }
-      setFormData((prev) => ({
-        ...prev,
-        produto_id: produtoIdAuto,
-      }));
     }
-  }, [formData.maquina_id, movimentacoes, maquinas, produtos]);
+    if (produtoIdAuto) {
+      setFormData((prev) => ({ ...prev, produto_id: produtoIdAuto }));
+    }
+  }, [formData.maquina_id, formData.produto_id, maquinas, produtos]);
 
   // --- FUNÇÕES DE CARREGAMENTO ---
   const carregarDados = async () => {
