@@ -233,10 +233,19 @@ export function Movimentacoes() {
   // --- HANDLERS ---
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+    // Se trocar a máquina, limpa o produto para forçar nova sugestão
+    if (name === "maquina_id") {
+      setFormData((prev) => ({
+        ...prev,
+        maquina_id: value,
+        produto_id: "",
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: type === "checkbox" ? checked : value,
+      }));
+    }
     // Limpar mensagens de erro/sucesso ao editar
     if (error) setError("");
     if (success) setSuccess("");
