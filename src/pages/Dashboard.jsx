@@ -2481,7 +2481,7 @@ export function Dashboard() {
                                 )}
                               </span>
                             </div>
-                            <div className="grid grid-cols-5 gap-4 mt-3 text-sm">
+                            <div className="grid grid-cols-6 gap-4 mt-3 text-sm">
                               <div>
                                 <p className="text-gray-600">Total Pré</p>
                                 <p className="font-semibold">
@@ -2498,6 +2498,20 @@ export function Dashboard() {
                                 <p className="text-gray-600">Abastecidas</p>
                                 <p className="font-semibold text-green-600">
                                   {mov.abastecidas || 0}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-gray-600">
+                                  Retirada de Produto
+                                </p>
+                                <p className="font-semibold text-pink-600">
+                                  {Array.isArray(mov.detalhesProdutos)
+                                    ? mov.detalhesProdutos.reduce(
+                                        (soma, p) =>
+                                          soma + (p.retiradaProduto || 0),
+                                        0,
+                                      )
+                                    : 0}
                                 </p>
                               </div>
                               <div>

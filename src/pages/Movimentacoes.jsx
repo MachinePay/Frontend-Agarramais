@@ -327,7 +327,6 @@ export function Movimentacoes() {
             quantidadeAbastecida: quantidadeAdicionada,
             retiradaProduto: retiradaProduto,
           // Transformar para o formato do backend (atualizado)
-              formData.retiradaProdutoDevolverEstoque || false,
           },
         ],
       };
@@ -351,7 +350,6 @@ export function Movimentacoes() {
             "(tipo:",
             typeof id1,
             ") com",
-                retiradaProdutoDevolverEstoque:
                   formData.retiradaProdutoDevolverEstoque === true,
             "(tipo:",
             typeof formData.maquina_id,
