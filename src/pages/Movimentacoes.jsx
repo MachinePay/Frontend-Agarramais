@@ -167,35 +167,32 @@ export function Movimentacoes() {
   ]);
 
   // Sugere produto automaticamente ao escolher máquina, mas permite troca manual
+  // Sugere produto via backend ao escolher máquina
   useEffect(() => {
     if (!formData.maquina_id) return;
-    // Só sugere se produto_id estiver vazio
     if (formData.produto_id) return;
-    const maquina = maquinas.find((m) => m.id === formData.maquina_id);
-    if (!maquina) return;
-    // 1. Tenta campos mais comuns
-    let produtoIdAuto =
-      maquina.produtoId ||
-      maquina.peluciaId ||
-      maquina.produto_id ||
-      (maquina.produto && maquina.produto.id) ||
-      maquina.produtoPadrao ||
-      "";
-    // 2. Se não achou, tenta pelo tipo da máquina (nome ou tipo)
-    if (!produtoIdAuto && maquina.tipo && produtos.length > 0) {
-      const prodSugerido = produtos.find(
-        (p) =>
-          (p.tipo && p.tipo.toLowerCase() === maquina.tipo.toLowerCase()) ||
-          (p.nome && p.nome.toLowerCase().includes(maquina.tipo.toLowerCase())),
-      );
-      if (prodSugerido) {
-        produtoIdAuto = prodSugerido.id;
+    // Busca produto sugerido do backend
+    const fetchProdutoSugerido = async () => {
+      try {
+        const res = await api.get(
+          `/maquinas/${formData.maquina_id}/produto-sugerido`,
+        );
+        if (
+          res.data &&
+          res.data.produtoSugerido &&
+          res.data.produtoSugerido.id
+        ) {
+          setFormData((prev) => ({
+            ...prev,
+            produto_id: res.data.produtoSugerido.id,
+          }));
+        }
+      } catch (err) {
+        // Silencia erro, não sugere nada
       }
-    }
-    if (produtoIdAuto) {
-      setFormData((prev) => ({ ...prev, produto_id: produtoIdAuto }));
-    }
-  }, [formData.maquina_id, formData.produto_id, maquinas, produtos]);
+    };
+    fetchProdutoSugerido();
+  }, [formData.maquina_id, formData.produto_id]);
 
   // --- FUNÇÕES DE CARREGAMENTO ---
   const carregarDados = async () => {
