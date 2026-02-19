@@ -2505,7 +2505,7 @@ export function Dashboard() {
                                   <span>📦</span> Total Atual
                                 </p>
                                 <p className="font-semibold text-purple-600">
-                                  {(mov.totalPre || 0) + (mov.abastecidas || 0)}
+                                  {mov.totalPos ?? 0}
                                 </p>
                               </div>
                               <div>
