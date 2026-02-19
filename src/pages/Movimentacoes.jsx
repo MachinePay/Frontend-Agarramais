@@ -233,19 +233,10 @@ export function Movimentacoes() {
   // --- HANDLERS ---
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    // Se trocar a máquina, limpa o produto para forçar nova sugestão
-    if (name === "maquina_id") {
-      setFormData((prev) => ({
-        ...prev,
-        maquina_id: value,
-        produto_id: "",
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: type === "checkbox" ? checked : value,
-      }));
-    }
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
     // Limpar mensagens de erro/sucesso ao editar
     if (error) setError("");
     if (success) setSuccess("");
@@ -335,6 +326,8 @@ export function Movimentacoes() {
             quantidadeSaiu: quantidadeSaiu,
             quantidadeAbastecida: quantidadeAdicionada,
             retiradaProduto: retiradaProduto,
+          // Transformar para o formato do backend (atualizado)
+              formData.retiradaProdutoDevolverEstoque || false,
           },
         ],
       };
@@ -358,7 +351,8 @@ export function Movimentacoes() {
             "(tipo:",
             typeof id1,
             ") com",
-            formData.maquina_id,
+                retiradaProdutoDevolverEstoque:
+                  formData.retiradaProdutoDevolverEstoque === true,
             "(tipo:",
             typeof formData.maquina_id,
             ")",
