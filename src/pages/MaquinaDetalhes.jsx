@@ -139,23 +139,84 @@ export function MaquinaDetalhes() {
           icon="🎰"
         />
         <div className="bg-white rounded-lg shadow p-6 mb-8">
+          {/* Nome da loja */}
+          <p className="mb-2 text-sm text-gray-700">
+            <strong>Loja:</strong>{" "}
+            {maquina.lojaNome || maquina.loja?.nome || "-"}
+          </p>
           {/* Detalhes dos alertas */}
           {alertaInconsistencia && (
             <div className="mb-4 p-3 bg-yellow-50 border border-yellow-300 rounded text-yellow-900">
-              <strong>Alerta de Inconsistência:</strong>{" "}
-              {alertaInconsistencia.mensagem ||
-                `Inconsistência detectada: OUT (${alertaInconsistencia.contador_out})/IN (${alertaInconsistencia.contador_in}) não bate com fichas (${alertaInconsistencia.fichas}).`}
+              <strong>Alerta de Inconsistência:</strong>
+              <br />
+              {(() => {
+                const movs = movimentacoes.slice(0, 2);
+                if (movs.length < 2)
+                  return <span>Não há movimentações suficientes.</span>;
+                const atual = movs[0];
+                const anterior = movs[1];
+                const diffOut =
+                  (atual.contadorOut || 0) - (anterior.contadorOut || 0);
+                const diffIn =
+                  (atual.contadorIn || 0) - (anterior.contadorIn || 0);
+                const saida = atual.sairam ?? 0;
+                const fichas = atual.fichas ?? 0;
+                const outInconsistente = diffOut !== saida;
+                const inInconsistente = diffIn !== fichas;
+                return (
+                  <>
+                    {outInconsistente && (
+                      <div className="mb-2">
+                        <span className="font-bold text-yellow-800">
+                          Saída (OUT):
+                        </span>
+                        <br />
+                        Contador OUT anterior:{" "}
+                        <strong>{anterior.contadorOut ?? "-"}</strong>
+                        <br />
+                        Contador OUT atual:{" "}
+                        <strong>{atual.contadorOut ?? "-"}</strong>
+                        <br />
+                        Era para ter saído: <strong>{diffOut}</strong>
+                        <br />
+                        Saída registrada: <strong>{saida}</strong>
+                        <br />
+                        Diferença: <strong>{diffOut - saida}</strong>
+                      </div>
+                    )}
+                    {inInconsistente && (
+                      <div className="mb-2">
+                        <span className="font-bold text-yellow-800">
+                          Entrada (IN):
+                        </span>
+                        <br />
+                        Contador IN anterior:{" "}
+                        <strong>{anterior.contadorIn ?? "-"}</strong>
+                        <br />
+                        Contador IN atual:{" "}
+                        <strong>{atual.contadorIn ?? "-"}</strong>
+                        <br />
+                        Era para ter entrado: <strong>{diffIn}</strong>
+                        <br />
+                        Fichas registradas: <strong>{fichas}</strong>
+                        <br />
+                        Diferença: <strong>{diffIn - fichas}</strong>
+                      </div>
+                    )}
+                    {!outInconsistente && !inInconsistente && (
+                      <span>Sem inconsistência detectada.</span>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           )}
           {alertaAbastecimento && (
             <div className="mb-4 p-3 bg-yellow-50 border border-yellow-300 rounded text-yellow-900">
-              <strong>Alerta de Abastecimento Incompleto:</strong>{" "}
+              <strong>Alerta de Abastecimento Incompleto:</strong>
+              <br />
               {alertaAbastecimento.mensagem ||
-                `Abastecimento incompleto: padrão ${
-                  alertaAbastecimento.padrao
-                }, tinha ${alertaAbastecimento.anterior}, abastecido ${
-                  alertaAbastecimento.abastecido
-                }. Motivo: ${alertaAbastecimento.observacao || "-"}`}
+                `Abastecimento incompleto: padrão ${alertaAbastecimento.padrao}, tinha ${alertaAbastecimento.anterior}, abastecido ${alertaAbastecimento.abastecido}. Motivo: ${alertaAbastecimento.observacao || "-"}`}
             </div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -211,36 +272,36 @@ export function MaquinaDetalhes() {
           </div>
         </div>
 
-        <h2 className="text-xl font-bold mb-4">Movimentações</h2>
+        <h2 className="text-xl font-bold mb-4">Últimas 2 Movimentações</h2>
         <div className="bg-white rounded-lg shadow p-4 mb-4">
-          {movimentacoes.length === 0 ? (
-            <p className="text-gray-500">Nenhuma movimentação encontrada.</p>
+          {movimentacoes.length < 2 ? (
+            <p className="text-gray-500">
+              Nenhuma movimentação suficiente encontrada.
+            </p>
           ) : (
             <table className="min-w-full text-sm">
               <thead>
                 <tr>
                   <th className="text-left py-2">Data</th>
-                  <th className="text-left py-2">Entrada</th>
-                  <th className="text-left py-2">Saída</th>
+                  <th className="text-left py-2">Contador IN</th>
+                  <th className="text-left py-2">Contador OUT</th>
                   <th className="text-left py-2">Fichas</th>
+                  <th className="text-left py-2">Saída</th>
                   <th className="text-left py-2">Observação</th>
                 </tr>
               </thead>
               <tbody>
-                {movimentacoes.map((mov) => (
+                {movimentacoes.slice(0, 2).map((mov) => (
                   <tr key={mov.id} className="border-b">
                     <td>
                       {new Date(mov.dataColeta || mov.createdAt).toLocaleString(
                         "pt-BR",
                       )}
                     </td>
-                    <td className="text-green-600">
-                      {mov.abastecidas > 0 ? `+${mov.abastecidas}` : "-"}
-                    </td>
-                    <td className="text-red-600">
-                      {mov.sairam > 0 ? `-${mov.sairam}` : "-"}
-                    </td>
-                    <td>{mov.fichas || 0}</td>
+                    <td>{mov.contadorIn ?? "-"}</td>
+                    <td>{mov.contadorOut ?? "-"}</td>
+                    <td>{mov.fichas ?? "-"}</td>
+                    <td>{mov.sairam ?? "-"}</td>
                     <td>{mov.observacoes || "-"}</td>
                   </tr>
                 ))}

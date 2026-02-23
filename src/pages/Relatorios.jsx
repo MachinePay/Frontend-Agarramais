@@ -238,8 +238,9 @@ export function Relatorios() {
                 <span className="text-2xl sm:text-3xl">📊</span>
                 Resumo Geral da Loja
               </h3>
-              <div className="grid grid-cols-2 sm:grid-cols32 lg:grid-cols-9 gap-4 sm:gap-4">
+              <div className="flex flex-wrap gap-4 sm:gap-4">
                 {/* Quantidade de Fichas (DASHBOARD) */}
+                {/* Valor das Fichas (Dashboard) */}
                 <div className="card bg-gradient-to-br from-blue-400 to-blue-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">🎟️</div>
                   <div className="text-xl sm:text-2xl font-bold">
@@ -250,11 +251,8 @@ export function Relatorios() {
                       : "-"}
                   </div>
                   <div className="text-xs sm:text-sm opacity-90">
-                    Quantidade de Fichas (Dashboard)
+                    Quantidade de Fichas
                   </div>
-                </div>
-                {/* Valor das Fichas (Dashboard) */}
-                <div className="card bg-gradient-to-br from-green-400 to-green-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">💸</div>
                   <div className="text-xl sm:text-2xl font-bold">
                     ${" "}
@@ -272,8 +270,11 @@ export function Relatorios() {
                     Valor das Fichas (Dashboard)
                   </div>
                 </div>
-                {/* Valor total da loja */}
-                <div className="card bg-gradient-to-br from-yellow-500 to-orange-600 text-white">
+
+                {/* Valor Vindo da Trocadora */}
+                {/* Dinheiro loja */}
+                {/* Cartão/Pix loja */}
+                <div className="flex flex-col card bg-gradient-to-br from-yellow-500 to-orange-600 text-white items-center justify-center">
                   <div className="text-2xl sm:text-3xl mb-2">🏪</div>
                   <div className="text-xl sm:text-2xl font-bold">
                     R${" "}
@@ -282,31 +283,33 @@ export function Relatorios() {
                     ).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                   </div>
                   <div className="text-xs sm:text-sm opacity-90">
-                    Valor Total da Loja
+                    Valor Vindo da Trocadora
                   </div>
-                </div>
-                {/* Dinheiro loja */}
-                <div className="card bg-gradient-to-br from-yellow-400 to-yellow-600 text-white">
-                  <div className="text-2xl sm:text-3xl mb-2">💵</div>
-                  <div className="text-xl sm:text-2xl font-bold">
-                    R${" "}
-                    {Number(
-                      relatorio.totais?.valorDinheiroLoja || 0,
-                    ).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                  </div>
-                  <div className="text-xs sm:text-sm opacity-90">Dinheiro</div>
-                </div>
-                {/* Cartão/Pix loja */}
-                <div className="card bg-gradient-to-br from-cyan-400 to-cyan-600 text-white">
-                  <div className="text-2xl sm:text-3xl mb-2">🟢</div>
-                  <div className="text-xl sm:text-2xl font-bold">
-                    R${" "}
-                    {Number(
-                      relatorio.totais?.valorCartaoPixLoja || 0,
-                    ).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                  </div>
-                  <div className="text-xs sm:text-sm opacity-90">
-                    Cartão / Pix
+                  <div className="flex gap-3 items-end">
+                    <div className="flex flex-col items-center">
+                      <div className="text-lg sm:text-xl mb-1">💵</div>
+                      <div className="text-base sm:text-lg font-bold">
+                        R${" "}
+                        {Number(
+                          relatorio.totais?.valorDinheiroLoja || 0,
+                        ).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </div>
+                      <div className="text-[10px] sm:text-xs opacity-80">
+                        Dinheiro
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <div className="text-lg sm:text-xl mb-1">🟢</div>
+                      <div className="text-base sm:text-lg font-bold">
+                        R${" "}
+                        {Number(
+                          relatorio.totais?.valorCartaoPixLoja || 0,
+                        ).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </div>
+                      <div className="text-[10px] sm:text-xs opacity-80">
+                        Cartão / Pix
+                      </div>
+                    </div>
                   </div>
                 </div>
                 {/* Produtos que saíram */}
@@ -333,30 +336,12 @@ export function Relatorios() {
                     Produtos Entraram
                   </div>
                 </div>
-                {/* Movimentações */}
-                <div className="card bg-gradient-to-br from-purple-500 to-purple-600 text-white">
-                  <div className="text-2xl sm:text-3xl mb-2">🔄</div>
-                  <div className="text-xl sm:text-2xl font-bold">
-                    {(relatorio.totais?.movimentacoes || 0).toLocaleString(
-                      "pt-BR",
-                    )}
-                  </div>
-                  <div className="text-xs sm:text-sm opacity-90">
-                    Total de Movimentações
-                  </div>
-                </div>
-                {/* Lucro da loja */}
-                <div className="card bg-gradient-to-br from-yellow-500 to-orange-600 text-white">
-                  <div className="text-2xl sm:text-3xl mb-2">💰</div>
+                {/* Valor vindo das máquinas */}
+                <div className="card bg-gradient-to-br from-yellow-300 to-yellow-600 text-white">
+                  <div className="text-2xl sm:text-3xl mb-2">🎰</div>
                   <div className="text-xl sm:text-2xl font-bold">
                     R${" "}
                     {(() => {
-                      const totalFichas = relatorio.totais?.fichas || 0;
-                      const valorFicha =
-                        relatorio.loja?.valorFichaPadrao || 2.5;
-                      const dinheiro = Number(relatorio.totais?.dinheiro || 0);
-                      const pix = Number(relatorio.totais?.pix || 0);
-                      // Somar dinheiro e cartaoPix de cada máquina
                       let dinheiroMaquinas = 0;
                       let cartaoPixMaquinas = 0;
                       if (relatorio.maquinas && relatorio.maquinas.length > 0) {
@@ -366,16 +351,41 @@ export function Relatorios() {
                         });
                       }
                       return (
-                        totalFichas * valorFicha +
-                        dinheiro +
-                        pix +
                         dinheiroMaquinas +
                         cartaoPixMaquinas
                       ).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
                     })()}
                   </div>
                   <div className="text-xs sm:text-sm opacity-90">
-                    Lucro Total da Loja
+                    Lucro Das máquinas <br/> (sem considerar fichas)
+                  </div>
+                </div>
+                {/* Lucro Bruto da Loja */}
+                <div className="card bg-gradient-to-br from-yellow-500 to-orange-600 text-white">
+                  <div className="text-2xl sm:text-3xl mb-2">💰</div>
+                  <div className="text-xl sm:text-2xl font-bold">
+                    R${" "}
+                    {(() => {
+                      const valorTrocadora = Number(
+                        relatorio.totais?.valorTotalLoja || 0,
+                      );
+                      let dinheiroMaquinas = 0;
+                      let cartaoPixMaquinas = 0;
+                      if (relatorio.maquinas && relatorio.maquinas.length > 0) {
+                        relatorio.maquinas.forEach((m) => {
+                          dinheiroMaquinas += Number(m.totais?.dinheiro || 0);
+                          cartaoPixMaquinas += Number(m.totais?.cartaoPix || 0);
+                        });
+                      }
+                      return (
+                        valorTrocadora +
+                        dinheiroMaquinas +
+                        cartaoPixMaquinas
+                      ).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+                    })()}
+                  </div>
+                  <div className="text-xs sm:text-sm opacity-90">
+                    Lucro Bruto da Loja
                   </div>
                 </div>
               </div>
