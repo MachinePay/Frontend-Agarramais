@@ -313,6 +313,7 @@ export function Relatorios() {
                   </div>
                 </div>
                 {/* Produtos que saíram */}
+                {/* Custo total de produtos */}
                 <div className="card bg-gradient-to-br from-red-500 to-red-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">📤</div>
                   <div className="text-xl sm:text-2xl font-bold">
@@ -322,6 +323,26 @@ export function Relatorios() {
                   </div>
                   <div className="text-xs sm:text-sm opacity-90">
                     Produtos Saíram
+                  </div>
+                  <div className="text-2xl sm:text-3xl mb-2">➖💸</div>
+                  <div className="text-xl sm:text-2xl font-bold">
+                    R${" "}
+                    {(() => {
+                      let custoTotalProdutos = 0;
+                      if (relatorio.maquinas && relatorio.maquinas.length > 0) {
+                        relatorio.maquinas.forEach((m) => {
+                          custoTotalProdutos += Number(
+                            m.totais?.custoProdutosSairam || 0,
+                          );
+                        });
+                      }
+                      return custoTotalProdutos.toLocaleString("pt-BR", {
+                        minimumFractionDigits: 2,
+                      });
+                    })()}
+                  </div>
+                  <div className="text-xs sm:text-sm opacity-90">
+                    Custo total de produtos
                   </div>
                 </div>
                 {/* Produtos que entraram */}
@@ -351,13 +372,12 @@ export function Relatorios() {
                         });
                       }
                       return (
-                        dinheiroMaquinas +
-                        cartaoPixMaquinas
+                        dinheiroMaquinas + cartaoPixMaquinas
                       ).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
                     })()}
                   </div>
                   <div className="text-xs sm:text-sm opacity-90">
-                    Lucro Das máquinas <br/> (sem considerar fichas)
+                    Lucro Das máquinas <br /> (sem considerar fichas)
                   </div>
                 </div>
                 {/* Lucro Bruto da Loja */}
@@ -521,7 +541,7 @@ export function Relatorios() {
                             Produtos Entraram
                           </div>
                         </div>
-                        {/* Movimentações */}
+                        {/* Movimentações
                         <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-3 sm:p-5 rounded-xl shadow-lg">
                           <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
                             🔄
@@ -532,7 +552,30 @@ export function Relatorios() {
                           <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
                             Total de Movimentações
                           </div>
+                        </div> */}
+                        <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-3 sm:p-5 rounded-xl shadow-lg">
+                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
+                            ➖💸
+                          </div>
+                          <div className="text-xl sm:text-3xl font-bold text-center">
+                            {maquina.totais.custoProdutosSairam !==
+                              undefined && (
+                              <div className="text-xl sm:text-3xl font-bold text-center">
+                                R${" "}
+                                {Number(
+                                  maquina.totais.custoProdutosSairam,
+                                ).toLocaleString("pt-BR", {
+                                  minimumFractionDigits: 2,
+                                })}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
+                            Custo dos produtos que saíram
+                          </div>
                         </div>
+                        {/* Custo total das pelúcias */}
+
                         {/* Lucro da máquina */}
                         <div className="bg-gradient-to-br from-yellow-500 to-orange-600 text-white p-3 sm:p-5 rounded-xl shadow-lg">
                           <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
@@ -549,6 +592,23 @@ export function Relatorios() {
                           </div>
                           <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
                             Lucro da Máquina
+                          </div>
+                        </div>
+                        {/* Lucro Líquido da máquina */}
+                        <div className="bg-gradient-to-br from-green-700 to-green-400 text-white p-3 sm:p-5 rounded-xl shadow-lg">
+                          <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
+                            🟩
+                          </div>
+                          <div className="text-xl sm:text-3xl font-bold text-center">
+                            R${" "}
+                            {Number(
+                              maquina.totais.lucroLiquido || 0,
+                            ).toLocaleString("pt-BR", {
+                              minimumFractionDigits: 2,
+                            })}
+                          </div>
+                          <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
+                            Lucro Líquido da Máquina
                           </div>
                         </div>
                       </div>
@@ -592,6 +652,33 @@ export function Relatorios() {
                                             {produto.codigo || "S/C"}
                                           </span>
                                         </div>
+                                        {/* Custo unitário e total do produto */}
+                                        {produto.custoUnitario !==
+                                          undefined && (
+                                          <div className="text-xs text-gray-700 mt-1">
+                                            💲 Custo unitário: R${" "}
+                                            {Number(
+                                              produto.custoUnitario,
+                                            ).toLocaleString("pt-BR", {
+                                              minimumFractionDigits: 2,
+                                            })}
+                                            {produto.custoTotal !==
+                                              undefined && (
+                                              <>
+                                                {" "}
+                                                | Custo total:{" "}
+                                                <span className="font-bold">
+                                                  R${" "}
+                                                  {Number(
+                                                    produto.custoTotal,
+                                                  ).toLocaleString("pt-BR", {
+                                                    minimumFractionDigits: 2,
+                                                  })}
+                                                </span>
+                                              </>
+                                            )}
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
                                     <div className="bg-red-500 text-white px-3 sm:px-5 py-2 sm:py-3 rounded-xl font-bold text-base sm:text-xl shrink-0">
