@@ -53,7 +53,7 @@ export function LojaDetalhes() {
               .sort(
                 (a, b) =>
                   new Date(b.dataColeta || b.createdAt) -
-                  new Date(a.dataColeta || a.createdAt)
+                  new Date(a.dataColeta || a.createdAt),
               );
 
             let ultimoProduto = null;
@@ -71,7 +71,7 @@ export function LojaDetalhes() {
           } catch (error) {
             console.error(
               `Erro ao buscar dados da máquina ${maquina.id}:`,
-              error
+              error,
             );
             return {
               ...maquina,
@@ -79,7 +79,7 @@ export function LojaDetalhes() {
               ultimoProduto: null,
             };
           }
-        })
+        }),
       );
 
       setLoja(lojaRes.data);
@@ -87,7 +87,7 @@ export function LojaDetalhes() {
     } catch (error) {
       setError(
         "Erro ao carregar dados: " +
-          (error.response?.data?.error || error.message)
+          (error.response?.data?.error || error.message),
       );
     } finally {
       setLoading(false);
@@ -134,11 +134,11 @@ export function LojaDetalhes() {
   const maquinasAtivas = maquinas.filter((m) => m.ativo).length;
   const capacidadeTotal = maquinas.reduce(
     (sum, m) => sum + (m.capacidadePadrao || 0),
-    0
+    0,
   );
   const estoqueTotal = maquinas.reduce(
     (sum, m) => sum + (m.estoqueAtual || 0),
-    0
+    0,
   );
   const ocupacaoMedia =
     capacidadeTotal > 0
@@ -293,7 +293,7 @@ export function LojaDetalhes() {
                   const ocupacao =
                     maquina.capacidadePadrao > 0
                       ? Math.round(
-                          (estoqueAtual / maquina.capacidadePadrao) * 100
+                          (estoqueAtual / maquina.capacidadePadrao) * 100,
                         )
                       : 0;
                   const isSelected = maquinaSelecionada?.id === maquina.id;
@@ -376,8 +376,8 @@ export function LojaDetalhes() {
                                 ocupacao < 30
                                   ? "bg-red-500"
                                   : ocupacao < 60
-                                  ? "bg-yellow-500"
-                                  : "bg-green-500"
+                                    ? "bg-yellow-500"
+                                    : "bg-green-500"
                               }`}
                               style={{ width: `${Math.min(ocupacao, 100)}%` }}
                             />
@@ -481,11 +481,11 @@ export function LojaDetalhes() {
                             <div className="flex items-center justify-between mb-2">
                               <span className="text-sm text-gray-600">
                                 {new Date(mov.createdAt).toLocaleDateString(
-                                  "pt-BR"
+                                  "pt-BR",
                                 )}{" "}
                                 às{" "}
                                 {new Date(mov.createdAt).toLocaleTimeString(
-                                  "pt-BR"
+                                  "pt-BR",
                                 )}
                               </span>
                             </div>

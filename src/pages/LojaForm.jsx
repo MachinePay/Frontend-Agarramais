@@ -22,10 +22,24 @@ export function LojaForm() {
     ativo: true,
   });
 
+  // Gastos fixos pré-definidos
+  const GASTOS_FIXOS = [
+    { nome: "Aluguel", label: "Aluguel" },
+    { nome: "Funcionario(Despesa Rateada)", label: "Funcionário(Despesa Rateada)" },
+    { nome: "Operacional (Plano Trocadora)", label: "Operacional (Plano Trocadora)" },
+    { nome: "Starlink(Internet)", label: "Starlink(Internet)" },
+    { nome: "Limpeza", label: "Limpeza" },
+  ];
+
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(isEdit);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Gastos fixos da loja
+  const [gastosFixos, setGastosFixos] = useState(
+    GASTOS_FIXOS.map((g) => ({ nome: g.nome, valor: "", observacao: "" })),
+  );
 
   // Estados para gerenciar estoque do depósito
   const [produtos, setProdutos] = useState([]);
@@ -47,6 +61,39 @@ export function LojaForm() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEdit, produtos]);
+
+  // Carregar gastos fixos da loja ao editar
+  useEffect(() => {
+    if (isEdit) {
+      carregarGastosFixos();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEdit]);
+  // Função para carregar gastos fixos do backend
+  const carregarGastosFixos = async () => {
+    try {
+      const response = await api.get(`/gastos-fixos-loja/${id}`);
+      // Espera um array de objetos: [{nome, valor, observacao}]
+      // Preenche os gastos fixos mantendo a ordem e nomes fixos
+      setGastosFixos(
+        GASTOS_FIXOS.map((g) => {
+          const encontrado = response.data?.find(
+            (item) => item.nome === g.nome,
+          );
+          return {
+            nome: g.nome,
+            valor: encontrado ? String(encontrado.valor) : "",
+            observacao: encontrado ? encontrado.observacao || "" : "",
+          };
+        }),
+      );
+    } catch (error) {
+      // Se não encontrar, mantém vazio
+      setGastosFixos(
+        GASTOS_FIXOS.map((g) => ({ nome: g.nome, valor: "", observacao: "" })),
+      );
+    }
+  };
 
   const carregarProdutos = async () => {
     try {
@@ -78,7 +125,7 @@ export function LojaForm() {
     } catch (error) {
       setError(
         "Erro ao carregar loja: " +
-          (error.response?.data?.error || error.message)
+          (error.response?.data?.error || error.message),
       );
     } finally {
       setLoadingData(false);
@@ -91,6 +138,21 @@ export function LojaForm() {
       ...formData,
       [name]: type === "checkbox" ? checked : value,
     });
+  };
+
+  // Manipula alteração dos campos de gastos fixos
+  const handleChangeGastoFixo = (idx, field, value) => {
+    setGastosFixos((prev) =>
+      prev.map((g, i) =>
+        i === idx
+          ? {
+              ...g,
+              [field]:
+                field === "valor" ? value.replace(/[^0-9.,]/g, "") : value,
+            }
+          : g,
+      ),
+    );
   };
 
   const handleSubmit = async (e) => {
@@ -121,6 +183,14 @@ export function LojaForm() {
       if (isEdit) {
         await api.put(`/lojas/${id}`, data);
         setSuccess("Loja atualizada com sucesso!");
+        // Salvar gastos fixos
+        await api.post(`/gastos-fixos-loja/${id}`, {
+          gastos: gastosFixos.map((g) => ({
+            nome: g.nome,
+            valor: parseFloat(g.valor.replace(",", ".")) || 0,
+            observacao: g.observacao,
+          })),
+        });
       } else {
         await api.post("/lojas", data);
         setSuccess("Loja criada com sucesso!");
@@ -141,7 +211,7 @@ export function LojaForm() {
         return prev.map((item) =>
           item.produtoId === produtoId
             ? { ...item, quantidade: parseInt(quantidade) || 0 }
-            : item
+            : item,
         );
       } else {
         return [
@@ -163,7 +233,7 @@ export function LojaForm() {
         return prev.map((item) =>
           item.produtoId === produtoId
             ? { ...item, estoqueMinimo: parseInt(estoqueMinimo) || 0 }
-            : item
+            : item,
         );
       } else {
         return [
@@ -188,14 +258,14 @@ export function LojaForm() {
         const produtoExiste = produtos.some((p) => p.id === item.produtoId);
         if (!produtoExiste) {
           console.warn(
-            `⚠️ Produto ${item.produtoId} não existe mais, ignorando...`
+            `⚠️ Produto ${item.produtoId} não existe mais, ignorando...`,
           );
         }
         return produtoExiste;
       });
 
       console.log(
-        `📊 Salvando ${produtosValidos.length} produtos válidos (incluindo quantidades zeradas)`
+        `📊 Salvando ${produtosValidos.length} produtos válidos (incluindo quantidades zeradas)`,
       );
 
       // Sempre usar POST que faz findOrCreate automaticamente
@@ -210,7 +280,7 @@ export function LojaForm() {
         } catch (itemError) {
           console.error(
             `❌ Erro ao salvar produto ${item.produtoId}:`,
-            itemError.response?.data || itemError.message
+            itemError.response?.data || itemError.message,
           );
           // Continuar com os próximos itens mesmo se um falhar
         }
@@ -221,7 +291,7 @@ export function LojaForm() {
     } catch (error) {
       setError(
         "Erro ao salvar estoque: " +
-          (error.response?.data?.error || error.message)
+          (error.response?.data?.error || error.message),
       );
     } finally {
       setSalvandoEstoque(false);
@@ -262,6 +332,57 @@ export function LojaForm() {
 
         <div className="card-gradient">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Gastos Fixos */}
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <svg
+                  className="w-5 h-5 text-primary"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 12H9v-2h2v2zm0-4H9V7h2v3z" />
+                </svg>
+                Gastos Fixos
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {gastosFixos.map((gasto, idx) => (
+                  <div
+                    key={gasto.nome}
+                    className="bg-gray-50 rounded-lg p-4 flex flex-col gap-2"
+                  >
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      {GASTOS_FIXOS[idx].label}
+                    </label>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        pattern="[0-9.,]*"
+                        className="input-field w-32"
+                        placeholder="Valor (R$)"
+                        value={gasto.valor}
+                        onChange={(e) =>
+                          handleChangeGastoFixo(idx, "valor", e.target.value)
+                        }
+                      />
+                      <input
+                        type="text"
+                        className="input-field flex-1"
+                        placeholder="Observação (opcional)"
+                        value={gasto.observacao}
+                        onChange={(e) =>
+                          handleChangeGastoFixo(
+                            idx,
+                            "observacao",
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
             {/* Informações Básicas */}
             <div>
               <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -512,7 +633,7 @@ export function LojaForm() {
                                 onChange={(e) =>
                                   atualizarQuantidadeEstoque(
                                     produto.id,
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                                 className="input-field text-center w-24"
@@ -530,7 +651,7 @@ export function LojaForm() {
                                 onChange={(e) =>
                                   atualizarEstoqueMinimoEstoque(
                                     produto.id,
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                                 className="input-field text-center w-24"

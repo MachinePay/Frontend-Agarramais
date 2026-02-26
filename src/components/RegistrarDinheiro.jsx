@@ -9,6 +9,26 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
   const [valorDinheiro, setValorDinheiro] = useState("");
   const [valorCartaoPix, setValorCartaoPix] = useState("");
   const [observacoes, setObservacoes] = useState("");
+  const [gastosVariaveis, setGastosVariaveis] = useState([]);
+
+  const handleAddGasto = () => {
+    setGastosVariaveis([
+      ...gastosVariaveis,
+      { nome: "", valor: "", observacao: "" },
+    ]);
+  };
+
+  const handleRemoveGasto = (idx) => {
+    setGastosVariaveis(gastosVariaveis.filter((_, i) => i !== idx));
+  };
+
+  const handleChangeGasto = (idx, field, value) => {
+    setGastosVariaveis(
+      gastosVariaveis.map((g, i) =>
+        i === idx ? { ...g, [field]: value } : g
+      )
+    );
+  };
 
   const handleLojaChange = (e) => {
     setLojaSelecionada(e.target.value);
@@ -31,6 +51,7 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
       valorDinheiro: valorDinheiro === "" ? null : valorDinheiro,
       valorCartaoPix: valorCartaoPix === "" ? null : valorCartaoPix,
       observacoes: observacoes === "" ? null : observacoes,
+      gastosVariaveis: registrarTotalLoja ? gastosVariaveis : [],
     });
   };
 
@@ -99,7 +120,59 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
         </span>
         Registrar Dinheiro
       </h2>
-      <div style={{ marginBottom: 18 }}>
+      {/* Gastos Variáveis - só aparece se registrarTotalLoja estiver marcado */}
+      {registrarTotalLoja && (
+        <div style={{ marginBottom: 18, background: "#fffbe6", border: "1.5px solid #e2cfa3", borderRadius: 10, padding: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <label style={{ fontWeight: 600, color: "#a67c52", fontSize: 17 }}>
+              Gastos Variáveis:
+            </label>
+            <button type="button" onClick={handleAddGasto} style={{ background: "#e2cfa3", color: "#a67c52", border: "none", borderRadius: 8, padding: "6px 16px", fontWeight: 600, fontSize: 15, cursor: "pointer" }}>+ Adicionar Gasto</button>
+          </div>
+          {gastosVariaveis.length === 0 && (
+            <div style={{ color: "#a67c52", fontSize: 15, marginBottom: 8 }}>Nenhum gasto adicionado.</div>
+          )}
+          {gastosVariaveis.map((gasto, idx) => (
+            <div key={idx} style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 10, flexWrap: "wrap" }}>
+              <div style={{ flex: 2, minWidth: 120 }}>
+                <label style={{ fontSize: 14, color: "#a67c52" }}>Nome</label>
+                <input
+                  type="text"
+                  value={gasto.nome}
+                  onChange={e => handleChangeGasto(idx, "nome", e.target.value)}
+                  required
+                  placeholder="Ex: Energia, Limpeza..."
+                  style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1.5px solid #e2cfa3", background: "#fdf6e9", color: "#a67c52", fontWeight: 500 }}
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: 90 }}>
+                <label style={{ fontSize: 14, color: "#a67c52" }}>Valor (R$)</label>
+                <input
+                  type="number"
+                  value={gasto.valor}
+                  onChange={e => handleChangeGasto(idx, "valor", e.target.value)}
+                  required
+                  min="0"
+                  step="0.01"
+                  placeholder="0,00"
+                  style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1.5px solid #e2cfa3", background: "#fdf6e9", color: "#a67c52", fontWeight: 500 }}
+                />
+              </div>
+              <div style={{ flex: 2, minWidth: 120 }}>
+                <label style={{ fontSize: 14, color: "#a67c52" }}>Observação</label>
+                <input
+                  type="text"
+                  value={gasto.observacao}
+                  onChange={e => handleChangeGasto(idx, "observacao", e.target.value)}
+                  placeholder="Opcional"
+                  style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1.5px solid #e2cfa3", background: "#fdf6e9", color: "#a67c52", fontWeight: 500 }}
+                />
+              </div>
+              <button type="button" onClick={() => handleRemoveGasto(idx)} style={{ background: "#fff0f0", color: "#a67c52", border: "1px solid #e2cfa3", borderRadius: 8, padding: "8px 12px", fontWeight: 600, fontSize: 15, marginLeft: 4, cursor: "pointer" }}>Remover</button>
+            </div>
+          ))}
+        </div>
+      )}
         <label style={{ fontWeight: 600, color: "#a67c52" }}>Loja:</label>
         <select
           value={lojaSelecionada}
@@ -147,7 +220,6 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
             Registrar valor total da loja (não selecionar máquina)
           </label>
         </div>
-      </div>
       <div style={{ marginBottom: 18 }}>
         <label style={{ fontWeight: 600, color: "#a67c52" }}>Máquina:</label>
         <select
