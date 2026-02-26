@@ -244,7 +244,7 @@ export default function AlertAdmin() {
                           {typeof alerta.contador_out === "number" &&
                           typeof alerta.contador_out_anterior === "number" &&
                           typeof alerta.sairam === "number"
-                            ? `Era para ter saído ${alerta.contador_out - alerta.contador_out_anterior} mas só saiu ${alerta.sairam}`
+                            ? `Era para ter saído ${alerta.contador_out - alerta.contador_out_anterior} mas saiu ${alerta.sairam}`
                             : "-"}
                         </p>
                       </>
@@ -257,7 +257,7 @@ export default function AlertAdmin() {
                         <p className="text-xs text-yellow-700 mt-1">Diferença: <strong>{typeof alerta.contador_in === "number" && typeof alerta.contador_in_anterior === "number" && typeof alerta.fichas === "number" ? alerta.contador_in - alerta.contador_in_anterior - alerta.fichas : "-"}</strong></p> 
                         <p className="text-lg text-purple-800 font-semibold mt-2"> 
                           {typeof alerta.contador_in === "number" && typeof alerta.contador_in_anterior === "number" && typeof alerta.fichas === "number" 
-                            ? `Era para ter entrado ${alerta.contador_in - alerta.contador_in_anterior} mas só entrou ${alerta.fichas}` 
+                            ? `Era para ter entrado ${alerta.contador_in - alerta.contador_in_anterior} mas entrou ${alerta.fichas}` 
                             : "-"} 
                         </p> 
                       </>
