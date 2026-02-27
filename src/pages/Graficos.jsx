@@ -7,6 +7,10 @@ import { PageLoader } from "../components/Loading";
 import {
   BarChart,
   Bar,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
   CartesianGrid,
   XAxis,
   YAxis,
@@ -19,21 +23,209 @@ import {
 } from "recharts";
 
 export function Graficos() {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [lojas, setLojas] = useState([]);
   const [lojaSelecionada, setLojaSelecionada] = useState("");
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [dadosDashboard, setDadosDashboard] = useState(null);
+  const [dadosImpressao, setDadosImpressao] = useState(null);
   const [erro, setErro] = useState("");
 
-  // Lucro total já vem do backend (não somar dinheiro/pix)
-  const lucroTotal = useMemo(() => {
-    if (!dadosDashboard?.totais) return 0;
-    return dadosDashboard.totais.lucro || 0;
-  }, [dadosDashboard]);
+  const totaisDashboard = dadosDashboard?.totais || {};
+  const totaisImpressao = dadosImpressao?.totais || {};
 
-  // Configuração inicial de datas (últimos 30 dias)
+  const faturamentoTotal = useMemo(() => {
+    return (
+      Number(totaisDashboard?.faturamento || 0) ||
+      Number(totaisImpressao?.valorTotalLojaBruto || 0)
+    );
+  }, [totaisDashboard, totaisImpressao]);
+
+  const custoTotalPeriodo = useMemo(() => {
+    return Number(totaisImpressao?.gastoTotalPeriodo || 0);
+  }, [totaisImpressao]);
+
+  const lucroLiquido = useMemo(() => {
+    if (totaisImpressao?.valorTotalLojaLiquido !== undefined) {
+      return Number(totaisImpressao.valorTotalLojaLiquido || 0);
+    }
+
+    return Number(totaisDashboard?.lucro || 0);
+  }, [totaisDashboard, totaisImpressao]);
+
+  const margemLucro = useMemo(() => {
+    if (!faturamentoTotal) return 0;
+    return (lucroLiquido / faturamentoTotal) * 100;
+  }, [faturamentoTotal, lucroLiquido]);
+
+  const ticketMedioPremio = useMemo(() => {
+    const totalSaidas = Number(totaisDashboard?.saidas || 0);
+    if (!totalSaidas) return 0;
+    return faturamentoTotal / totalSaidas;
+  }, [totaisDashboard, faturamentoTotal]);
+
+  const indiceCusto = useMemo(() => {
+    if (!faturamentoTotal) return 0;
+    return (custoTotalPeriodo / faturamentoTotal) * 100;
+  }, [custoTotalPeriodo, faturamentoTotal]);
+
+  const composicaoCustos = useMemo(
+    () =>
+      [
+        {
+          nome: "Produtos",
+          valor: Number(totaisImpressao?.gastoProdutosTotalPeriodo || 0),
+        },
+        {
+          nome: "Fixos",
+          valor: Number(totaisImpressao?.gastoFixoTotalPeriodo || 0),
+        },
+        {
+          nome: "Variáveis",
+          valor: Number(totaisImpressao?.gastoVariavelTotalPeriodo || 0),
+        },
+      ].filter((item) => item.valor > 0),
+    [totaisImpressao],
+  );
+
+  const recebimentos = useMemo(() => {
+    const dinheiroImpressao = Number(totaisImpressao?.valorDinheiroLoja || 0);
+    const dinheiroDashboard = Number(totaisDashboard?.dinheiro || 0);
+    const cartaoPixImpressao = Number(totaisImpressao?.valorCartaoPixLoja || 0);
+    const pixDashboard = Number(totaisDashboard?.pix || 0);
+
+    const dinheiro = Math.max(dinheiroImpressao, dinheiroDashboard);
+    const cartaoPix = Math.max(cartaoPixImpressao, pixDashboard);
+
+    return [
+      { metodo: "Dinheiro", valor: dinheiro },
+      { metodo: "Cartão/Pix", valor: cartaoPix },
+    ];
+  }, [totaisImpressao, totaisDashboard]);
+
+  const fluxoProdutos = useMemo(() => {
+    const mapa = new Map();
+
+    (dadosImpressao?.produtosSairam || []).forEach((item) => {
+      const chave = String(item.id || item.codigo || item.nome || "produto");
+      if (!mapa.has(chave)) {
+        mapa.set(chave, {
+          nome: item.nome,
+          saiu: 0,
+          entrou: 0,
+        });
+      }
+      mapa.get(chave).saiu += Number(item.quantidade || 0);
+    });
+
+    (dadosImpressao?.produtosEntraram || []).forEach((item) => {
+      const chave = String(item.id || item.codigo || item.nome || "produto");
+      if (!mapa.has(chave)) {
+        mapa.set(chave, {
+          nome: item.nome,
+          saiu: 0,
+          entrou: 0,
+        });
+      }
+      mapa.get(chave).entrou += Number(item.quantidade || 0);
+    });
+
+    return Array.from(mapa.values())
+      .sort((a, b) => Math.max(b.saiu, b.entrou) - Math.max(a.saiu, a.entrou))
+      .slice(0, 10);
+  }, [dadosImpressao]);
+
+  const normalizarDataChave = (valor) => {
+    if (!valor) return "";
+    if (typeof valor === "string") {
+      return valor.length >= 10 ? valor.slice(0, 10) : valor;
+    }
+
+    const data = new Date(valor);
+    if (Number.isNaN(data.getTime())) return "";
+
+    const ano = data.getFullYear();
+    const mes = String(data.getMonth() + 1).padStart(2, "0");
+    const dia = String(data.getDate()).padStart(2, "0");
+    return `${ano}-${mes}-${dia}`;
+  };
+
+  const graficoFinanceiro = useMemo(() => {
+    const base = Array.isArray(dadosDashboard?.graficoFinanceiro)
+      ? dadosDashboard.graficoFinanceiro
+      : [];
+
+    if (!dataInicio || !dataFim) return [];
+
+    const dataInicial = new Date(`${dataInicio}T00:00:00`);
+    const dataFinal = new Date(`${dataFim}T00:00:00`);
+    if (
+      Number.isNaN(dataInicial.getTime()) ||
+      Number.isNaN(dataFinal.getTime()) ||
+      dataInicial > dataFinal
+    ) {
+      return [];
+    }
+
+    const mapaFaturamentoPorDia = new Map();
+    const mapaCustoPorDia = new Map();
+    const mapaLucroPorDia = new Map();
+
+    base.forEach((item) => {
+      const chave = normalizarDataChave(item.data);
+      const faturamentoAtual = Number(item.faturamento || 0);
+      const custoAtual = Number(item.custo || 0);
+      const lucroAtual = Number(item.lucro || 0);
+
+      if (!chave) return;
+
+      mapaFaturamentoPorDia.set(
+        chave,
+        Number((mapaFaturamentoPorDia.get(chave) || 0) + faturamentoAtual),
+      );
+
+      mapaCustoPorDia.set(
+        chave,
+        Number((mapaCustoPorDia.get(chave) || 0) + custoAtual),
+      );
+
+      mapaLucroPorDia.set(
+        chave,
+        Number((mapaLucroPorDia.get(chave) || 0) + lucroAtual),
+      );
+    });
+
+    const serieDiaria = [];
+    const cursor = new Date(dataInicial);
+
+    while (cursor <= dataFinal) {
+      const chave = normalizarDataChave(cursor);
+      const faturamentoDia = Number(mapaFaturamentoPorDia.get(chave) || 0);
+      const custoDia = Number(mapaCustoPorDia.get(chave) || 0);
+      const lucroDiaBackend = Number(mapaLucroPorDia.get(chave) || 0);
+      const lucroDia =
+        lucroDiaBackend !== 0 ? lucroDiaBackend : faturamentoDia - custoDia;
+
+      serieDiaria.push({
+        data: chave,
+        faturamento: faturamentoDia,
+        custoRateado: Number(custoDia.toFixed(2)),
+        lucroRateado: Number(lucroDia.toFixed(2)),
+      });
+
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return serieDiaria;
+  }, [
+    dadosDashboard,
+    faturamentoTotal,
+    custoTotalPeriodo,
+    dataInicio,
+    dataFim,
+  ]);
+
   useEffect(() => {
     carregarLojas();
     const hoje = new Date();
@@ -43,7 +235,6 @@ export function Graficos() {
     setDataInicio(trintaDiasAtras.toISOString().split("T")[0]);
   }, []);
 
-  // Busca de Lojas para o Dropdown
   const carregarLojas = async () => {
     try {
       const response = await api.get("/lojas");
@@ -57,7 +248,6 @@ export function Graficos() {
     }
   };
 
-  // Nova função otimizada: busca dados já processados do Backend
   const carregarDados = useCallback(async () => {
     if (!lojaSelecionada || !dataInicio || !dataFim) return;
 
@@ -65,50 +255,56 @@ export function Graficos() {
     setLoading(true);
 
     try {
-      // O Backend agora faz todo o trabalho pesado via SQL
-      const response = await api.get("/relatorios/dashboard", {
-        params: {
-          lojaId: lojaSelecionada,
-          dataInicio,
-          dataFim,
-        },
-      });
+      const [dashboardResponse, impressaoResponse] = await Promise.all([
+        api.get("/relatorios/dashboard", {
+          params: {
+            lojaId: lojaSelecionada,
+            dataInicio,
+            dataFim,
+          },
+        }),
+        api.get("/relatorios/impressao", {
+          params: {
+            lojaId: lojaSelecionada,
+            dataInicio,
+            dataFim,
+          },
+        }),
+      ]);
 
-      setDadosDashboard(response.data);
+      setDadosDashboard(dashboardResponse.data || null);
+      setDadosImpressao(impressaoResponse.data || null);
     } catch (error) {
       console.error("Erro ao carregar dashboard:", error);
       setErro("Não foi possível carregar os dados do painel.");
       setDadosDashboard(null);
+      setDadosImpressao(null);
     } finally {
       setLoading(false);
     }
   }, [lojaSelecionada, dataInicio, dataFim]);
 
-  // Atualiza quando filtros mudam
   useEffect(() => {
     if (lojaSelecionada && dataInicio && dataFim) {
       if (new Date(dataInicio) > new Date(dataFim)) {
         setErro("A data inicial não pode ser maior que a data final.");
+        setDadosDashboard(null);
+        setDadosImpressao(null);
         return;
       }
       carregarDados();
     }
   }, [lojaSelecionada, dataInicio, dataFim, carregarDados]);
 
-  // Formatação de Moeda
   const formatMoney = (val) =>
     new Intl.NumberFormat("pt-BR", {
       style: "currency",
       currency: "BRL",
     }).format(val || 0);
 
-  // Calcula a margem de lucro para exibição (caso o backend não envie explicito)
-  const calcularMargem = (lucro, faturamento) => {
-    if (!faturamento || faturamento === 0) return 0;
-    return ((lucro / faturamento) * 100).toFixed(1);
-  };
+  const dadosDisponiveis = Boolean(dadosDashboard || dadosImpressao);
 
-  if (loading && !dadosDashboard) return <PageLoader />;
+  if (loading && !dadosDisponiveis) return <PageLoader />;
 
   return (
     <div className="min-h-screen bg-gray-50 bg-pattern teddy-pattern">
@@ -172,11 +368,15 @@ export function Graficos() {
           </div>
         )}
 
-        {dadosDashboard && (
+        {loading && (
+          <div className="mb-6 bg-blue-50 border-l-4 border-blue-400 p-4 text-blue-700">
+            Atualizando dados...
+          </div>
+        )}
+
+        {dadosDisponiveis && (
           <div className="space-y-8 animate-fade-in">
-            {/* 1. KPI Cards - Indicadores Principais */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
-              {/* Faturamento */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-8 gap-6">
               <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-green-500">
                 <div className="flex justify-between items-start">
                   <div>
@@ -184,7 +384,7 @@ export function Graficos() {
                       Faturamento
                     </p>
                     <h3 className="text-2xl font-bold text-gray-900 mt-1">
-                      {formatMoney(dadosDashboard.totais.faturamento)}
+                      {formatMoney(faturamentoTotal)}
                     </h3>
                   </div>
                   <span className="p-2 bg-green-100 text-green-600 rounded-lg text-xl">
@@ -193,7 +393,6 @@ export function Graficos() {
                 </div>
               </div>
 
-              {/* Dinheiro */}
               <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-yellow-500">
                 <div className="flex justify-between items-start">
                   <div>
@@ -201,7 +400,7 @@ export function Graficos() {
                       Dinheiro
                     </p>
                     <h3 className="text-2xl font-bold text-gray-900 mt-1">
-                      {formatMoney(dadosDashboard?.totais?.dinheiro || 0)}
+                      {formatMoney(recebimentos[0]?.valor || 0)}
                     </h3>
                   </div>
                   <span className="p-2 bg-yellow-100 text-yellow-600 rounded-lg text-xl">
@@ -210,15 +409,14 @@ export function Graficos() {
                 </div>
               </div>
 
-              {/* Pix */}
               <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-cyan-500">
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-                      Pix
+                      Cartão/Pix
                     </p>
                     <h3 className="text-2xl font-bold text-gray-900 mt-1">
-                      {formatMoney(dadosDashboard?.totais?.pix || 0)}
+                      {formatMoney(recebimentos[1]?.valor || 0)}
                     </h3>
                   </div>
                   <span className="p-2 bg-cyan-100 text-cyan-600 rounded-lg text-xl">
@@ -227,15 +425,14 @@ export function Graficos() {
                 </div>
               </div>
 
-              {/* Lucro Estimado */}
               <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-                      Lucro Estimado
+                      Lucro Líquido
                     </p>
                     <h3 className="text-2xl font-bold text-gray-900 mt-1">
-                      {formatMoney(lucroTotal)}
+                      {formatMoney(lucroLiquido)}
                     </h3>
                   </div>
                   <span className="p-2 bg-blue-100 text-blue-600 rounded-lg text-xl">
@@ -244,19 +441,12 @@ export function Graficos() {
                 </div>
                 <div className="mt-3 flex items-center">
                   <span className="text-sm font-semibold text-green-600">
-                    {dadosDashboard?.totais?.faturamento
-                      ? calcularMargem(
-                          lucroTotal,
-                          dadosDashboard.totais.faturamento,
-                        )
-                      : "0.0"}
-                    %
+                    {margemLucro.toFixed(1)}%
                   </span>
                   <span className="text-xs text-gray-500 ml-1">Margem</span>
                 </div>
               </div>
 
-              {/* Prêmios Entregues */}
               <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-orange-500">
                 <div className="flex justify-between items-start">
                   <div>
@@ -264,7 +454,7 @@ export function Graficos() {
                       Prêmios Entregues
                     </p>
                     <h3 className="text-2xl font-bold text-gray-900 mt-1">
-                      {dadosDashboard.totais.saidas}
+                      {Number(totaisDashboard?.saidas || 0)}
                     </h3>
                   </div>
                   <span className="p-2 bg-orange-100 text-orange-600 rounded-lg text-xl">
@@ -273,7 +463,6 @@ export function Graficos() {
                 </div>
               </div>
 
-              {/* Eficiência (Fichas Totais) */}
               <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-purple-500">
                 <div className="flex justify-between items-start">
                   <div>
@@ -281,7 +470,7 @@ export function Graficos() {
                       Total Fichas
                     </p>
                     <h3 className="text-2xl font-bold text-gray-900 mt-1">
-                      {dadosDashboard.totais.fichas}
+                      {Number(totaisDashboard?.fichas || 0)}
                     </h3>
                   </div>
                   <span className="p-2 bg-purple-100 text-purple-600 rounded-lg text-xl">
@@ -290,27 +479,65 @@ export function Graficos() {
                 </div>
                 <div className="mt-3 text-xs text-gray-500">
                   Média:{" "}
-                  {dadosDashboard?.totais?.saidas > 0
+                  {Number(totaisDashboard?.saidas || 0) > 0
                     ? (
-                        dadosDashboard.totais.fichas /
-                        dadosDashboard.totais.saidas
+                        Number(totaisDashboard?.fichas || 0) /
+                        Number(totaisDashboard?.saidas || 0)
                       ).toFixed(1)
                     : "0.0"}{" "}
                   fichas/prêmio
                 </div>
               </div>
+
+              <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-rose-500">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+                      Custo Total
+                    </p>
+                    <h3 className="text-2xl font-bold text-gray-900 mt-1">
+                      {formatMoney(custoTotalPeriodo)}
+                    </h3>
+                  </div>
+                  <span className="p-2 bg-rose-100 text-rose-600 rounded-lg text-xl">
+                    🧾
+                  </span>
+                </div>
+                <div className="mt-3 text-xs text-gray-500">
+                  {indiceCusto.toFixed(1)}% do faturamento
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-indigo-500">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+                      Ticket por Prêmio
+                    </p>
+                    <h3 className="text-2xl font-bold text-gray-900 mt-1">
+                      {formatMoney(ticketMedioPremio)}
+                    </h3>
+                  </div>
+                  <span className="p-2 bg-indigo-100 text-indigo-600 rounded-lg text-xl">
+                    🎯
+                  </span>
+                </div>
+              </div>
             </div>
 
-            {/* 2. Gráfico de Evolução Financeira */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="bg-white p-6 rounded-lg shadow">
                 <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center">
                   <span className="bg-gray-100 p-1 rounded mr-2">📅</span>
                   Evolução Diária
                 </h3>
+                <p className="text-xs text-gray-500 mb-4">
+                  Custos fixos e variáveis são distribuídos por dia (rateio no
+                  período).
+                </p>
                 <div className="h-80 w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={dadosDashboard.graficoFinanceiro}>
+                    <AreaChart data={graficoFinanceiro}>
                       <defs>
                         <linearGradient
                           id="colorFat"
@@ -358,11 +585,10 @@ export function Graficos() {
                         fillOpacity={1}
                         fill="url(#colorFat)"
                       />
-                      {/* Opcional: Se quiser mostrar Custo também */}
                       <Area
                         type="monotone"
-                        dataKey="custo"
-                        name="Custo"
+                        dataKey="custoRateado"
+                        name="Custo Rateado"
                         stroke="#EF4444"
                         fillOpacity={0.1}
                         fill="#EF4444"
@@ -372,7 +598,6 @@ export function Graficos() {
                 </div>
               </div>
 
-              {/* 3. Performance por Máquina */}
               <div className="bg-white p-6 rounded-lg shadow">
                 <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center">
                   <span className="bg-gray-100 p-1 rounded mr-2">🤖</span>
@@ -381,7 +606,7 @@ export function Graficos() {
                 <div className="h-80 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={dadosDashboard.performanceMaquinas}
+                      data={dadosDashboard?.performanceMaquinas || []}
                       layout="vertical"
                       margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
                     >
@@ -416,9 +641,7 @@ export function Graficos() {
               </div>
             </div>
 
-            {/* 4. Ranking de Produtos e Ocupação */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Top Produtos */}
               <div className="bg-white p-6 rounded-lg shadow">
                 <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
                   <span className="bg-gray-100 p-1 rounded mr-2">🏆</span>
@@ -440,38 +663,39 @@ export function Graficos() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {dadosDashboard.rankingProdutos.map((prod, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm text-gray-900 font-medium">
-                            {idx + 1}. {prod.nome}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600 text-right">
-                            {prod.quantidade}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="w-full bg-gray-200 rounded-full h-2">
-                              <div
-                                className="bg-indigo-600 h-2 rounded-full"
-                                style={{
-                                  width: `${Math.min(
-                                    (prod.quantidade /
-                                      (dadosDashboard.rankingProdutos[0]
-                                        .quantidade || 1)) *
+                      {(dadosDashboard?.rankingProdutos || []).map(
+                        (prod, idx) => (
+                          <tr key={idx} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm text-gray-900 font-medium">
+                              {idx + 1}. {prod.nome}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600 text-right">
+                              {prod.quantidade}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div
+                                  className="bg-indigo-600 h-2 rounded-full"
+                                  style={{
+                                    width: `${Math.min(
+                                      (prod.quantidade /
+                                        (dadosDashboard?.rankingProdutos?.[0]
+                                          .quantidade || 1)) *
+                                        100,
                                       100,
-                                    100,
-                                  )}%`,
-                                }}
-                              ></div>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                                    )}%`,
+                                  }}
+                                ></div>
+                              </div>
+                            </td>
+                          </tr>
+                        ),
+                      )}
                     </tbody>
                   </table>
                 </div>
               </div>
 
-              {/* Status de Ocupação (Estoque) */}
               <div className="bg-white p-6 rounded-lg shadow">
                 <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center">
                   <span className="bg-gray-100 p-1 rounded mr-2">📦</span>
@@ -480,7 +704,7 @@ export function Graficos() {
                 <div className="h-80 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={dadosDashboard.performanceMaquinas}
+                      data={dadosDashboard?.performanceMaquinas || []}
                       margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -496,7 +720,7 @@ export function Graficos() {
                         name="Ocupação"
                         radius={[4, 4, 0, 0]}
                       >
-                        {dadosDashboard.performanceMaquinas.map(
+                        {(dadosDashboard?.performanceMaquinas || []).map(
                           (entry, index) => (
                             <Cell
                               key={`cell-${index}`}
@@ -516,6 +740,162 @@ export function Graficos() {
                 </div>
               </div>
             </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="bg-white p-6 rounded-lg shadow lg:col-span-1">
+                <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center">
+                  <span className="bg-gray-100 p-1 rounded mr-2">🧩</span>
+                  Composição de Custos
+                </h3>
+                <div className="h-72 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={composicaoCustos}
+                        dataKey="valor"
+                        nameKey="nome"
+                        outerRadius={95}
+                        label={({ nome, percent }) =>
+                          `${nome} ${(percent * 100).toFixed(0)}%`
+                        }
+                      >
+                        {composicaoCustos.map((_, index) => (
+                          <Cell
+                            key={`custo-${index}`}
+                            fill={["#F97316", "#3B82F6", "#10B981"][index % 3]}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => formatMoney(value)} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-lg shadow lg:col-span-1">
+                <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center">
+                  <span className="bg-gray-100 p-1 rounded mr-2">💳</span>
+                  Mix de Recebimentos
+                </h3>
+                <div className="h-72 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={recebimentos}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="metodo" />
+                      <YAxis />
+                      <Tooltip formatter={(value) => formatMoney(value)} />
+                      <Bar dataKey="valor" name="Valor" radius={[6, 6, 0, 0]}>
+                        {recebimentos.map((entry, index) => (
+                          <Cell
+                            key={`receb-${index}`}
+                            fill={
+                              entry.metodo === "Dinheiro"
+                                ? "#F59E0B"
+                                : "#06B6D4"
+                            }
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-lg shadow lg:col-span-1">
+                <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center">
+                  <span className="bg-gray-100 p-1 rounded mr-2">📉</span>
+                  Receita x Custo x Resultado
+                </h3>
+                <div className="h-72 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={graficoFinanceiro}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis
+                        dataKey="data"
+                        tickFormatter={(str) =>
+                          new Date(str).toLocaleDateString("pt-BR", {
+                            day: "2-digit",
+                            month: "2-digit",
+                          })
+                        }
+                      />
+                      <YAxis />
+                      <Tooltip
+                        formatter={(value) => formatMoney(value)}
+                        labelFormatter={(label) =>
+                          new Date(label).toLocaleDateString("pt-BR")
+                        }
+                      />
+                      <Legend />
+                      <Line
+                        type="monotone"
+                        dataKey="faturamento"
+                        name="Receita"
+                        stroke="#10B981"
+                        strokeWidth={3}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="custoRateado"
+                        name="Custo Rateado"
+                        stroke="#EF4444"
+                        strokeWidth={3}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="lucroRateado"
+                        name="Resultado Rateado"
+                        stroke="#3B82F6"
+                        strokeWidth={3}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-lg shadow">
+              <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center">
+                <span className="bg-gray-100 p-1 rounded mr-2">🔁</span>
+                Fluxo de Produtos (Entradas x Saídas)
+              </h3>
+              <div className="h-96 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={fluxoProdutos}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis
+                      dataKey="nome"
+                      tick={{ fontSize: 10 }}
+                      interval={0}
+                    />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar
+                      dataKey="entrou"
+                      name="Entrou"
+                      fill="#06B6D4"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar
+                      dataKey="saiu"
+                      name="Saiu"
+                      fill="#F97316"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!loading && !dadosDisponiveis && !erro && (
+          <div className="bg-white rounded-lg shadow p-8 text-center text-gray-600 border border-gray-100">
+            Selecione os filtros para visualizar os gráficos financeiros.
           </div>
         )}
       </div>
