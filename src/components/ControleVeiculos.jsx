@@ -36,7 +36,7 @@ export default function ControleVeiculos({
     setForm({
       estado: veiculo.estado,
       obs: "",
-      km: veiculo.km,
+      km: "",
       modo: "trabalho",
       combustivel: "5",
       limpeza: "esta limpo",
@@ -49,7 +49,7 @@ export default function ControleVeiculos({
     setFormFinalizar({
       estado: veiculo.estado,
       obs: "",
-      km: veiculo.km,
+      km: "",
       combustivel: "5",
       limpeza: "esta limpo",
     });
@@ -74,12 +74,33 @@ export default function ControleVeiculos({
     setFormFinalizar((prev) => ({ ...prev, [name]: value }));
   };
 
+  const kmAtualSelecionado = Number(veiculoSelecionado?.km || 0);
+
+  const kmPilotarValido =
+    form.km !== "" &&
+    Number.isFinite(Number(form.km)) &&
+    Number(form.km) >= kmAtualSelecionado;
+  const kmFinalizarValido =
+    formFinalizar.km !== "" &&
+    Number.isFinite(Number(formFinalizar.km)) &&
+    Number(formFinalizar.km) >= kmAtualSelecionado;
+
   // Exemplo: para atualizar o status do veículo na API, use fetch/axios e depois onRefresh()
   const pilotarVeiculo = async () => {
     if (!veiculoSelecionado || salvando) return;
+
+    if (!kmPilotarValido) {
+      Swal.fire(
+        "Quilometragem obrigatória",
+        `Preencha a quilometragem com um valor válido (maior ou igual a ${kmAtualSelecionado} km) para pilotar o veículo.`,
+        "warning",
+      );
+      return;
+    }
+
     setSalvando(true);
     try {
-      const kmValue = form.km === "" ? 0 : parseInt(form.km, 10);
+      const kmValue = parseInt(form.km, 10);
       await api.put(`/veiculos/${veiculoSelecionado.id}`, {
         ...veiculoSelecionado,
         emUso: true,
@@ -114,10 +135,19 @@ export default function ControleVeiculos({
 
   const finalizarVeiculo = async () => {
     if (!veiculoSelecionado || finalizando) return;
+
+    if (!kmFinalizarValido) {
+      Swal.fire(
+        "Quilometragem obrigatória",
+        `Preencha a quilometragem com um valor válido (maior ou igual a ${kmAtualSelecionado} km) para finalizar o veículo.`,
+        "warning",
+      );
+      return;
+    }
+
     setFinalizando(true);
     try {
-      const kmValue =
-        formFinalizar.km === "" ? 0 : parseInt(formFinalizar.km, 10);
+      const kmValue = parseInt(formFinalizar.km, 10);
       await api.put(`/veiculos/${veiculoSelecionado.id}`, {
         ...veiculoSelecionado,
         emUso: false,
@@ -303,9 +333,14 @@ export default function ControleVeiculos({
                 value={formFinalizar.km}
                 onChange={handleFormFinalizarChange}
                 className="w-full border rounded p-1"
-                min="0"
+                min={kmAtualSelecionado}
+                required
                 onWheel={(e) => e.target.blur()}
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Obrigatório informar a quilometragem no momento da finalização.
+                Mínimo: {kmAtualSelecionado} km.
+              </p>
             </div>
             <div className="mb-3">
               <label className="block text-sm font-medium">
@@ -350,7 +385,7 @@ export default function ControleVeiculos({
               <button
                 className="px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={finalizarVeiculo}
-                disabled={finalizando}
+                disabled={finalizando || !kmFinalizarValido}
               >
                 {finalizando ? "Finalizando..." : "Finalizar"}
               </button>
@@ -398,9 +433,14 @@ export default function ControleVeiculos({
                 value={form.km}
                 onChange={handleFormChange}
                 className="w-full border rounded p-1"
-                min="0"
+                min={kmAtualSelecionado}
+                required
                 onWheel={(e) => e.target.blur()}
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Obrigatório informar a quilometragem no momento da retirada.
+                Mínimo: {kmAtualSelecionado} km.
+              </p>
             </div>
             <div className="mb-3">
               <label className="block text-sm font-medium">Modo</label>
@@ -457,7 +497,7 @@ export default function ControleVeiculos({
               <button
                 className="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={pilotarVeiculo}
-                disabled={salvando}
+                disabled={salvando || !kmPilotarValido}
               >
                 {salvando ? "Salvando..." : "Pilotar"}
               </button>
