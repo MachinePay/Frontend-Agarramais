@@ -4,6 +4,9 @@ import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { PageHeader } from "../components/UIComponents";
 import { PageLoader } from "../components/Loading";
+import { RelatorioTodasLojas } from "../components/RelatorioTodasLojas";
+
+const TODAS_LOJAS_VALUE = "__TODAS_AS_LOJAS__";
 
 export function Relatorios() {
   const [dashboard, setDashboard] = useState(null);
@@ -80,6 +83,19 @@ export function Relatorios() {
       setError("");
       setRelatorio(null); // Limpar relatório anterior
       setDashboard(null);
+
+      if (lojaSelecionada === TODAS_LOJAS_VALUE) {
+        const response = await api.get("/relatorios/todas-lojas", {
+          params: {
+            dataInicio,
+            dataFim,
+          },
+        });
+
+        setRelatorio(response.data);
+
+        return;
+      }
 
       const intervaloSelecionadoInicio = new Date(`${dataInicio}T00:00:00`);
       const intervaloSelecionadoFim = new Date(`${dataFim}T23:59:59`);
@@ -251,6 +267,7 @@ export function Relatorios() {
                 className="input-field w-full"
               >
                 <option value="">Selecione uma loja</option>
+                <option value={TODAS_LOJAS_VALUE}>Todas as lojas</option>
                 {lojas.map((loja) => (
                   <option key={loja.id} value={loja.id}>
                     {loja.nome}
@@ -315,7 +332,11 @@ export function Relatorios() {
         )}
 
         {/* Relatório */}
-        {relatorio && !loading && (
+        {relatorio && !loading && relatorio.tipo === "todas-lojas" && (
+          <RelatorioTodasLojas relatorio={relatorio} />
+        )}
+
+        {relatorio && !loading && relatorio.tipo !== "todas-lojas" && (
           <div className="space-y-6">
             {/* Aviso de diferença de fichas */}
             {relatorio.avisoFichas && (
@@ -1101,7 +1122,8 @@ export function Relatorios() {
           <div className="text-center py-12 card">
             <p className="text-6xl mb-4">📄</p>
             <p className="text-gray-600 text-lg">
-              Selecione uma loja e o período para gerar o relatório
+              Selecione uma loja (ou todas as lojas) e o período para gerar o
+              relatório
             </p>
           </div>
         )}
