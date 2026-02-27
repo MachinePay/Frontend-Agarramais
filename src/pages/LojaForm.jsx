@@ -25,10 +25,23 @@ export function LojaForm() {
   // Gastos fixos pré-definidos
   const GASTOS_FIXOS = [
     { nome: "Aluguel", label: "Aluguel" },
-    { nome: "Funcionario(Despesa Rateada)", label: "Funcionário(Despesa Rateada)" },
-    { nome: "Operacional (Plano Trocadora)", label: "Operacional (Plano Trocadora)" },
+    {
+      nome: "Funcionario(Despesa Rateada)",
+      label: "Funcionário(Despesa Rateada)",
+    },
+    {
+      nome: "Operacional (Plano Trocadora)",
+      label: "Operacional (Plano Trocadora)",
+    },
     { nome: "Starlink(Internet)", label: "Starlink(Internet)" },
     { nome: "Limpeza", label: "Limpeza" },
+    { nome: "Imposto", label: "Imposto" },
+    { nome: "Luva", label: "Luva" },
+    { nome: "Nota Fiscal", label: "Nota Fiscal" },
+    {
+      nome: "Alugel dobrado último mes (12x)",
+      label: "Alugel dobrado último mes (informe valor total do ano; sistema divide em 12)",
+    },
   ];
 
   const [loading, setLoading] = useState(false);
