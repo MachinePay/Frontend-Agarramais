@@ -17,6 +17,7 @@ import { MaquinaDetalhes } from "./pages/MaquinaDetalhes";
 import { Produtos } from "./pages/Produtos";
 import { ProdutoForm } from "./pages/ProdutoForm";
 import { Movimentacoes } from "./pages/Movimentacoes";
+import ManutencaoPage from "./pages/ManutencaoPage";
 import { Graficos } from "./pages/Graficos";
 import { Relatorios } from "./pages/Relatorios";
 import { StyleGuide } from "./pages/StyleGuide";
@@ -172,6 +173,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Movimentacoes />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/manutencao"
+            element={
+              <PrivateRoute>
+                <ManutencaoPage />
               </PrivateRoute>
             }
           />

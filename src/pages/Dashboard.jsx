@@ -260,6 +260,9 @@ export function Dashboard() {
     balanco: null,
     loading: true,
   });
+  const [manutencoesPendentes, setManutencoesPendentes] = useState([]);
+  const [loadingManutencoesPendentes, setLoadingManutencoesPendentes] =
+    useState(false);
 
   // Estados para busca e navegação
 
@@ -368,6 +371,31 @@ export function Dashboard() {
   useEffect(() => {
     carregarDados();
   }, [carregarDados]);
+
+  const carregarManutencoesPendentes = useCallback(async () => {
+    if (usuario?.role !== "FUNCIONARIO") {
+      setManutencoesPendentes([]);
+      return;
+    }
+
+    try {
+      setLoadingManutencoesPendentes(true);
+      const response = await api.get("/manutencoes");
+      const lista = Array.isArray(response.data) ? response.data : [];
+      setManutencoesPendentes(
+        lista.filter((item) => item.status === "PENDENTE"),
+      );
+    } catch (error) {
+      console.error("Erro ao carregar manutenções pendentes:", error);
+      setManutencoesPendentes([]);
+    } finally {
+      setLoadingManutencoesPendentes(false);
+    }
+  }, [usuario?.role]);
+
+  useEffect(() => {
+    carregarManutencoesPendentes();
+  }, [carregarManutencoesPendentes]);
 
   const carregarAlertasEstoqueLoja = async (lojasData) => {
     try {
@@ -1425,6 +1453,36 @@ export function Dashboard() {
               </p>
             </div>
           </div>
+
+          {usuario?.role === "FUNCIONARIO" && (
+            <div
+              className={`stat-card p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 cursor-pointer transition-all ${
+                manutencoesPendentes.length > 0
+                  ? "bg-linear-to-br from-red-600 to-red-800 animate-pulse"
+                  : "bg-linear-to-br from-slate-600 to-slate-700"
+              }`}
+              onClick={() => navigate("/manutencao")}
+            >
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium opacity-90">
+                    Manutenções Pendentes
+                  </h3>
+                  <span className="text-2xl">🛠️</span>
+                </div>
+                <p className="text-3xl font-bold">
+                  {loadingManutencoesPendentes
+                    ? "..."
+                    : manutencoesPendentes.length}
+                </p>
+                <p className="text-xs opacity-75 mt-1">
+                  {manutencoesPendentes.length > 0
+                    ? "⚠️ Você possui manutenções para resolver"
+                    : "Sem pendências no momento"}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Alerta de Movimentação Inconsistente - ADMIN */}
