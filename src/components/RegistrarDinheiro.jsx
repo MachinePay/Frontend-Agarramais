@@ -8,6 +8,7 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
   const [fim, setFim] = useState("");
   const [valorDinheiro, setValorDinheiro] = useState("");
   const [valorCartaoPix, setValorCartaoPix] = useState("");
+  const [valorCartaoPixLiquido, setValorCartaoPixLiquido] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [gastosVariaveis, setGastosVariaveis] = useState([]);
 
@@ -24,9 +25,7 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
 
   const handleChangeGasto = (idx, field, value) => {
     setGastosVariaveis(
-      gastosVariaveis.map((g, i) =>
-        i === idx ? { ...g, [field]: value } : g
-      )
+      gastosVariaveis.map((g, i) => (i === idx ? { ...g, [field]: value } : g)),
     );
   };
 
@@ -50,6 +49,8 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
       fim,
       valorDinheiro: valorDinheiro === "" ? null : valorDinheiro,
       valorCartaoPix: valorCartaoPix === "" ? null : valorCartaoPix,
+      valorCartaoPixLiquido:
+        valorCartaoPixLiquido === "" ? null : valorCartaoPixLiquido,
       observacoes: observacoes === "" ? null : observacoes,
       gastosVariaveis: registrarTotalLoja ? gastosVariaveis : [],
     });
@@ -122,104 +123,195 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
       </h2>
       {/* Gastos Variáveis - só aparece se registrarTotalLoja estiver marcado */}
       {registrarTotalLoja && (
-        <div style={{ marginBottom: 18, background: "#fffbe6", border: "1.5px solid #e2cfa3", borderRadius: 10, padding: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <div
+          style={{
+            marginBottom: 18,
+            background: "#fffbe6",
+            border: "1.5px solid #e2cfa3",
+            borderRadius: 10,
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 8,
+            }}
+          >
             <label style={{ fontWeight: 600, color: "#a67c52", fontSize: 17 }}>
               Gastos Variáveis:
             </label>
-            <button type="button" onClick={handleAddGasto} style={{ background: "#e2cfa3", color: "#a67c52", border: "none", borderRadius: 8, padding: "6px 16px", fontWeight: 600, fontSize: 15, cursor: "pointer" }}>+ Adicionar Gasto</button>
+            <button
+              type="button"
+              onClick={handleAddGasto}
+              style={{
+                background: "#e2cfa3",
+                color: "#a67c52",
+                border: "none",
+                borderRadius: 8,
+                padding: "6px 16px",
+                fontWeight: 600,
+                fontSize: 15,
+                cursor: "pointer",
+              }}
+            >
+              + Adicionar Gasto
+            </button>
           </div>
           {gastosVariaveis.length === 0 && (
-            <div style={{ color: "#a67c52", fontSize: 15, marginBottom: 8 }}>Nenhum gasto adicionado.</div>
+            <div style={{ color: "#a67c52", fontSize: 15, marginBottom: 8 }}>
+              Nenhum gasto adicionado.
+            </div>
           )}
           {gastosVariaveis.map((gasto, idx) => (
-            <div key={idx} style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 10, flexWrap: "wrap" }}>
+            <div
+              key={idx}
+              style={{
+                display: "flex",
+                gap: 8,
+                alignItems: "flex-end",
+                marginBottom: 10,
+                flexWrap: "wrap",
+              }}
+            >
               <div style={{ flex: 2, minWidth: 120 }}>
                 <label style={{ fontSize: 14, color: "#a67c52" }}>Nome</label>
                 <input
                   type="text"
                   value={gasto.nome}
-                  onChange={e => handleChangeGasto(idx, "nome", e.target.value)}
+                  onChange={(e) =>
+                    handleChangeGasto(idx, "nome", e.target.value)
+                  }
                   required
                   placeholder="Ex: Energia, Limpeza..."
-                  style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1.5px solid #e2cfa3", background: "#fdf6e9", color: "#a67c52", fontWeight: 500 }}
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    borderRadius: 7,
+                    border: "1.5px solid #e2cfa3",
+                    background: "#fdf6e9",
+                    color: "#a67c52",
+                    fontWeight: 500,
+                  }}
                 />
               </div>
               <div style={{ flex: 1, minWidth: 90 }}>
-                <label style={{ fontSize: 14, color: "#a67c52" }}>Valor (R$)</label>
+                <label style={{ fontSize: 14, color: "#a67c52" }}>
+                  Valor (R$)
+                </label>
                 <input
                   type="number"
                   value={gasto.valor}
-                  onChange={e => handleChangeGasto(idx, "valor", e.target.value)}
+                  onChange={(e) =>
+                    handleChangeGasto(idx, "valor", e.target.value)
+                  }
                   required
                   min="0"
                   step="0.01"
                   placeholder="0,00"
-                  style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1.5px solid #e2cfa3", background: "#fdf6e9", color: "#a67c52", fontWeight: 500 }}
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    borderRadius: 7,
+                    border: "1.5px solid #e2cfa3",
+                    background: "#fdf6e9",
+                    color: "#a67c52",
+                    fontWeight: 500,
+                  }}
                 />
               </div>
               <div style={{ flex: 2, minWidth: 120 }}>
-                <label style={{ fontSize: 14, color: "#a67c52" }}>Observação</label>
+                <label style={{ fontSize: 14, color: "#a67c52" }}>
+                  Observação
+                </label>
                 <input
                   type="text"
                   value={gasto.observacao}
-                  onChange={e => handleChangeGasto(idx, "observacao", e.target.value)}
+                  onChange={(e) =>
+                    handleChangeGasto(idx, "observacao", e.target.value)
+                  }
                   placeholder="Opcional"
-                  style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1.5px solid #e2cfa3", background: "#fdf6e9", color: "#a67c52", fontWeight: 500 }}
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    borderRadius: 7,
+                    border: "1.5px solid #e2cfa3",
+                    background: "#fdf6e9",
+                    color: "#a67c52",
+                    fontWeight: 500,
+                  }}
                 />
               </div>
-              <button type="button" onClick={() => handleRemoveGasto(idx)} style={{ background: "#fff0f0", color: "#a67c52", border: "1px solid #e2cfa3", borderRadius: 8, padding: "8px 12px", fontWeight: 600, fontSize: 15, marginLeft: 4, cursor: "pointer" }}>Remover</button>
+              <button
+                type="button"
+                onClick={() => handleRemoveGasto(idx)}
+                style={{
+                  background: "#fff0f0",
+                  color: "#a67c52",
+                  border: "1px solid #e2cfa3",
+                  borderRadius: 8,
+                  padding: "8px 12px",
+                  fontWeight: 600,
+                  fontSize: 15,
+                  marginLeft: 4,
+                  cursor: "pointer",
+                }}
+              >
+                Remover
+              </button>
             </div>
           ))}
         </div>
       )}
-        <label style={{ fontWeight: 600, color: "#a67c52" }}>Loja:</label>
-        <select
-          value={lojaSelecionada}
-          onChange={handleLojaChange}
-          required
-          style={{
-            width: "100%",
-            marginTop: 6,
-            padding: "10px 12px",
-            borderRadius: 8,
-            border: "1.5px solid #e2cfa3",
-            background: "#fdf6e9",
-            fontWeight: 500,
-            color: "#a67c52",
-            fontSize: 16,
-          }}
+      <label style={{ fontWeight: 600, color: "#a67c52" }}>Loja:</label>
+      <select
+        value={lojaSelecionada}
+        onChange={handleLojaChange}
+        required
+        style={{
+          width: "100%",
+          marginTop: 6,
+          padding: "10px 12px",
+          borderRadius: 8,
+          border: "1.5px solid #e2cfa3",
+          background: "#fdf6e9",
+          fontWeight: 500,
+          color: "#a67c52",
+          fontSize: 16,
+        }}
+      >
+        <option value="">Selecione a loja</option>
+        {lojas &&
+          lojas.map((loja) => (
+            <option key={loja.id} value={loja.id}>
+              {loja.nome}
+            </option>
+          ))}
+      </select>
+      <div
+        style={{
+          marginTop: 12,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <input
+          type="checkbox"
+          id="registrarTotalLoja"
+          checked={registrarTotalLoja}
+          onChange={(e) => setRegistrarTotalLoja(e.target.checked)}
+          style={{ accentColor: "#e2cfa3", width: 18, height: 18 }}
+        />
+        <label
+          htmlFor="registrarTotalLoja"
+          style={{ fontSize: 15, color: "#a67c52" }}
         >
-          <option value="">Selecione a loja</option>
-          {lojas &&
-            lojas.map((loja) => (
-              <option key={loja.id} value={loja.id}>
-                {loja.nome}
-              </option>
-            ))}
-        </select>
-        <div
-          style={{
-            marginTop: 12,
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
-          <input
-            type="checkbox"
-            id="registrarTotalLoja"
-            checked={registrarTotalLoja}
-            onChange={(e) => setRegistrarTotalLoja(e.target.checked)}
-            style={{ accentColor: "#e2cfa3", width: 18, height: 18 }}
-          />
-          <label
-            htmlFor="registrarTotalLoja"
-            style={{ fontSize: 15, color: "#a67c52" }}
-          >
-            Registrar valor total da loja (não selecionar máquina)
-          </label>
-        </div>
+          Registrar valor total da loja (não selecionar máquina)
+        </label>
+      </div>
       <div style={{ marginBottom: 18 }}>
         <label style={{ fontWeight: 600, color: "#a67c52" }}>Máquina:</label>
         <select
@@ -362,6 +454,29 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
           type="number"
           value={valorCartaoPix}
           onChange={(e) => setValorCartaoPix(e.target.value)}
+          min="0"
+          step="0.01"
+          style={{
+            width: "100%",
+            marginTop: 6,
+            padding: "10px 12px",
+            borderRadius: 8,
+            border: "1.5px solid #e2cfa3",
+            background: "#fdf6e9",
+            color: "#a67c52",
+            fontWeight: 500,
+            fontSize: 16,
+          }}
+        />
+      </div>
+      <div style={{ marginBottom: 18 }}>
+        <label style={{ fontWeight: 600, color: "#a67c52" }}>
+          Cartão / Pix Líquido (R$):
+        </label>
+        <input
+          type="number"
+          value={valorCartaoPixLiquido}
+          onChange={(e) => setValorCartaoPixLiquido(e.target.value)}
           min="0"
           step="0.01"
           style={{

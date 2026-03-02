@@ -113,6 +113,16 @@ export function RelatorioTodasLojas({ relatorio }) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="card bg-gradient-to-br from-pink-500 to-fuchsia-700 text-white">
+          <div className="text-2xl mb-1">💳</div>
+          <div className="text-2xl font-bold">
+            {formatarMoeda(totais.taxaDeCartaoTotal)}
+          </div>
+          <div className="text-sm opacity-90">Taxa de Cartão Total</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <div className="card border border-green-200 bg-green-50">
           <div className="text-sm text-gray-700">Loja que mais lucrou</div>
           <div className="font-bold text-green-800 mt-1">

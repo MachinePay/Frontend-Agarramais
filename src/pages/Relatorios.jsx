@@ -519,6 +519,19 @@ export function Relatorios() {
                     Gasto Total
                   </div>
                 </div>
+                <div className="card bg-gradient-to-br from-pink-500 to-fuchsia-700 text-white">
+                  <div className="text-2xl sm:text-3xl mb-2">💳</div>
+                  <div className="text-xl sm:text-2xl font-bold">
+                    R${" "}
+                    {Number(relatorio.totais?.taxaDeCartao || 0).toLocaleString(
+                      "pt-BR",
+                      { minimumFractionDigits: 2 },
+                    )}
+                  </div>
+                  <div className="text-xs sm:text-sm opacity-90">
+                    Taxa de Cartão
+                  </div>
+                </div>
                 {/* Lucro Bruto da Loja */}
                 <div className="card bg-gradient-to-br from-yellow-500 to-orange-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">💰</div>
@@ -570,7 +583,14 @@ export function Relatorios() {
                       const gastoTotal = Number(
                         relatorio.totais?.gastoTotalPeriodo || 0,
                       );
-                      return (lucroBruto - gastoTotal).toLocaleString("pt-BR", {
+                      const taxaDeCartao = Number(
+                        relatorio.totais?.taxaDeCartao || 0,
+                      );
+                      return (
+                        lucroBruto -
+                        gastoTotal -
+                        taxaDeCartao
+                      ).toLocaleString("pt-BR", {
                         minimumFractionDigits: 2,
                       });
                     })()}
