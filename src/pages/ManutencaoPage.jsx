@@ -483,19 +483,23 @@ export default function ManutencaoPage() {
 
                     <div className="mt-2 space-y-1 text-xs text-gray-600">
                       <p>Criado por: {item.criadoPor?.nome || "-"}</p>
-                      <p>
-                        Custo:{" "}
-                        {item.custo !== null && item.custo !== undefined
-                          ? `R$ ${item.custo}`
-                          : "-"}
-                      </p>
+                      {isAdmin && (
+                        <p>
+                          Custo:{" "}
+                          {item.custo !== null && item.custo !== undefined
+                            ? `R$ ${item.custo}`
+                            : "-"}
+                        </p>
+                      )}
                       <p>Loja: {item.loja?.nome || "-"}</p>
-                      <p>
-                        Funcionários permitidos:{" "}
-                        {(item.funcionariosPermitidos || [])
-                          .map((f) => f.nome)
-                          .join(", ") || "-"}
-                      </p>
+                      {isAdmin && (
+                        <p>
+                          Funcionários permitidos:{" "}
+                          {(item.funcionariosPermitidos || [])
+                            .map((f) => f.nome)
+                            .join(", ") || "-"}
+                        </p>
+                      )}
                       {isAdmin && item.status === "RESOLVIDA" && (
                         <>
                           <p>Resolvido por: {item.resolvidoPor?.nome || "-"}</p>
