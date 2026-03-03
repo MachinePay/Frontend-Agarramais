@@ -123,6 +123,17 @@ export function RelatorioTodasLojas({ relatorio }) {
             {formatarMoeda(totais.taxaDeCartaoTotal)}
           </div>
         </div>
+        <div className="card bg-gradient-to-br from-cyan-500 to-blue-700 text-white">
+          <div className="text-2xl mb-1">✅</div>
+          <div className="text-2xl font-bold">
+            {formatarMoeda(
+              totais.cartaoPixLiquidoTotal ??
+                Number(totais.cartaoPixTotal || 0) -
+                  Number(totais.taxaDeCartaoTotal || 0),
+            )}
+          </div>
+          <div className="text-sm opacity-90">Cartão / Pix Líquido</div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
