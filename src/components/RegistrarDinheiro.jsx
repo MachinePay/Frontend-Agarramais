@@ -8,7 +8,8 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
   const [fim, setFim] = useState("");
   const [valorDinheiro, setValorDinheiro] = useState("");
   const [valorCartaoPix, setValorCartaoPix] = useState("");
-  const [valorCartaoPixLiquido, setValorCartaoPixLiquido] = useState("");
+  const [percentualTaxaCartaoMedia, setPercentualTaxaCartaoMedia] =
+    useState("");
   const [observacoes, setObservacoes] = useState("");
   const [gastosVariaveis, setGastosVariaveis] = useState([]);
 
@@ -49,8 +50,8 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
       fim,
       valorDinheiro: valorDinheiro === "" ? null : valorDinheiro,
       valorCartaoPix: valorCartaoPix === "" ? null : valorCartaoPix,
-      valorCartaoPixLiquido:
-        valorCartaoPixLiquido === "" ? null : valorCartaoPixLiquido,
+      percentualTaxaCartaoMedia:
+        percentualTaxaCartaoMedia === "" ? null : percentualTaxaCartaoMedia,
       observacoes: observacoes === "" ? null : observacoes,
       gastosVariaveis: registrarTotalLoja ? gastosVariaveis : [],
     });
@@ -471,14 +472,15 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
       </div>
       <div style={{ marginBottom: 18 }}>
         <label style={{ fontWeight: 600, color: "#a67c52" }}>
-          Cartão / Pix Líquido (R$):
+          Taxa média de cartão (%):
         </label>
         <input
           type="number"
-          value={valorCartaoPixLiquido}
-          onChange={(e) => setValorCartaoPixLiquido(e.target.value)}
+          value={percentualTaxaCartaoMedia}
+          onChange={(e) => setPercentualTaxaCartaoMedia(e.target.value)}
           min="0"
           step="0.01"
+          placeholder="Ex: 4.99"
           style={{
             width: "100%",
             marginTop: 6,

@@ -116,9 +116,12 @@ export function RelatorioTodasLojas({ relatorio }) {
         <div className="card bg-gradient-to-br from-pink-500 to-fuchsia-700 text-white">
           <div className="text-2xl mb-1">💳</div>
           <div className="text-2xl font-bold">
+            {formatarPercentual(totais.percentualTaxaCartaoMediaTotal)}
+          </div>
+          <div className="text-sm opacity-90">Taxa Média de Cartão</div>
+          <div className="text-xs opacity-80 mt-1">
             {formatarMoeda(totais.taxaDeCartaoTotal)}
           </div>
-          <div className="text-sm opacity-90">Taxa de Cartão Total</div>
         </div>
       </div>
 

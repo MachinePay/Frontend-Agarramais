@@ -420,7 +420,19 @@ export function Relatorios() {
                         ).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                       </div>
                       <div className="text-[10px] sm:text-xs opacity-80">
-                        Cartão / Pix
+                        Cartão / Pix (Bruto)
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <div className="text-lg sm:text-xl mb-1">✅</div>
+                      <div className="text-base sm:text-lg font-bold">
+                        R${" "}
+                        {Number(
+                          relatorio.totais?.valorCartaoPixLiquidoLoja || 0,
+                        ).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </div>
+                      <div className="text-[10px] sm:text-xs opacity-80">
+                        Cartão / Pix (Líquido)
                       </div>
                     </div>
                   </div>
@@ -522,14 +534,20 @@ export function Relatorios() {
                 <div className="card bg-gradient-to-br from-pink-500 to-fuchsia-700 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">💳</div>
                   <div className="text-xl sm:text-2xl font-bold">
+                    {Number(
+                      relatorio.totais?.percentualTaxaCartaoMedia || 0,
+                    ).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    %
+                  </div>
+                  <div className="text-xs sm:text-sm opacity-90">
+                    Taxa Média de Cartão
+                  </div>
+                  <div className="text-[10px] sm:text-xs opacity-80 mt-1">
                     R${" "}
                     {Number(relatorio.totais?.taxaDeCartao || 0).toLocaleString(
                       "pt-BR",
                       { minimumFractionDigits: 2 },
                     )}
-                  </div>
-                  <div className="text-xs sm:text-sm opacity-90">
-                    Taxa de Cartão
                   </div>
                 </div>
                 {/* Lucro Bruto da Loja */}
@@ -538,9 +556,11 @@ export function Relatorios() {
                   <div className="text-xl sm:text-2xl font-bold">
                     R${" "}
                     {(() => {
-                      const valorTrocadora =
+                      const valorTrocadoraLiquido =
                         Number(relatorio.totais?.valorDinheiroLoja || 0) +
-                        Number(relatorio.totais?.valorCartaoPixLoja || 0);
+                        Number(
+                          relatorio.totais?.valorCartaoPixLiquidoLoja || 0,
+                        );
                       let dinheiroMaquinas = 0;
                       let cartaoPixMaquinas = 0;
                       if (relatorio.maquinas && relatorio.maquinas.length > 0) {
@@ -579,20 +599,17 @@ export function Relatorios() {
                       }
                       const lucroMaquinas =
                         dinheiroMaquinas + cartaoPixMaquinas;
-                      const lucroBruto = valorTrocadora + lucroMaquinas;
+                      const receitaLiquida =
+                        valorTrocadoraLiquido + lucroMaquinas;
                       const gastoTotal = Number(
                         relatorio.totais?.gastoTotalPeriodo || 0,
                       );
-                      const taxaDeCartao = Number(
-                        relatorio.totais?.taxaDeCartao || 0,
+                      return (receitaLiquida - gastoTotal).toLocaleString(
+                        "pt-BR",
+                        {
+                          minimumFractionDigits: 2,
+                        },
                       );
-                      return (
-                        lucroBruto -
-                        gastoTotal -
-                        taxaDeCartao
-                      ).toLocaleString("pt-BR", {
-                        minimumFractionDigits: 2,
-                      });
                     })()}
                   </div>
                   <div className="text-xs sm:text-sm opacity-90">
