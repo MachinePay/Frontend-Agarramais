@@ -556,11 +556,9 @@ export function Relatorios() {
                   <div className="text-xl sm:text-2xl font-bold">
                     R${" "}
                     {(() => {
-                      const valorTrocadoraLiquido =
+                      const valorTrocadora =
                         Number(relatorio.totais?.valorDinheiroLoja || 0) +
-                        Number(
-                          relatorio.totais?.valorCartaoPixLiquidoLoja || 0,
-                        );
+                        Number(relatorio.totais?.valorCartaoPixLoja || 0);
                       let dinheiroMaquinas = 0;
                       let cartaoPixMaquinas = 0;
                       if (relatorio.maquinas && relatorio.maquinas.length > 0) {
@@ -586,9 +584,11 @@ export function Relatorios() {
                   <div className="text-xl sm:text-2xl font-bold">
                     R${" "}
                     {(() => {
-                      const valorTrocadora =
+                      const valorTrocadoraLiquido =
                         Number(relatorio.totais?.valorDinheiroLoja || 0) +
-                        Number(relatorio.totais?.valorCartaoPixLoja || 0);
+                        Number(
+                          relatorio.totais?.valorCartaoPixLiquidoLoja || 0,
+                        );
                       let dinheiroMaquinas = 0;
                       let cartaoPixMaquinas = 0;
                       if (relatorio.maquinas && relatorio.maquinas.length > 0) {
