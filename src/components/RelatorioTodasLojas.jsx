@@ -60,6 +60,31 @@ export function RelatorioTodasLojas({ relatorio }) {
   const totais = relatorio?.totais || {};
   const destaques = relatorio?.destaques || {};
   const graficos = relatorio?.graficos || {};
+  const cartaoPixLiquidoTotal =
+    totais.cartaoPixLiquidoTotal ??
+    Number(totais.cartaoPixTotal || 0) - Number(totais.taxaDeCartaoTotal || 0);
+  const totalRecebimentosLiquidos =
+    Number(totais.dinheiroTotal || 0) + Number(cartaoPixLiquidoTotal || 0);
+  const pagamentoLiquido = [
+    {
+      metodo: "Dinheiro",
+      valor: Number(totais.dinheiroTotal || 0),
+      percentual:
+        totalRecebimentosLiquidos > 0
+          ? (Number(totais.dinheiroTotal || 0) / totalRecebimentosLiquidos) *
+            100
+          : 0,
+    },
+    {
+      metodo: "Cartão / Pix (Líquido)",
+      valor: Number(cartaoPixLiquidoTotal || 0),
+      percentual:
+        totalRecebimentosLiquidos > 0
+          ? (Number(cartaoPixLiquidoTotal || 0) / totalRecebimentosLiquidos) *
+            100
+          : 0,
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -95,6 +120,9 @@ export function RelatorioTodasLojas({ relatorio }) {
             {formatarMoeda(totais.lucroLiquidoTotal)}
           </div>
           <div className="text-sm opacity-90">Lucro Líquido Total</div>
+          <div className="text-xs opacity-80 mt-1">
+            Valor bruto: {formatarMoeda(totais.lucroBrutoTotal)}
+          </div>
         </div>
         <div className="card bg-gradient-to-br from-rose-500 to-red-700 text-white">
           <div className="text-2xl mb-1">🧾</div>
@@ -126,13 +154,12 @@ export function RelatorioTodasLojas({ relatorio }) {
         <div className="card bg-gradient-to-br from-cyan-500 to-blue-700 text-white">
           <div className="text-2xl mb-1">✅</div>
           <div className="text-2xl font-bold">
-            {formatarMoeda(
-              totais.cartaoPixLiquidoTotal ??
-                Number(totais.cartaoPixTotal || 0) -
-                  Number(totais.taxaDeCartaoTotal || 0),
-            )}
+            {formatarMoeda(cartaoPixLiquidoTotal)}
           </div>
           <div className="text-sm opacity-90">Cartão / Pix Líquido</div>
+          <div className="text-xs opacity-80 mt-1">
+            Valor bruto: {formatarMoeda(totais.cartaoPixTotal)}
+          </div>
         </div>
       </div>
 
@@ -225,10 +252,10 @@ export function RelatorioTodasLojas({ relatorio }) {
 
       <div className="card bg-gradient-to-r from-cyan-50 to-blue-100 border-2 border-cyan-200">
         <h4 className="text-lg font-bold text-gray-900 mb-4">
-          💳 Percentual de recebimento (Dinheiro x Cartão/Pix)
+          💳 Percentual de recebimento (Dinheiro x Cartão/Pix Líquido)
         </h4>
         <div className="space-y-4">
-          {(graficos.pagamento || []).map((item) => (
+          {pagamentoLiquido.map((item) => (
             <div key={item.metodo}>
               <div className="flex items-center justify-between mb-1 gap-2">
                 <span className="font-medium text-gray-800">{item.metodo}</span>

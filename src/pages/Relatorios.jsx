@@ -461,27 +461,43 @@ export function Relatorios() {
                     Produtos Entraram
                   </div>
                 </div>
-                {/* Valor vindo das máquinas */}
+                {/* Lucro líquido das máquinas */}
                 <div className="card bg-gradient-to-br from-yellow-300 to-yellow-600 text-white">
-                  <div className="text-2xl sm:text-3xl mb-2">🎰</div>
+                  <div className="text-2xl sm:text-3xl mb-2">📉</div>
                   <div className="text-xl sm:text-2xl font-bold">
                     R${" "}
                     {(() => {
-                      let dinheiroMaquinas = 0;
-                      let cartaoPixMaquinas = 0;
+                      let lucroLiquidoMaquinas = 0;
                       if (relatorio.maquinas && relatorio.maquinas.length > 0) {
                         relatorio.maquinas.forEach((m) => {
-                          dinheiroMaquinas += Number(m.totais?.dinheiro || 0);
-                          cartaoPixMaquinas += Number(m.totais?.cartaoPix || 0);
+                          lucroLiquidoMaquinas += Number(
+                            m.totais?.lucroLiquido || 0,
+                          );
                         });
                       }
-                      return (
-                        dinheiroMaquinas + cartaoPixMaquinas
-                      ).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+                      return lucroLiquidoMaquinas.toLocaleString("pt-BR", {
+                        minimumFractionDigits: 2,
+                      });
                     })()}
                   </div>
                   <div className="text-xs sm:text-sm opacity-90">
-                    Lucro Das máquinas <br /> (sem considerar fichas)
+                    Lucro Líquido das máquinas
+                  </div>
+                  <div className="text-[10px] sm:text-xs opacity-80 mt-1">
+                    Valor bruto: R${" "}
+                    {(() => {
+                      let brutoMaquinas = 0;
+                      if (relatorio.maquinas && relatorio.maquinas.length > 0) {
+                        relatorio.maquinas.forEach((m) => {
+                          brutoMaquinas += Number(
+                            m.totais?.faturamentoBruto || 0,
+                          );
+                        });
+                      }
+                      return brutoMaquinas.toLocaleString("pt-BR", {
+                        minimumFractionDigits: 2,
+                      });
+                    })()}
                   </div>
                 </div>
                 {/* Custo total de produtos */}
@@ -572,15 +588,17 @@ export function Relatorios() {
                         Number(relatorio.totais?.valorDinheiroLoja || 0) +
                         Number(relatorio.totais?.valorCartaoPixLoja || 0);
                       let dinheiroMaquinas = 0;
-                      let cartaoPixMaquinas = 0;
+                      let cartaoPixMaquinasLiquido = 0;
                       if (relatorio.maquinas && relatorio.maquinas.length > 0) {
                         relatorio.maquinas.forEach((m) => {
                           dinheiroMaquinas += Number(m.totais?.dinheiro || 0);
-                          cartaoPixMaquinas += Number(m.totais?.cartaoPix || 0);
+                          cartaoPixMaquinasLiquido += Number(
+                            m.totais?.cartaoPixLiquido || 0,
+                          );
                         });
                       }
                       const lucroMaquinas =
-                        dinheiroMaquinas + cartaoPixMaquinas;
+                        dinheiroMaquinas + cartaoPixMaquinasLiquido;
                       return (valorTrocadora + lucroMaquinas).toLocaleString(
                         "pt-BR",
                         { minimumFractionDigits: 2 },
@@ -602,15 +620,17 @@ export function Relatorios() {
                           relatorio.totais?.valorCartaoPixLiquidoLoja || 0,
                         );
                       let dinheiroMaquinas = 0;
-                      let cartaoPixMaquinas = 0;
+                      let cartaoPixMaquinasLiquido = 0;
                       if (relatorio.maquinas && relatorio.maquinas.length > 0) {
                         relatorio.maquinas.forEach((m) => {
                           dinheiroMaquinas += Number(m.totais?.dinheiro || 0);
-                          cartaoPixMaquinas += Number(m.totais?.cartaoPix || 0);
+                          cartaoPixMaquinasLiquido += Number(
+                            m.totais?.cartaoPixLiquido || 0,
+                          );
                         });
                       }
                       const lucroMaquinas =
-                        dinheiroMaquinas + cartaoPixMaquinas;
+                        dinheiroMaquinas + cartaoPixMaquinasLiquido;
                       const receitaLiquida =
                         valorTrocadoraLiquido + lucroMaquinas;
                       const gastoTotal = Number(
@@ -752,7 +772,18 @@ export function Relatorios() {
                             })}
                           </div>
                           <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">
-                            Cartão / Pix
+                            Cartão / Pix (Bruto)
+                          </div>
+                          <div className="text-xs sm:text-sm text-center mt-1 opacity-90 font-semibold">
+                            R${" "}
+                            {Number(
+                              maquina.totais.cartaoPixLiquido || 0,
+                            ).toLocaleString("pt-BR", {
+                              minimumFractionDigits: 2,
+                            })}
+                          </div>
+                          <div className="text-[10px] sm:text-xs text-center opacity-80">
+                            Líquido
                           </div>
                         </div>
                         {/* Produtos que saíram */}
