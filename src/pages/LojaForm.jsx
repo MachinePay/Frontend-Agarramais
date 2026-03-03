@@ -40,8 +40,7 @@ export function LojaForm() {
     { nome: "Nota Fiscal", label: "Nota Fiscal" },
     {
       nome: "Alugel dobrado último mes (12x)",
-      label:
-        "Aluguel dobrado último mês (informe valor total do ano; sistema divide em 12)",
+      label: "Aluguel dobrado último mês",
     },
   ];
 
