@@ -23,6 +23,30 @@ export function LojaForm() {
   });
 
   // Gastos fixos pré-definidos
+  const normalizarNomeGasto = (nomeOriginal) =>
+    String(nomeOriginal || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const normalizarNomeParaPersistencia = (nomeOriginal) => {
+    const nome = String(nomeOriginal || "").trim();
+    const chave = normalizarNomeGasto(nome);
+
+    if (
+      chave === "alugel dobrado ultimo mes (12x)" ||
+      chave === "aluguel dobrado ultimo mes (12x)" ||
+      chave === "alugel dobrado ultimo mes" ||
+      chave === "aluguel dobrado ultimo mes"
+    ) {
+      return "Aluguel dobrado último mês";
+    }
+
+    return nome;
+  };
+
   const GASTOS_FIXOS = [
     { nome: "Aluguel", label: "Aluguel" },
     {
@@ -39,7 +63,7 @@ export function LojaForm() {
     { nome: "Luva", label: "Luva" },
     { nome: "Nota Fiscal", label: "Nota Fiscal" },
     {
-      nome: "Alugel dobrado último mes (12x)",
+      nome: "Aluguel dobrado último mês",
       label: "Aluguel dobrado último mês",
     },
   ];
@@ -90,11 +114,15 @@ export function LojaForm() {
       // Preenche os gastos fixos mantendo a ordem e nomes fixos
       setGastosFixos(
         GASTOS_FIXOS.map((g) => {
-          const encontrado = response.data?.find(
-            (item) => item.nome === g.nome,
-          );
+          const encontrado = response.data?.find((item) => {
+            const nomeItem = normalizarNomeParaPersistencia(item?.nome);
+            const nomeGasto = normalizarNomeParaPersistencia(g.nome);
+            return (
+              normalizarNomeGasto(nomeItem) === normalizarNomeGasto(nomeGasto)
+            );
+          });
           return {
-            nome: g.nome,
+            nome: normalizarNomeParaPersistencia(g.nome),
             valor: encontrado ? String(encontrado.valor) : "",
             observacao: encontrado ? encontrado.observacao || "" : "",
           };
@@ -199,7 +227,7 @@ export function LojaForm() {
         // Salvar gastos fixos
         await api.post(`/gastos-fixos-loja/${id}`, {
           gastos: gastosFixos.map((g) => ({
-            nome: g.nome,
+            nome: normalizarNomeParaPersistencia(g.nome),
             valor: parseFloat(g.valor.replace(",", ".")) || 0,
             observacao: g.observacao,
           })),
