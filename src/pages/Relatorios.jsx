@@ -467,15 +467,15 @@ export function Relatorios() {
                   <div className="text-xl sm:text-2xl font-bold">
                     R${" "}
                     {(() => {
-                      let lucroLiquidoMaquinas = 0;
+                      let valorLiquidoMaquinas = 0;
                       if (relatorio.maquinas && relatorio.maquinas.length > 0) {
                         relatorio.maquinas.forEach((m) => {
-                          lucroLiquidoMaquinas += Number(
-                            m.totais?.lucroLiquido || 0,
-                          );
+                          valorLiquidoMaquinas +=
+                            Number(m.totais?.dinheiro || 0) +
+                            Number(m.totais?.cartaoPixLiquido || 0);
                         });
                       }
-                      return lucroLiquidoMaquinas.toLocaleString("pt-BR", {
+                      return valorLiquidoMaquinas.toLocaleString("pt-BR", {
                         minimumFractionDigits: 2,
                       });
                     })()}
@@ -486,15 +486,15 @@ export function Relatorios() {
                   <div className="text-[10px] sm:text-xs opacity-80 mt-1">
                     Valor bruto: R${" "}
                     {(() => {
-                      let brutoMaquinas = 0;
+                      let valorBrutoMaquinas = 0;
                       if (relatorio.maquinas && relatorio.maquinas.length > 0) {
                         relatorio.maquinas.forEach((m) => {
-                          brutoMaquinas += Number(
-                            m.totais?.faturamentoBruto || 0,
-                          );
+                          valorBrutoMaquinas +=
+                            Number(m.totais?.dinheiro || 0) +
+                            Number(m.totais?.cartaoPix || 0);
                         });
                       }
-                      return brutoMaquinas.toLocaleString("pt-BR", {
+                      return valorBrutoMaquinas.toLocaleString("pt-BR", {
                         minimumFractionDigits: 2,
                       });
                     })()}
