@@ -338,7 +338,7 @@ export function Dashboard() {
       console.log("Máquinas carregadas:", maquinasRes.data);
       console.log("Produtos carregados:", produtosRes.data);
       if (isAdmin) {
-        console.log("Balanço semanal:", balancoRes.data);
+        console.log("Balanço Mensal:", balancoRes.data);
         console.log("Estrutura completa de totais:", balancoRes.data?.totais);
         console.log("Total de Fichas:", balancoRes.data?.totais?.totalFichas);
         console.log(
@@ -1293,15 +1293,15 @@ export function Dashboard() {
 
         {/* Cards de Resumo com design moderno - Apenas para ADMIN */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6 mb-8">
-          {/* Faturamento Semanal, Fichas Inseridas, Prêmios Saídos, Alertas de Estoque: só para ADMIN */}
+          {/* Faturamento Mensal, Fichas Inseridas, Prêmios Saídos, Alertas de Estoque: só para ADMIN */}
           {usuario?.role === "ADMIN" && (
             <>
-              {/* Faturamento Semanal */}
+              {/* Faturamento Mensal */}
               <div className="stat-card bg-linear-to-br from-yellow-500 to-orange-500 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30">
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-medium opacity-90">
-                      Faturamento Semanal
+                      Faturamento Mensal
                     </h3>
                     <svg
                       className="w-8 h-8 opacity-80"
