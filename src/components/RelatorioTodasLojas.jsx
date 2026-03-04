@@ -294,7 +294,7 @@ export function RelatorioTodasLojas({ relatorio }) {
         />
 
         <GraficoBarras
-          titulo="📊 Ranking: lojas com maior lucro líquido"
+          titulo="📊 Ranking: Vendas"
           itens={graficos.rankingLucroLojas || []}
           chaveNome="lojaNome"
           chaveValor="lucroLiquido"
