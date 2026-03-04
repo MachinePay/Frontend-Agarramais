@@ -72,6 +72,29 @@ export function RelatorioTodasLojas({ relatorio }) {
   const gastosFixosPorLoja = (graficos.gastosFixosPorLoja || []).filter(
     (item) => Number(item.custoFixo || 0) > 0,
   );
+  const rankingLucroBrutoLojas = (
+    graficos.rankingLucroBrutoLojas ||
+    graficos.participacaoLojas ||
+    []
+  )
+    .map((item) => {
+      const lucroBrutoDireto = Number(
+        item?.lucroBruto ?? item?.valor ?? item?.lucroBrutoLoja,
+      );
+      const lucroBrutoCalculadoPorParticipacao =
+        (Number(totais.lucroBrutoTotal || 0) *
+          Number(item?.participacaoLucroBruto || 0)) /
+        100;
+
+      return {
+        ...item,
+        lojaNome: item?.lojaNome || item?.nome || "-",
+        lucroBruto: Number.isFinite(lucroBrutoDireto)
+          ? lucroBrutoDireto
+          : lucroBrutoCalculadoPorParticipacao,
+      };
+    })
+    .sort((a, b) => Number(b.lucroBruto || 0) - Number(a.lucroBruto || 0));
   const pagamentoLiquido = [
     {
       metodo: "Dinheiro",
@@ -95,7 +118,7 @@ export function RelatorioTodasLojas({ relatorio }) {
 
   return (
     <div className="space-y-6">
-      <div className="card bg-gradient-to-r from-indigo-50 to-blue-100 border-2 border-indigo-200">
+      <div className="card bg-linear-to-r from-indigo-50 to-blue-100 border-2 border-indigo-200">
         <h3 className="text-2xl font-bold text-gray-900 mb-2">
           🏬 Consolidado de Todas as Lojas
         </h3>
@@ -114,14 +137,14 @@ export function RelatorioTodasLojas({ relatorio }) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div className="card bg-gradient-to-br from-emerald-500 to-green-700 text-white">
+        <div className="card bg-linear-to-br from-emerald-500 to-green-700 text-white">
           <div className="text-2xl mb-1">💰</div>
           <div className="text-2xl font-bold">
             {formatarMoeda(totais.lucroBrutoTotal)}
           </div>
           <div className="text-sm opacity-90">Lucro Bruto Total</div>
         </div>
-        <div className="card bg-gradient-to-br from-blue-600 to-cyan-700 text-white">
+        <div className="card bg-linear-to-br from-blue-600 to-cyan-700 text-white">
           <div className="text-2xl mb-1">📉</div>
           <div className="text-2xl font-bold">
             {formatarMoeda(totais.lucroLiquidoTotal)}
@@ -131,35 +154,35 @@ export function RelatorioTodasLojas({ relatorio }) {
             Valor bruto: {formatarMoeda(totais.lucroBrutoTotal)}
           </div>
         </div>
-        <div className="card bg-gradient-to-br from-rose-500 to-red-700 text-white">
+        <div className="card bg-linear-to-br from-rose-500 to-red-700 text-white">
           <div className="text-2xl mb-1">🧾</div>
           <div className="text-2xl font-bold">
             {formatarMoeda(totais.custoTotal)}
           </div>
           <div className="text-sm opacity-90">Custo Total</div>
         </div>
-        <div className="card bg-gradient-to-br from-fuchsia-500 to-purple-700 text-white">
+        <div className="card bg-linear-to-br from-fuchsia-500 to-purple-700 text-white">
           <div className="text-2xl mb-1">📌</div>
           <div className="text-2xl font-bold">
             {formatarMoeda(totais.custoVariavelTotal)}
           </div>
           <div className="text-sm opacity-90">Custo Variável Total</div>
         </div>
-        <div className="card bg-gradient-to-br from-violet-500 to-purple-800 text-white">
+        <div className="card bg-linear-to-br from-violet-500 to-purple-800 text-white">
           <div className="text-2xl mb-1">🏷️</div>
           <div className="text-2xl font-bold">
             {formatarMoeda(totais.custoFixoTotal)}
           </div>
           <div className="text-sm opacity-90">Custo Fixo Total</div>
         </div>
-        <div className="card bg-gradient-to-br from-amber-500 to-yellow-700 text-white">
+        <div className="card bg-linear-to-br from-amber-500 to-yellow-700 text-white">
           <div className="text-2xl mb-1">💸</div>
           <div className="text-2xl font-bold">
             {formatarMoeda(totais.custoProdutosTotal)}
           </div>
           <div className="text-sm opacity-90">Custo Total de Produtos</div>
         </div>
-        <div className="card bg-gradient-to-br from-orange-500 to-amber-700 text-white">
+        <div className="card bg-linear-to-br from-orange-500 to-amber-700 text-white">
           <div className="text-2xl mb-1">💵</div>
           <div className="text-2xl font-bold">
             {formatarMoeda(brutoConsolidado)}
@@ -168,21 +191,21 @@ export function RelatorioTodasLojas({ relatorio }) {
             Bruto Consolidado (Lojas + Máquinas)
           </div>
         </div>
-        <div className="card bg-gradient-to-br from-red-500 to-rose-700 text-white">
+        <div className="card bg-linear-to-br from-red-500 to-rose-700 text-white">
           <div className="text-2xl mb-1">📤</div>
           <div className="text-2xl font-bold">
             {Number(totais.produtosSairamTotal || 0).toLocaleString("pt-BR")}
           </div>
           <div className="text-sm opacity-90">Produtos Saíram (Total)</div>
         </div>
-        <div className="card bg-gradient-to-br from-green-500 to-emerald-700 text-white">
+        <div className="card bg-linear-to-br from-green-500 to-emerald-700 text-white">
           <div className="text-2xl mb-1">📥</div>
           <div className="text-2xl font-bold">
             {Number(totais.produtosEntraramTotal || 0).toLocaleString("pt-BR")}
           </div>
           <div className="text-sm opacity-90">Produtos Entraram (Total)</div>
         </div>
-        <div className="card bg-gradient-to-br from-blue-500 to-indigo-700 text-white">
+        <div className="card bg-linear-to-br from-blue-500 to-indigo-700 text-white">
           <div className="text-2xl mb-1">🎟️</div>
           <div className="text-2xl font-bold">
             {Number(totais.fichasTotal || 0).toLocaleString("pt-BR")}
@@ -192,7 +215,7 @@ export function RelatorioTodasLojas({ relatorio }) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div className="card bg-gradient-to-br from-pink-500 to-fuchsia-700 text-white">
+        <div className="card bg-linear-to-br from-pink-500 to-fuchsia-700 text-white">
           <div className="text-2xl mb-1">💳</div>
           <div className="text-2xl font-bold">
             {formatarPercentual(totais.percentualTaxaCartaoMediaTotal)}
@@ -202,7 +225,7 @@ export function RelatorioTodasLojas({ relatorio }) {
             {formatarMoeda(totais.taxaDeCartaoTotal)}
           </div>
         </div>
-        <div className="card bg-gradient-to-br from-cyan-500 to-blue-700 text-white">
+        <div className="card bg-linear-to-br from-cyan-500 to-blue-700 text-white">
           <div className="text-2xl mb-1">✅</div>
           <div className="text-2xl font-bold">
             {formatarMoeda(cartaoPixLiquidoTotal)}
@@ -259,31 +282,23 @@ export function RelatorioTodasLojas({ relatorio }) {
         </div>
       </div>
 
-      <div className="card bg-gradient-to-br from-violet-500 to-purple-800 text-white">
-        <div className="text-2xl font-bold">
-          {formatarMoeda(totais.custoFixoTotal)}
-        </div>
-        <div className="text-sm opacity-90">Gastos Fixos (todas as lojas)</div>
-        <div className="text-xs opacity-80 mt-2 space-y-1 max-h-28 overflow-y-auto pr-1">
-          {gastosFixosPorLoja.length > 0 ? (
-            gastosFixosPorLoja.map((item) => (
-              <div key={item.lojaNome} className="truncate">
-                {item.lojaNome}: {formatarMoeda(item.custoFixo)}
-              </div>
-            ))
-          ) : (
-            <div>Sem gastos fixos com valor maior que zero</div>
-          )}
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <GraficoBarras
+          titulo="📊 Ranking: lojas com maior lucro bruto"
+          itens={rankingLucroBrutoLojas}
+          chaveNome="lojaNome"
+          chaveValor="lucroBruto"
+          classeBarra="bg-linear-to-r from-teal-500 to-emerald-700"
+          formatter={formatarMoeda}
+          vazio="Sem dados para ranking de lucro bruto."
+        />
+
         <GraficoBarras
           titulo="📊 Ranking: lojas com maior lucro líquido"
           itens={graficos.rankingLucroLojas || []}
           chaveNome="lojaNome"
           chaveValor="lucroLiquido"
-          classeBarra="bg-gradient-to-r from-green-500 to-emerald-700"
+          classeBarra="bg-linear-to-r from-green-500 to-emerald-700"
           formatter={formatarMoeda}
           vazio="Sem dados para ranking de lucro."
         />
@@ -293,9 +308,19 @@ export function RelatorioTodasLojas({ relatorio }) {
           itens={graficos.rankingGastoLojas || []}
           chaveNome="lojaNome"
           chaveValor="custoTotal"
-          classeBarra="bg-gradient-to-r from-red-500 to-rose-700"
+          classeBarra="bg-linear-to-r from-red-500 to-rose-700"
           formatter={formatarMoeda}
           vazio="Sem dados para ranking de gastos."
+        />
+
+        <GraficoBarras
+          titulo="📊 Ranking: lojas com maior gasto fixo"
+          itens={gastosFixosPorLoja || []}
+          chaveNome="lojaNome"
+          chaveValor="custoFixo"
+          classeBarra="bg-linear-to-r from-violet-500 to-purple-800"
+          formatter={formatarMoeda}
+          vazio="Sem dados de gastos fixos por loja."
         />
 
         <GraficoBarras
@@ -303,7 +328,7 @@ export function RelatorioTodasLojas({ relatorio }) {
           itens={graficos.participacaoLojas || []}
           chaveNome="lojaNome"
           chaveValor="participacaoLucroBruto"
-          classeBarra="bg-gradient-to-r from-indigo-500 to-blue-700"
+          classeBarra="bg-linear-to-r from-indigo-500 to-blue-700"
           formatter={formatarPercentual}
           vazio="Sem dados de participação por loja."
         />
@@ -313,13 +338,13 @@ export function RelatorioTodasLojas({ relatorio }) {
           itens={graficos.rankingProdutos || []}
           chaveNome="nome"
           chaveValor="quantidade"
-          classeBarra="bg-gradient-to-r from-amber-500 to-orange-700"
+          classeBarra="bg-linear-to-r from-amber-500 to-orange-700"
           formatter={(valor) => Number(valor || 0).toLocaleString("pt-BR")}
           vazio="Sem produtos com saída no período."
         />
       </div>
 
-      <div className="card bg-gradient-to-r from-cyan-50 to-blue-100 border-2 border-cyan-200">
+      <div className="card bg-linear-to-r from-cyan-50 to-blue-100 border-2 border-cyan-200">
         <h4 className="text-lg font-bold text-gray-900 mb-4">
           💳 Percentual de recebimento (Dinheiro x Cartão/Pix Líquido)
         </h4>
@@ -337,8 +362,8 @@ export function RelatorioTodasLojas({ relatorio }) {
                 <div
                   className={
                     item.metodo === "Dinheiro"
-                      ? "bg-gradient-to-r from-emerald-500 to-green-700 h-4"
-                      : "bg-gradient-to-r from-blue-500 to-indigo-700 h-4"
+                      ? "bg-linear-to-r from-emerald-500 to-green-700 h-4"
+                      : "bg-linear-to-r from-blue-500 to-indigo-700 h-4"
                   }
                   style={{
                     width: `${Number(item.percentual || 0).toFixed(2)}%`,
