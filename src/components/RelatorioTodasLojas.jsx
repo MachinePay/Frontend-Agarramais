@@ -284,7 +284,7 @@ export function RelatorioTodasLojas({ relatorio }) {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <GraficoBarras
-          titulo="📊 Ranking: lojas com maior lucro bruto"
+          titulo="📊 Ranking: Vendas"
           itens={rankingLucroBrutoLojas}
           chaveNome="lojaNome"
           chaveValor="lucroBruto"
@@ -294,7 +294,7 @@ export function RelatorioTodasLojas({ relatorio }) {
         />
 
         <GraficoBarras
-          titulo="📊 Ranking: Vendas"
+          titulo="📊 Ranking: lojas com maior lucro líquido"
           itens={graficos.rankingLucroLojas || []}
           chaveNome="lojaNome"
           chaveValor="lucroLiquido"
