@@ -65,6 +65,11 @@ export function RelatorioTodasLojas({ relatorio }) {
     Number(totais.cartaoPixTotal || 0) - Number(totais.taxaDeCartaoTotal || 0);
   const totalRecebimentosLiquidos =
     Number(totais.dinheiroTotal || 0) + Number(cartaoPixLiquidoTotal || 0);
+  const brutoConsolidado =
+    Number(totais.dinheiroTotal || 0) + Number(totais.cartaoPixTotal || 0);
+  const gastosFixosPorLoja = (graficos.gastosFixosPorLoja || []).filter(
+    (item) => Number(item.custoFixo || 0) > 0,
+  );
   const pagamentoLiquido = [
     {
       metodo: "Dinheiro",
@@ -138,6 +143,48 @@ export function RelatorioTodasLojas({ relatorio }) {
           </div>
           <div className="text-sm opacity-90">Custo Variável Total</div>
         </div>
+        <div className="card bg-gradient-to-br from-violet-500 to-purple-800 text-white">
+          <div className="text-2xl mb-1">🏷️</div>
+          <div className="text-2xl font-bold">
+            {formatarMoeda(totais.custoFixoTotal)}
+          </div>
+          <div className="text-sm opacity-90">Custo Fixo Total</div>
+        </div>
+        <div className="card bg-gradient-to-br from-amber-500 to-yellow-700 text-white">
+          <div className="text-2xl mb-1">💸</div>
+          <div className="text-2xl font-bold">
+            {formatarMoeda(totais.custoProdutosTotal)}
+          </div>
+          <div className="text-sm opacity-90">Custo Total de Produtos</div>
+        </div>
+        <div className="card bg-gradient-to-br from-orange-500 to-amber-700 text-white">
+          <div className="text-2xl mb-1">💵</div>
+          <div className="text-2xl font-bold">
+            {formatarMoeda(brutoConsolidado)}
+          </div>
+          <div className="text-sm opacity-90">Bruto Consolidado (Lojas)</div>
+        </div>
+        <div className="card bg-gradient-to-br from-red-500 to-rose-700 text-white">
+          <div className="text-2xl mb-1">📤</div>
+          <div className="text-2xl font-bold">
+            {Number(totais.produtosSairamTotal || 0).toLocaleString("pt-BR")}
+          </div>
+          <div className="text-sm opacity-90">Produtos Saíram (Total)</div>
+        </div>
+        <div className="card bg-gradient-to-br from-green-500 to-emerald-700 text-white">
+          <div className="text-2xl mb-1">📥</div>
+          <div className="text-2xl font-bold">
+            {Number(totais.produtosEntraramTotal || 0).toLocaleString("pt-BR")}
+          </div>
+          <div className="text-sm opacity-90">Produtos Entraram (Total)</div>
+        </div>
+        <div className="card bg-gradient-to-br from-blue-500 to-indigo-700 text-white">
+          <div className="text-2xl mb-1">🎟️</div>
+          <div className="text-2xl font-bold">
+            {Number(totais.fichasTotal || 0).toLocaleString("pt-BR")}
+          </div>
+          <div className="text-sm opacity-90">Quantidade de Fichas</div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -205,6 +252,24 @@ export function RelatorioTodasLojas({ relatorio }) {
             )}{" "}
             unidades
           </div>
+        </div>
+      </div>
+
+      <div className="card bg-gradient-to-br from-violet-500 to-purple-800 text-white">
+        <div className="text-2xl font-bold">
+          {formatarMoeda(totais.custoFixoTotal)}
+        </div>
+        <div className="text-sm opacity-90">Gastos Fixos (todas as lojas)</div>
+        <div className="text-xs opacity-80 mt-2 space-y-1 max-h-28 overflow-y-auto pr-1">
+          {gastosFixosPorLoja.length > 0 ? (
+            gastosFixosPorLoja.map((item) => (
+              <div key={item.lojaNome} className="truncate">
+                {item.lojaNome}: {formatarMoeda(item.custoFixo)}
+              </div>
+            ))
+          ) : (
+            <div>Sem gastos fixos com valor maior que zero</div>
+          )}
         </div>
       </div>
 

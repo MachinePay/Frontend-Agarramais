@@ -18,6 +18,7 @@ export function Relatorios() {
   const [loadingLojas, setLoadingLojas] = useState(true);
   const [relatorio, setRelatorio] = useState(null);
   const [error, setError] = useState("");
+  const [gastosFixosLoja, setGastosFixosLoja] = useState([]);
 
   // Buscar dados do dashboard para fichas corretas
   const carregarDashboard = async (lojaId, dataInicio, dataFim) => {
@@ -83,6 +84,7 @@ export function Relatorios() {
       setError("");
       setRelatorio(null); // Limpar relatório anterior
       setDashboard(null);
+      setGastosFixosLoja([]);
 
       if (lojaSelecionada === TODAS_LOJAS_VALUE) {
         const response = await api.get("/relatorios/todas-lojas", {
@@ -93,6 +95,7 @@ export function Relatorios() {
         });
 
         setRelatorio(response.data);
+        setGastosFixosLoja([]);
 
         return;
       }
@@ -194,6 +197,23 @@ export function Relatorios() {
         gastoTotalDoRegistrar ??
         Number(response.data?.totais?.gastoTotalPeriodo || 0);
 
+      let listaGastosFixos = [];
+      try {
+        const gastosFixosResponse = await api.get(
+          `/gastos-fixos-loja/${lojaSelecionada}`,
+        );
+        listaGastosFixos = Array.isArray(gastosFixosResponse.data)
+          ? gastosFixosResponse.data
+          : [];
+      } catch (erroGastosFixos) {
+        console.warn(
+          "Não foi possível buscar gastos fixos da loja para detalhamento:",
+          erroGastosFixos,
+        );
+      }
+
+      setGastosFixosLoja(listaGastosFixos);
+
       setRelatorio({
         ...response.data,
         totais: {
@@ -231,6 +251,7 @@ export function Relatorios() {
       setError(errorMessage);
       setRelatorio(null);
       setDashboard(null);
+      setGastosFixosLoja([]);
     } finally {
       setLoading(false);
     }
@@ -239,6 +260,19 @@ export function Relatorios() {
   const handleImprimir = () => {
     window.print();
   };
+
+  const gastosFixosComValor = gastosFixosLoja
+    .map((item) => ({
+      id: item.id,
+      nome: String(item.nome || "").trim(),
+      valor: Number(item.valor || 0),
+    }))
+    .filter((item) => item.nome.length > 0 && item.valor > 0);
+
+  const totalGastosFixosDaLoja = gastosFixosComValor.reduce(
+    (acc, item) => acc + item.valor,
+    0,
+  );
 
   if (loadingLojas) return <PageLoader />;
 
@@ -533,6 +567,36 @@ export function Relatorios() {
                   </div>
                   <div className="text-xs sm:text-sm opacity-90">
                     Gastos Variáveis
+                  </div>
+                </div>
+                <div className="card bg-gradient-to-br from-violet-500 to-purple-800 text-white">
+                  <div className="text-2xl sm:text-3xl mb-2">🏷️</div>
+                  <div className="text-xl sm:text-2xl font-bold">
+                    R${" "}
+                    {Number(totalGastosFixosDaLoja || 0).toLocaleString(
+                      "pt-BR",
+                      { minimumFractionDigits: 2 },
+                    )}
+                  </div>
+                  <div className="text-xs sm:text-sm opacity-90">
+                    Gastos Fixos da Loja
+                  </div>
+                  <div className="text-[10px] sm:text-xs opacity-80 mt-2 space-y-1 max-h-24 overflow-y-auto pr-1">
+                    {gastosFixosComValor.length > 0 ? (
+                      gastosFixosComValor.map((gasto) => (
+                        <div
+                          key={`${gasto.id || gasto.nome}`}
+                          className="truncate"
+                        >
+                          {gasto.nome}: R${" "}
+                          {Number(gasto.valor || 0).toLocaleString("pt-BR", {
+                            minimumFractionDigits: 2,
+                          })}
+                        </div>
+                      ))
+                    ) : (
+                      <div>Sem gastos fixos com valor maior que zero</div>
+                    )}
                   </div>
                 </div>
                 <div className="card bg-gradient-to-br from-rose-500 to-red-700 text-white">
