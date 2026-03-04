@@ -588,18 +588,18 @@ export function Relatorios() {
                         Number(relatorio.totais?.valorDinheiroLoja || 0) +
                         Number(relatorio.totais?.valorCartaoPixLoja || 0);
                       let dinheiroMaquinas = 0;
-                      let cartaoPixMaquinasLiquido = 0;
+                      let cartaoPixMaquinasBruto = 0;
                       if (relatorio.maquinas && relatorio.maquinas.length > 0) {
                         relatorio.maquinas.forEach((m) => {
                           dinheiroMaquinas += Number(m.totais?.dinheiro || 0);
-                          cartaoPixMaquinasLiquido += Number(
-                            m.totais?.cartaoPixLiquido || 0,
+                          cartaoPixMaquinasBruto += Number(
+                            m.totais?.cartaoPix || 0,
                           );
                         });
                       }
-                      const lucroMaquinas =
-                        dinheiroMaquinas + cartaoPixMaquinasLiquido;
-                      return (valorTrocadora + lucroMaquinas).toLocaleString(
+                      const brutoMaquinas =
+                        dinheiroMaquinas + cartaoPixMaquinasBruto;
+                      return (valorTrocadora + brutoMaquinas).toLocaleString(
                         "pt-BR",
                         { minimumFractionDigits: 2 },
                       );
