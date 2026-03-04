@@ -501,6 +501,17 @@ export function Relatorios() {
                   <div className="text-xl sm:text-2xl font-bold">
                     R${" "}
                     {(() => {
+                      if (
+                        relatorio.totais?.valorLiquidoMaquinas !== undefined &&
+                        relatorio.totais?.valorLiquidoMaquinas !== null
+                      ) {
+                        return Number(
+                          relatorio.totais?.valorLiquidoMaquinas || 0,
+                        ).toLocaleString("pt-BR", {
+                          minimumFractionDigits: 2,
+                        });
+                      }
+
                       let valorLiquidoMaquinas = 0;
                       if (relatorio.maquinas && relatorio.maquinas.length > 0) {
                         relatorio.maquinas.forEach((m) => {
@@ -520,6 +531,17 @@ export function Relatorios() {
                   <div className="text-[10px] sm:text-xs opacity-80 mt-1">
                     Valor bruto: R${" "}
                     {(() => {
+                      if (
+                        relatorio.totais?.valorBrutoMaquinas !== undefined &&
+                        relatorio.totais?.valorBrutoMaquinas !== null
+                      ) {
+                        return Number(
+                          relatorio.totais?.valorBrutoMaquinas || 0,
+                        ).toLocaleString("pt-BR", {
+                          minimumFractionDigits: 2,
+                        });
+                      }
+
                       let valorBrutoMaquinas = 0;
                       if (relatorio.maquinas && relatorio.maquinas.length > 0) {
                         relatorio.maquinas.forEach((m) => {
@@ -648,6 +670,20 @@ export function Relatorios() {
                   <div className="text-xl sm:text-2xl font-bold">
                     R${" "}
                     {(() => {
+                      if (
+                        relatorio.totais?.valorBrutoConsolidadoLojaMaquinas !==
+                          undefined &&
+                        relatorio.totais?.valorBrutoConsolidadoLojaMaquinas !==
+                          null
+                      ) {
+                        return Number(
+                          relatorio.totais?.valorBrutoConsolidadoLojaMaquinas ||
+                            0,
+                        ).toLocaleString("pt-BR", {
+                          minimumFractionDigits: 2,
+                        });
+                      }
+
                       const valorTrocadora =
                         Number(relatorio.totais?.valorDinheiroLoja || 0) +
                         Number(relatorio.totais?.valorCartaoPixLoja || 0);
@@ -678,6 +714,20 @@ export function Relatorios() {
                   <div className="text-xl sm:text-2xl font-bold">
                     R${" "}
                     {(() => {
+                      if (
+                        relatorio.totais
+                          ?.valorLiquidoConsolidadoLojaMaquinas !== undefined &&
+                        relatorio.totais
+                          ?.valorLiquidoConsolidadoLojaMaquinas !== null
+                      ) {
+                        return Number(
+                          relatorio.totais
+                            ?.valorLiquidoConsolidadoLojaMaquinas || 0,
+                        ).toLocaleString("pt-BR", {
+                          minimumFractionDigits: 2,
+                        });
+                      }
+
                       const valorTrocadoraLiquido =
                         Number(relatorio.totais?.valorDinheiroLoja || 0) +
                         Number(
