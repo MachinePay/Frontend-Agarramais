@@ -457,48 +457,119 @@ export function Relatorios() {
                         Cartão / Pix (Bruto)
                       </div>
                     </div>
-                    <div className="flex flex-col items-center">
-                      <div className="text-lg sm:text-xl mb-1">✅</div>
-                      <div className="text-base sm:text-lg font-bold">
-                        R${" "}
-                        {Number(
-                          relatorio.totais?.valorCartaoPixLiquidoLoja || 0,
-                        ).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                      </div>
-                      <div className="text-[10px] sm:text-xs opacity-80">
-                        Cartão / Pix (Líquido)
-                      </div>
-                    </div>
                   </div>
                 </div>
-                {/* Produtos que saíram */}
-                <div className="card bg-gradient-to-br from-red-500 to-red-600 text-white">
-                  <div className="text-2xl sm:text-3xl mb-2">📤</div>
-                  <div className="text-xl sm:text-2xl font-bold">
-                    {(relatorio.totais?.produtosSairam || 0).toLocaleString(
-                      "pt-BR",
-                    )}
-                  </div>
-                  <div className="text-xs sm:text-sm opacity-90">
-                    Produtos Saíram
-                  </div>
-                </div>
-                {/* Produtos que entraram */}
-                <div className="card bg-gradient-to-br from-green-500 to-green-600 text-white">
-                  <div className="text-2xl sm:text-3xl mb-2">📥</div>
-                  <div className="text-xl sm:text-2xl font-bold">
-                    {(relatorio.totais?.produtosEntraram || 0).toLocaleString(
-                      "pt-BR",
-                    )}
-                  </div>
-                  <div className="text-xs sm:text-sm opacity-90">
-                    Produtos Entraram
-                  </div>
-                </div>
-                {/* Lucro líquido das máquinas */}
+                {/* Valor Bruto das máquinas */}
                 <div className="card bg-gradient-to-br from-yellow-300 to-yellow-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">📉</div>
                   <div className="text-xl sm:text-2xl font-bold">
+                    R${" "}
+                    {(() => {
+                      if (
+                        relatorio.totais?.valorBrutoMaquinas !== undefined &&
+                        relatorio.totais?.valorBrutoMaquinas !== null
+                      ) {
+                        return Number(
+                          relatorio.totais?.valorBrutoMaquinas || 0,
+                        ).toLocaleString("pt-BR", {
+                          minimumFractionDigits: 2,
+                        });
+                      }
+
+                      let valorBrutoMaquinas = 0;
+                      if (relatorio.maquinas && relatorio.maquinas.length > 0) {
+                        relatorio.maquinas.forEach((m) => {
+                          valorBrutoMaquinas +=
+                            Number(m.totais?.dinheiro || 0) +
+                            Number(m.totais?.cartaoPix || 0);
+                        });
+                      }
+                      return valorBrutoMaquinas.toLocaleString("pt-BR", {
+                        minimumFractionDigits: 2,
+                      });
+                    })()}
+                  </div>
+                  <div className="text-xs sm:text-sm opacity-90">
+                    Valor bruto das máquinas
+                  </div>
+                </div>
+                {/* Lucro Bruto da Loja */}
+                <div className="card bg-gradient-to-br from-yellow-500 to-orange-600 text-white">
+                  <div className="text-2xl sm:text-3xl mb-2">💰</div>
+                  <div className="text-xl sm:text-2xl font-bold">
+                    R${" "}
+                    {(() => {
+                      if (
+                        relatorio.totais?.valorBrutoConsolidadoLojaMaquinas !==
+                          undefined &&
+                        relatorio.totais?.valorBrutoConsolidadoLojaMaquinas !==
+                          null
+                      ) {
+                        return Number(
+                          relatorio.totais?.valorBrutoConsolidadoLojaMaquinas ||
+                            0,
+                        ).toLocaleString("pt-BR", {
+                          minimumFractionDigits: 2,
+                        });
+                      }
+
+                      const valorTrocadora =
+                        Number(relatorio.totais?.valorDinheiroLoja || 0) +
+                        Number(relatorio.totais?.valorCartaoPixLoja || 0);
+                      let dinheiroMaquinas = 0;
+                      let cartaoPixMaquinasBruto = 0;
+                      if (relatorio.maquinas && relatorio.maquinas.length > 0) {
+                        relatorio.maquinas.forEach((m) => {
+                          dinheiroMaquinas += Number(m.totais?.dinheiro || 0);
+                          cartaoPixMaquinasBruto += Number(
+                            m.totais?.cartaoPix || 0,
+                          );
+                        });
+                      }
+                      const brutoMaquinas =
+                        dinheiroMaquinas + cartaoPixMaquinasBruto;
+                      return (valorTrocadora + brutoMaquinas).toLocaleString(
+                        "pt-BR",
+                        { minimumFractionDigits: 2 },
+                      );
+                    })()}
+                  </div>
+                  <div className="text-xs sm:text-sm opacity-90">
+                    Bruto Consolidado (Loja + Máquinas)
+                  </div>
+                </div>
+                <div className="card bg-gradient-to-br from-pink-500 to-fuchsia-700 text-white">
+                  <div className="text-2xl sm:text-3xl mb-2">💳</div>
+                  <div className="text-xl sm:text-2xl font-bold">
+                    {Number(
+                      relatorio.totais?.percentualTaxaCartaoMedia || 0,
+                    ).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    %
+                  </div>
+                  <div className="text-xs sm:text-sm opacity-90">
+                    Taxa Média de Cartão
+                  </div>
+                  <div className="text-[10px] sm:text-xs opacity-80 mt-1">
+                    R${" "}
+                    {Number(relatorio.totais?.taxaDeCartao || 0).toLocaleString(
+                      "pt-BR",
+                      { minimumFractionDigits: 2 },
+                    )}{" "}
+                    em taxas de cartão no período
+                  </div>
+                </div>
+                <div className="card bg-gradient-to-br from-cyan-500 to-blue-700 text-white">
+                  <div className="text-2xl sm:text-3xl mb-2">✅</div>
+                  <div className="text-xl sm:text-2xl font-bold">
+                    R${" "}
+                    {Number(
+                      relatorio.totais?.valorCartaoPixLiquidoLoja || 0,
+                    ).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-xs sm:text-sm opacity-90">
+                    Cartão / Pix Líquido (Loja)
+                  </div>
+                  <div className="text-xl sm:text-2xl font-bold mt-4">
                     R${" "}
                     {(() => {
                       if (
@@ -526,36 +597,44 @@ export function Relatorios() {
                     })()}
                   </div>
                   <div className="text-xs sm:text-sm opacity-90">
-                    Lucro Líquido das máquinas
-                  </div>
-                  <div className="text-[10px] sm:text-xs opacity-80 mt-1">
-                    Valor bruto: R${" "}
-                    {(() => {
-                      if (
-                        relatorio.totais?.valorBrutoMaquinas !== undefined &&
-                        relatorio.totais?.valorBrutoMaquinas !== null
-                      ) {
-                        return Number(
-                          relatorio.totais?.valorBrutoMaquinas || 0,
-                        ).toLocaleString("pt-BR", {
-                          minimumFractionDigits: 2,
-                        });
-                      }
-
-                      let valorBrutoMaquinas = 0;
-                      if (relatorio.maquinas && relatorio.maquinas.length > 0) {
-                        relatorio.maquinas.forEach((m) => {
-                          valorBrutoMaquinas +=
-                            Number(m.totais?.dinheiro || 0) +
-                            Number(m.totais?.cartaoPix || 0);
-                        });
-                      }
-                      return valorBrutoMaquinas.toLocaleString("pt-BR", {
-                        minimumFractionDigits: 2,
-                      });
-                    })()}
+                    Cartão / Pix Líquido (Máquinas)
                   </div>
                 </div>
+                {/* Produtos que entraram */}
+                <div className="card bg-gradient-to-br from-green-500 to-green-600 text-white">
+                  <div className="text-2xl sm:text-3xl mb-2">📥</div>
+                  <div className="text-xl sm:text-2xl font-bold">
+                    {(relatorio.totais?.produtosEntraram || 0).toLocaleString(
+                      "pt-BR",
+                    )}
+                  </div>
+                  <div className="text-xs sm:text-sm opacity-90">
+                    Produtos Entraram
+                  </div>
+                </div>
+                <div className="card bg-gradient-to-br from-indigo-500 to-indigo-700 text-white">
+                  <div className="text-2xl sm:text-3xl mb-2">🎯</div>
+                  <div className="text-xl sm:text-2xl font-bold">
+                    R${" "}
+                    {Number(
+                      relatorio.totais?.ticketPorPremioTotal || 0,
+                    ).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-xs sm:text-sm opacity-90">
+                    Ticket por Prêmio (Total)
+                  </div>
+                  <div className="text-[10px] sm:text-xs opacity-80 mt-1">
+                    Fórmula: Faturamento Bruto ÷ Produtos Saíram
+                  </div>
+                  <div className="text-[10px] sm:text-xs opacity-80 mt-1">
+                    {`R$ ${Number(
+                      relatorio.totais?.valorTotalLojaBruto || 0,
+                    ).toLocaleString("pt-BR", {
+                      minimumFractionDigits: 2,
+                    })} / ${(relatorio.totais?.produtosSairam || 0).toLocaleString("pt-BR")} saídas`}
+                  </div>
+                </div>
+
                 {/* Custo total de produtos */}
                 <div className="card bg-gradient-to-br from-yellow-100 to-yellow-400 text-yellow-900 border-yellow-400 border-2">
                   <div className="text-2xl sm:text-3xl mb-2">💸</div>
@@ -577,6 +656,15 @@ export function Relatorios() {
                   </div>
                   <div className="text-xs sm:text-sm opacity-90">
                     Custo total de produtos
+                  </div>
+                  <div className="text-2xl sm:text-3xl mb-2">📤</div>
+                  <div className="text-xl sm:text-2xl font-bold">
+                    {(relatorio.totais?.produtosSairam || 0).toLocaleString(
+                      "pt-BR",
+                    )}
+                  </div>
+                  <div className="text-xs sm:text-sm opacity-90">
+                    Produtos Saíram
                   </div>
                 </div>
                 <div className="card bg-gradient-to-br from-fuchsia-500 to-purple-700 text-white">
@@ -633,82 +721,6 @@ export function Relatorios() {
                     Gasto Total
                   </div>
                 </div>
-                <div className="card bg-gradient-to-br from-pink-500 to-fuchsia-700 text-white">
-                  <div className="text-2xl sm:text-3xl mb-2">💳</div>
-                  <div className="text-xl sm:text-2xl font-bold">
-                    {Number(
-                      relatorio.totais?.percentualTaxaCartaoMedia || 0,
-                    ).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                    %
-                  </div>
-                  <div className="text-xs sm:text-sm opacity-90">
-                    Taxa Média de Cartão
-                  </div>
-                  <div className="text-[10px] sm:text-xs opacity-80 mt-1">
-                    R${" "}
-                    {Number(relatorio.totais?.taxaDeCartao || 0).toLocaleString(
-                      "pt-BR",
-                      { minimumFractionDigits: 2 },
-                    )}
-                  </div>
-                </div>
-                <div className="card bg-gradient-to-br from-cyan-500 to-blue-700 text-white">
-                  <div className="text-2xl sm:text-3xl mb-2">✅</div>
-                  <div className="text-xl sm:text-2xl font-bold">
-                    R${" "}
-                    {Number(
-                      relatorio.totais?.valorCartaoPixLiquidoLoja || 0,
-                    ).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                  </div>
-                  <div className="text-xs sm:text-sm opacity-90">
-                    Cartão / Pix Líquido
-                  </div>
-                </div>
-                {/* Lucro Bruto da Loja */}
-                <div className="card bg-gradient-to-br from-yellow-500 to-orange-600 text-white">
-                  <div className="text-2xl sm:text-3xl mb-2">💰</div>
-                  <div className="text-xl sm:text-2xl font-bold">
-                    R${" "}
-                    {(() => {
-                      if (
-                        relatorio.totais?.valorBrutoConsolidadoLojaMaquinas !==
-                          undefined &&
-                        relatorio.totais?.valorBrutoConsolidadoLojaMaquinas !==
-                          null
-                      ) {
-                        return Number(
-                          relatorio.totais?.valorBrutoConsolidadoLojaMaquinas ||
-                            0,
-                        ).toLocaleString("pt-BR", {
-                          minimumFractionDigits: 2,
-                        });
-                      }
-
-                      const valorTrocadora =
-                        Number(relatorio.totais?.valorDinheiroLoja || 0) +
-                        Number(relatorio.totais?.valorCartaoPixLoja || 0);
-                      let dinheiroMaquinas = 0;
-                      let cartaoPixMaquinasBruto = 0;
-                      if (relatorio.maquinas && relatorio.maquinas.length > 0) {
-                        relatorio.maquinas.forEach((m) => {
-                          dinheiroMaquinas += Number(m.totais?.dinheiro || 0);
-                          cartaoPixMaquinasBruto += Number(
-                            m.totais?.cartaoPix || 0,
-                          );
-                        });
-                      }
-                      const brutoMaquinas =
-                        dinheiroMaquinas + cartaoPixMaquinasBruto;
-                      return (valorTrocadora + brutoMaquinas).toLocaleString(
-                        "pt-BR",
-                        { minimumFractionDigits: 2 },
-                      );
-                    })()}
-                  </div>
-                  <div className="text-xs sm:text-sm opacity-90">
-                    Bruto Consolidado (Loja + Máquinas)
-                  </div>
-                </div>
                 <div className="card bg-gradient-to-br from-emerald-600 to-green-800 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">📉</div>
                   <div className="text-xl sm:text-2xl font-bold">
@@ -760,28 +772,6 @@ export function Relatorios() {
                   </div>
                   <div className="text-xs sm:text-sm opacity-90">
                     Lucro Líquido
-                  </div>
-                </div>
-                <div className="card bg-gradient-to-br from-indigo-500 to-indigo-700 text-white">
-                  <div className="text-2xl sm:text-3xl mb-2">🎯</div>
-                  <div className="text-xl sm:text-2xl font-bold">
-                    R${" "}
-                    {Number(
-                      relatorio.totais?.ticketPorPremioTotal || 0,
-                    ).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                  </div>
-                  <div className="text-xs sm:text-sm opacity-90">
-                    Ticket por Prêmio (Total)
-                  </div>
-                  <div className="text-[10px] sm:text-xs opacity-80 mt-1">
-                    Fórmula: Faturamento Bruto ÷ Produtos Saíram
-                  </div>
-                  <div className="text-[10px] sm:text-xs opacity-80 mt-1">
-                    {`R$ ${Number(
-                      relatorio.totais?.valorTotalLojaBruto || 0,
-                    ).toLocaleString("pt-BR", {
-                      minimumFractionDigits: 2,
-                    })} / ${(relatorio.totais?.produtosSairam || 0).toLocaleString("pt-BR")} saídas`}
                   </div>
                 </div>
               </div>
