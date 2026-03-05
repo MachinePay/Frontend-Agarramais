@@ -28,42 +28,37 @@ export function Graficos() {
   const [lojaSelecionada, setLojaSelecionada] = useState("");
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
+  const [dadosGraficos, setDadosGraficos] = useState(null);
   const [dadosDashboard, setDadosDashboard] = useState(null);
   const [dadosImpressao, setDadosImpressao] = useState(null);
   const [erro, setErro] = useState("");
 
-  const totaisDashboard = dadosDashboard?.totais || {};
-  const totaisImpressao = dadosImpressao?.totais || {};
+  const totaisGerais = useMemo(
+    () => dadosGraficos?.totaisGerais || {},
+    [dadosGraficos],
+  );
 
   const faturamentoTotal = useMemo(() => {
     return (
-      Number(totaisDashboard?.faturamento || 0) ||
-      Number(totaisImpressao?.valorTotalLojaBruto || 0)
+      Number(totaisGerais.dinheiro || 0) + Number(totaisGerais.cartaoPix || 0)
     );
-  }, [totaisDashboard, totaisImpressao]);
+  }, [totaisGerais]);
 
   const custoTotalPeriodo = useMemo(() => {
-    return Number(totaisImpressao?.gastoTotalPeriodo || 0);
-  }, [totaisImpressao]);
+    return Number(totaisGerais.gastoTotal || 0);
+  }, [totaisGerais]);
 
   const lucroLiquido = useMemo(() => {
-    if (totaisImpressao?.valorTotalLojaLiquido !== undefined) {
-      return Number(totaisImpressao.valorTotalLojaLiquido || 0);
-    }
-
-    return Number(totaisDashboard?.lucro || 0);
-  }, [totaisDashboard, totaisImpressao]);
+    return faturamentoTotal - custoTotalPeriodo;
+  }, [faturamentoTotal, custoTotalPeriodo]);
 
   const margemLucro = useMemo(() => {
     if (!faturamentoTotal) return 0;
     return (lucroLiquido / faturamentoTotal) * 100;
   }, [faturamentoTotal, lucroLiquido]);
 
-  const ticketMedioPremio = useMemo(() => {
-    const totalSaidas = Number(totaisDashboard?.saidas || 0);
-    if (!totalSaidas) return 0;
-    return faturamentoTotal / totalSaidas;
-  }, [totaisDashboard, faturamentoTotal]);
+  // Exemplo: pode adaptar para ticket médio se houver dados de saídas
+  const ticketMedioPremio = useMemo(() => 0, []);
 
   const indiceCusto = useMemo(() => {
     if (!faturamentoTotal) return 0;
@@ -75,34 +70,26 @@ export function Graficos() {
       [
         {
           nome: "Produtos",
-          valor: Number(totaisImpressao?.gastoProdutosTotalPeriodo || 0),
+          valor: Number(totaisGerais.gastoProdutos || 0),
         },
         {
           nome: "Fixos",
-          valor: Number(totaisImpressao?.gastoFixoTotalPeriodo || 0),
+          valor: Number(totaisGerais.gastoFixo || 0),
         },
         {
           nome: "Variáveis",
-          valor: Number(totaisImpressao?.gastoVariavelTotalPeriodo || 0),
+          valor: Number(totaisGerais.gastoVariavel || 0),
         },
       ].filter((item) => item.valor > 0),
-    [totaisImpressao],
+    [totaisGerais],
   );
 
   const recebimentos = useMemo(() => {
-    const dinheiroImpressao = Number(totaisImpressao?.valorDinheiroLoja || 0);
-    const dinheiroDashboard = Number(totaisDashboard?.dinheiro || 0);
-    const cartaoPixImpressao = Number(totaisImpressao?.valorCartaoPixLoja || 0);
-    const pixDashboard = Number(totaisDashboard?.pix || 0);
-
-    const dinheiro = Math.max(dinheiroImpressao, dinheiroDashboard);
-    const cartaoPix = Math.max(cartaoPixImpressao, pixDashboard);
-
     return [
-      { metodo: "Dinheiro", valor: dinheiro },
-      { metodo: "Cartão/Pix", valor: cartaoPix },
+      { metodo: "Dinheiro", valor: Number(totaisGerais.dinheiro || 0) },
+      { metodo: "Cartão/Pix", valor: Number(totaisGerais.cartaoPix || 0) },
     ];
-  }, [totaisImpressao, totaisDashboard]);
+  }, [totaisGerais]);
 
   const fluxoProdutos = useMemo(() => {
     const mapa = new Map();
@@ -218,35 +205,33 @@ export function Graficos() {
     }
 
     return serieDiaria;
-  }, [
-    dadosDashboard,
-    faturamentoTotal,
-    custoTotalPeriodo,
-    dataInicio,
-    dataFim,
-  ]);
+  }, [dadosDashboard, dataInicio, dataFim]);
 
   useEffect(() => {
-    carregarLojas();
+    // Inicializa datas padrão (últimos 30 dias)
     const hoje = new Date();
     const trintaDiasAtras = new Date();
     trintaDiasAtras.setDate(hoje.getDate() - 30);
     setDataFim(hoje.toISOString().split("T")[0]);
     setDataInicio(trintaDiasAtras.toISOString().split("T")[0]);
+
+    // Carregar lojas
+    setLoading(true);
+    api
+      .get("/lojas")
+      .then((res) => {
+        setLojas(res.data || []);
+        if (res.data && res.data.length > 0) {
+          setLojaSelecionada(res.data[0].id);
+        }
+      })
+      .catch(() => {
+        setErro("Erro ao carregar lista de lojas.");
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  const carregarLojas = async () => {
-    try {
-      const response = await api.get("/lojas");
-      setLojas(response.data || []);
-      if (response.data && response.data.length > 0) {
-        setLojaSelecionada(response.data[0].id);
-      }
-    } catch (error) {
-      console.error("Erro ao carregar lojas:", error);
-      setErro("Erro ao carregar lista de lojas.");
-    }
-  };
+  // Removido: carregarLojas não é utilizado
 
   const carregarDados = useCallback(async () => {
     if (!lojaSelecionada || !dataInicio || !dataFim) return;
@@ -302,7 +287,31 @@ export function Graficos() {
       currency: "BRL",
     }).format(val || 0);
 
-  const dadosDisponiveis = Boolean(dadosDashboard || dadosImpressao);
+  const dadosDisponiveis = Boolean(
+    dadosGraficos && lojaSelecionada && dataInicio && dataFim,
+  );
+  useEffect(() => {
+    if (!lojaSelecionada || !dataInicio || !dataFim) return;
+    setLoading(true);
+    const token = localStorage.getItem("token");
+    api
+      .get("/graficos/dashboard", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        params: {
+          lojaId: lojaSelecionada,
+          dataInicio,
+          dataFim,
+        },
+      })
+      .then((res) => {
+        setDadosGraficos(res.data);
+        setErro("");
+      })
+      .catch(() => {
+        setErro("Erro ao carregar dados dos gráficos");
+      })
+      .finally(() => setLoading(false));
+  }, [lojaSelecionada, dataInicio, dataFim]);
 
   if (loading && !dadosDisponiveis) return <PageLoader />;
 
@@ -376,7 +385,7 @@ export function Graficos() {
 
         {dadosDisponiveis && (
           <div className="space-y-8 animate-fade-in">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-8 gap-6">
+            <div className="flex flex-wrap gap-6">
               <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-green-500">
                 <div className="flex justify-between items-start">
                   <div>
@@ -454,7 +463,7 @@ export function Graficos() {
                       Prêmios Entregues
                     </p>
                     <h3 className="text-2xl font-bold text-gray-900 mt-1">
-                      {Number(totaisDashboard?.saidas || 0)}
+                      {Number(totaisGerais?.saidas || 0)}
                     </h3>
                   </div>
                   <span className="p-2 bg-orange-100 text-orange-600 rounded-lg text-xl">
@@ -470,7 +479,7 @@ export function Graficos() {
                       Total Fichas
                     </p>
                     <h3 className="text-2xl font-bold text-gray-900 mt-1">
-                      {Number(totaisDashboard?.fichas || 0)}
+                      {Number(totaisGerais?.fichas || 0)}
                     </h3>
                   </div>
                   <span className="p-2 bg-purple-100 text-purple-600 rounded-lg text-xl">
@@ -479,10 +488,10 @@ export function Graficos() {
                 </div>
                 <div className="mt-3 text-xs text-gray-500">
                   Média:{" "}
-                  {Number(totaisDashboard?.saidas || 0) > 0
+                  {Number(totaisGerais?.saidas || 0) > 0
                     ? (
-                        Number(totaisDashboard?.fichas || 0) /
-                        Number(totaisDashboard?.saidas || 0)
+                        Number(totaisGerais?.fichas || 0) /
+                        Number(totaisGerais?.saidas || 0)
                       ).toFixed(1)
                     : "0.0"}{" "}
                   fichas/prêmio
