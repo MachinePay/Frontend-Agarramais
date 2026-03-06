@@ -5,6 +5,42 @@ const formatarMoeda = (valor) =>
 
 const formatarPercentual = (valor) => `${Number(valor || 0).toFixed(2)}%`;
 
+const formatarPercentualComparacao = (valor) =>
+  Number(valor || 0).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+const formatarDataExibicao = (dataTexto) => {
+  const [ano, mes, dia] = String(dataTexto || "").split("-");
+  if (!ano || !mes || !dia) return dataTexto || "-";
+  return `${dia}/${mes}/${ano}`;
+};
+
+const obterClassesStatusComparacao = (status) => {
+  if (status === "melhor") {
+    return {
+      card: "bg-emerald-50 border-emerald-300",
+      texto: "text-emerald-700",
+      icone: "▲",
+    };
+  }
+
+  if (status === "pior") {
+    return {
+      card: "bg-red-50 border-red-300",
+      texto: "text-red-700",
+      icone: "▼",
+    };
+  }
+
+  return {
+    card: "bg-slate-50 border-slate-300",
+    texto: "text-slate-700",
+    icone: "●",
+  };
+};
+
 const calcularLargura = (valor, maximo) => {
   if (!maximo || maximo <= 0) return "0%";
   const percentual = (Number(valor || 0) / maximo) * 100;
@@ -62,6 +98,7 @@ export function RelatorioTodasLojas({ relatorio }) {
   const totais = relatorio?.totais || {};
   const destaques = relatorio?.destaques || {};
   const graficos = relatorio?.graficos || {};
+  const comparativoMensal = relatorio?.comparativoMensal || null;
   const cartaoPixLiquidoTotal =
     totais.cartaoPixLiquidoTotal ??
     Number(totais.cartaoPixTotal || 0) - Number(totais.taxaDeCartaoTotal || 0);
@@ -137,6 +174,96 @@ export function RelatorioTodasLojas({ relatorio }) {
           </p>
         )}
       </div>
+
+      {comparativoMensal && (
+        <div className="card bg-gradient-to-r from-slate-50 to-indigo-50 border-2 border-indigo-200">
+          <h4 className="text-lg sm:text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+            <span className="text-2xl sm:text-3xl">📈</span>
+            Comparativo com o Mês Passado (mesmos dias)
+          </h4>
+          <p className="text-xs sm:text-sm text-gray-700 mb-4">
+            Atual:{" "}
+            {formatarDataExibicao(comparativoMensal.periodoAtual?.inicio)} até{" "}
+            {formatarDataExibicao(comparativoMensal.periodoAtual?.fim)} | Mês
+            passado:{" "}
+            {formatarDataExibicao(comparativoMensal.periodoAnterior?.inicio)}{" "}
+            até {formatarDataExibicao(comparativoMensal.periodoAnterior?.fim)}
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            {(comparativoMensal.metricas || []).map((metrica) => {
+              const indicador = metrica.indicador || {};
+              const classes = obterClassesStatusComparacao(indicador.status);
+
+              const sinalPercentual =
+                indicador.percentual > 0.0001
+                  ? "+"
+                  : indicador.percentual < -0.0001
+                    ? "-"
+                    : "";
+
+              const sinalDiferenca =
+                indicador.diferenca > 0.0001
+                  ? "+"
+                  : indicador.diferenca < -0.0001
+                    ? "-"
+                    : "";
+
+              const textoStatus =
+                indicador.status === "melhor"
+                  ? "Melhor"
+                  : indicador.status === "pior"
+                    ? "Pior"
+                    : "Igual";
+
+              return (
+                <div
+                  key={metrica.chave}
+                  className={`rounded-xl border-2 p-4 ${classes.card}`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <h5 className="font-bold text-gray-900 text-sm sm:text-base">
+                      {metrica.icone} {metrica.titulo}
+                    </h5>
+                    <span className={`text-xs font-bold ${classes.texto}`}>
+                      {classes.icone} {textoStatus}
+                    </span>
+                  </div>
+
+                  <p className={`text-sm font-bold mt-2 ${classes.texto}`}>
+                    {sinalPercentual}
+                    {formatarPercentualComparacao(
+                      Math.abs(indicador.percentual || 0),
+                    )}
+                    %{" "}
+                    {indicador.direcao === "igual"
+                      ? "igual ao"
+                      : `${indicador.direcao} do`}{" "}
+                    mês passado
+                  </p>
+
+                  <p className="text-xs text-gray-700 mt-2">
+                    Atual: {formatarMoeda(indicador.atual)}
+                  </p>
+                  <p className="text-xs text-gray-700">
+                    Mês passado: {formatarMoeda(indicador.anterior)}
+                  </p>
+                  <p className={`text-xs font-semibold mt-1 ${classes.texto}`}>
+                    Diferença: {sinalDiferenca}
+                    {formatarMoeda(Math.abs(indicador.diferenca || 0))}
+                  </p>
+
+                  {metrica.observacao && (
+                    <p className="text-[10px] sm:text-xs text-gray-600 mt-2">
+                      {metrica.observacao}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <div className="card bg-linear-to-br from-emerald-500 to-green-700 text-white">
