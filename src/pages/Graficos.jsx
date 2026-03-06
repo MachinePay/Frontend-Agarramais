@@ -186,7 +186,9 @@ export function Graficos() {
           if (isTodas) {
             return api.get("/relatorios/todas-lojas", { params });
           } else {
-            return api.get("/relatorios/dashboard", { params: { ...params, lojaId: lojaSelecionada } });
+            // ⚠️ Usa /impressao porque é a fonte correta do faturamento consolidado
+            // (valorBrutoConsolidadoLojaMaquinas = trocadora + máquinas via RegistroDinheiro)
+            return api.get("/relatorios/impressao", { params: { ...params, lojaId: lojaSelecionada } });
           }
         })
       );
@@ -205,9 +207,14 @@ export function Graficos() {
           custo = toN(data?.totais?.custoTotal);
           lucro = toN(data?.totais?.lucroLiquidoTotal);
         } else {
-          fat   = toN(data?.totais?.faturamento);
-          custo = toN(data?.totais?.custoTotal);
-          lucro = toN(data?.totais?.lucro);
+          // Campos exatos de gerarRelatorioImpressaoPorLoja → totais:
+          // valorBrutoConsolidadoLojaMaquinas = faturamento bruto real (trocadora + máquinas)
+          // gastoTotalPeriodo                 = custo total (produtos + fixo + variável)
+          // valorLiquidoConsolidadoLojaMaquinas = lucro líquido (bruto - gastos)
+          const t = data?.totais || {};
+          fat   = toN(t.valorBrutoConsolidadoLojaMaquinas);
+          custo = toN(t.gastoTotalPeriodo);
+          lucro = toN(t.valorLiquidoConsolidadoLojaMaquinas);
         }
         return { mes, nome, faturamento: fat, custo, lucro, variacaoMes: null, semDados: false };
       });
