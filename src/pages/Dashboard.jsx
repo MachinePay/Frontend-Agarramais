@@ -357,7 +357,7 @@ export function Dashboard() {
             })
             .catch((err) => {
               console.error(
-                "Erro ao carregar lucro do mês atual para comparação:",
+                "Erro ao carregar faturamento do mês atual para comparação:",
                 err.message,
               );
               return { data: null };
@@ -371,7 +371,7 @@ export function Dashboard() {
             })
             .catch((err) => {
               console.error(
-                "Erro ao carregar lucro do mês anterior para comparação:",
+                "Erro ao carregar faturamento do mês anterior para comparação:",
                 err.message,
               );
               return { data: null };
@@ -389,8 +389,8 @@ export function Dashboard() {
 
       const resultados = await Promise.all(requisicoes);
 
-      let lucroMesAtualRes,
-        lucroMesAnteriorRes,
+      let faturamentoMesAtualRes,
+        faturamentoMesAnteriorRes,
         alertasRes,
         balancoRes,
         lojasRes,
@@ -401,8 +401,8 @@ export function Dashboard() {
 
       if (isAdmin) {
         [
-          lucroMesAtualRes,
-          lucroMesAnteriorRes,
+          faturamentoMesAtualRes,
+          faturamentoMesAnteriorRes,
           alertasRes,
           balancoRes,
           lojasRes,
@@ -410,22 +410,23 @@ export function Dashboard() {
           produtosRes,
         ] = resultados;
 
-        const lucroMesAtual = Number(
-          lucroMesAtualRes?.data?.totais?.lucro || 0,
+        const faturamentoMesAtual = Number(
+          faturamentoMesAtualRes?.data?.totais?.faturamento || 0,
         );
-        const lucroMesAnterior = Number(
-          lucroMesAnteriorRes?.data?.totais?.lucro || 0,
+        const faturamentoMesAnterior = Number(
+          faturamentoMesAnteriorRes?.data?.totais?.faturamento || 0,
         );
-        const diferencaLucro = lucroMesAtual - lucroMesAnterior;
+        const diferencaFaturamento =
+          faturamentoMesAtual - faturamentoMesAnterior;
         const percentualVariacao =
-          Math.abs(lucroMesAnterior) > 0
-            ? (diferencaLucro / Math.abs(lucroMesAnterior)) * 100
+          Math.abs(faturamentoMesAnterior) > 0
+            ? (diferencaFaturamento / Math.abs(faturamentoMesAnterior)) * 100
             : null;
 
         comparativoLucroMensal = {
-          lucroMesAtual,
-          lucroMesAnterior,
-          diferencaLucro,
+          valorMesAtual: faturamentoMesAtual,
+          valorMesAnterior: faturamentoMesAnterior,
+          diferenca: diferencaFaturamento,
           percentualVariacao,
           diaComparacao: periodoComparacaoMensal?.diaComparacao,
           nomeMesAnterior: periodoComparacaoMensal?.nomeMesAnterior,
@@ -1371,9 +1372,9 @@ export function Dashboard() {
   const comparativoLucroMensal = stats.comparativoLucroMensal;
   const statusComparativoLucro = !comparativoLucroMensal
     ? "igual"
-    : comparativoLucroMensal.diferencaLucro > 0
+    : comparativoLucroMensal.diferenca > 0
       ? "acima"
-      : comparativoLucroMensal.diferencaLucro < 0
+      : comparativoLucroMensal.diferenca < 0
         ? "abaixo"
         : "igual";
 
@@ -1404,7 +1405,7 @@ export function Dashboard() {
 
   const textoDiferencaLucro = !comparativoLucroMensal
     ? "R$ 0,00"
-    : `${comparativoLucroMensal.diferencaLucro >= 0 ? "+" : "-"}R$ ${formatarMoeda(Math.abs(comparativoLucroMensal.diferencaLucro || 0))}`;
+    : `${comparativoLucroMensal.diferenca >= 0 ? "+" : "-"}R$ ${formatarMoeda(Math.abs(comparativoLucroMensal.diferenca || 0))}`;
 
   const classeTextoDiferencaLucro =
     statusComparativoLucro === "acima"
@@ -1497,11 +1498,11 @@ export function Dashboard() {
                         <span>{textoPercentualComparativoLucro}</span>
                       </span>
                       <p className="text-xs opacity-90 mt-2">
-                        Até o dia {comparativoLucroMensal.diaComparacao}: lucro
-                        atual R${" "}
-                        {formatarMoeda(comparativoLucroMensal.lucroMesAtual)} vs
+                        Até o dia {comparativoLucroMensal.diaComparacao}:
+                        faturamento atual R${" "}
+                        {formatarMoeda(comparativoLucroMensal.valorMesAtual)} vs
                         R${" "}
-                        {formatarMoeda(comparativoLucroMensal.lucroMesAnterior)}{" "}
+                        {formatarMoeda(comparativoLucroMensal.valorMesAnterior)}{" "}
                         em {mesAnteriorComparacao}.
                       </p>
                       <p

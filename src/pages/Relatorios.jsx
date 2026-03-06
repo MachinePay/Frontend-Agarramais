@@ -19,6 +19,7 @@ export function Relatorios() {
   const [relatorio, setRelatorio] = useState(null);
   const [error, setError] = useState("");
   const [gastosFixosLoja, setGastosFixosLoja] = useState([]);
+  const [comparativoMensal, setComparativoMensal] = useState(null);
 
   // Buscar dados do dashboard para fichas corretas
   const carregarDashboard = async (lojaId, dataInicio, dataFim) => {
@@ -64,6 +65,182 @@ export function Relatorios() {
     }
   };
 
+  const formatarDataISO = (data) => {
+    const ano = data.getFullYear();
+    const mes = String(data.getMonth() + 1).padStart(2, "0");
+    const dia = String(data.getDate()).padStart(2, "0");
+    return `${ano}-${mes}-${dia}`;
+  };
+
+  const obterMesmoDiaNoMesAnterior = (dataTexto) => {
+    const dataBase = new Date(`${dataTexto}T00:00:00`);
+    if (Number.isNaN(dataBase.getTime())) return dataTexto;
+
+    const ano = dataBase.getFullYear();
+    const mes = dataBase.getMonth();
+    const dia = dataBase.getDate();
+    const ultimoDiaMesAnterior = new Date(ano, mes, 0).getDate();
+    const diaAjustado = Math.min(dia, ultimoDiaMesAnterior);
+
+    return formatarDataISO(new Date(ano, mes - 1, diaAjustado));
+  };
+
+  const toNumber = (valor) => Number(valor || 0);
+
+  const calcularValorFichasRelatorio = (dadosRelatorio) => {
+    const totalFichas = toNumber(dadosRelatorio?.totais?.fichas);
+    const valorFicha = toNumber(dadosRelatorio?.loja?.valorFichaPadrao || 2.5);
+    return totalFichas * valorFicha;
+  };
+
+  const calcularValorConsolidadoRelatorio = (dadosRelatorio) => {
+    if (
+      dadosRelatorio?.totais?.valorBrutoConsolidadoLojaMaquinas !== undefined &&
+      dadosRelatorio?.totais?.valorBrutoConsolidadoLojaMaquinas !== null
+    ) {
+      return toNumber(dadosRelatorio.totais.valorBrutoConsolidadoLojaMaquinas);
+    }
+
+    const valorTrocadora =
+      toNumber(dadosRelatorio?.totais?.valorDinheiroLoja) +
+      toNumber(dadosRelatorio?.totais?.valorCartaoPixLoja);
+
+    const valorBrutoMaquinas = Array.isArray(dadosRelatorio?.maquinas)
+      ? dadosRelatorio.maquinas.reduce(
+          (acc, maquina) =>
+            acc +
+            toNumber(maquina?.totais?.dinheiro) +
+            toNumber(maquina?.totais?.cartaoPix),
+          0,
+        )
+      : 0;
+
+    return valorTrocadora + valorBrutoMaquinas;
+  };
+
+  const calcularLucroLiquidoRelatorio = (dadosRelatorio) => {
+    if (
+      dadosRelatorio?.totais?.valorLiquidoConsolidadoLojaMaquinas !==
+        undefined &&
+      dadosRelatorio?.totais?.valorLiquidoConsolidadoLojaMaquinas !== null
+    ) {
+      return toNumber(
+        dadosRelatorio.totais.valorLiquidoConsolidadoLojaMaquinas,
+      );
+    }
+
+    const valorTrocadoraLiquido =
+      toNumber(dadosRelatorio?.totais?.valorDinheiroLoja) +
+      toNumber(dadosRelatorio?.totais?.valorCartaoPixLiquidoLoja);
+
+    const valorLiquidoMaquinas = Array.isArray(dadosRelatorio?.maquinas)
+      ? dadosRelatorio.maquinas.reduce(
+          (acc, maquina) =>
+            acc +
+            toNumber(maquina?.totais?.dinheiro) +
+            toNumber(maquina?.totais?.cartaoPixLiquido),
+          0,
+        )
+      : 0;
+
+    const gastoTotal = toNumber(dadosRelatorio?.totais?.gastoTotalPeriodo);
+    return valorTrocadoraLiquido + valorLiquidoMaquinas - gastoTotal;
+  };
+
+  const calcularCustoSaidaProdutosRelatorio = (dadosRelatorio) => {
+    if (
+      Array.isArray(dadosRelatorio?.maquinas) &&
+      dadosRelatorio.maquinas.length
+    ) {
+      return dadosRelatorio.maquinas.reduce(
+        (acc, maquina) => acc + toNumber(maquina?.totais?.custoProdutosSairam),
+        0,
+      );
+    }
+
+    return toNumber(dadosRelatorio?.totais?.gastoProdutosTotalPeriodo);
+  };
+
+  const montarIndicadorComparacao = (
+    valorAtual,
+    valorAnterior,
+    melhorQuando = "maior",
+  ) => {
+    const atual = toNumber(valorAtual);
+    const anterior = toNumber(valorAnterior);
+    const diferenca = atual - anterior;
+
+    let percentual = 0;
+    if (Math.abs(anterior) > 0.0001) {
+      percentual = (diferenca / Math.abs(anterior)) * 100;
+    } else if (Math.abs(atual) > 0.0001) {
+      percentual = 100;
+    }
+
+    const direcao =
+      diferenca > 0.0001 ? "acima" : diferenca < -0.0001 ? "abaixo" : "igual";
+
+    let status = "igual";
+    if (direcao !== "igual") {
+      if (melhorQuando === "menor") {
+        status = diferenca < 0 ? "melhor" : "pior";
+      } else {
+        status = diferenca > 0 ? "melhor" : "pior";
+      }
+    }
+
+    return {
+      atual,
+      anterior,
+      diferenca,
+      percentual,
+      direcao,
+      status,
+    };
+  };
+
+  const formatarMoeda = (valor) =>
+    Number(valor || 0).toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+  const formatarPercentualComparacao = (valor) =>
+    Number(valor || 0).toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+  const formatarDataExibicao = (dataTexto) => {
+    const [ano, mes, dia] = String(dataTexto || "").split("-");
+    if (!ano || !mes || !dia) return dataTexto || "-";
+    return `${dia}/${mes}/${ano}`;
+  };
+
+  const obterClassesStatusComparacao = (status) => {
+    if (status === "melhor") {
+      return {
+        card: "bg-emerald-50 border-emerald-300",
+        texto: "text-emerald-700",
+        icone: "▲",
+      };
+    }
+
+    if (status === "pior") {
+      return {
+        card: "bg-red-50 border-red-300",
+        texto: "text-red-700",
+        icone: "▼",
+      };
+    }
+
+    return {
+      card: "bg-slate-50 border-slate-300",
+      texto: "text-slate-700",
+      icone: "●",
+    };
+  };
+
   const gerarRelatorio = async () => {
     if (!lojaSelecionada || !dataInicio || !dataFim) {
       setError("Por favor, preencha todos os campos");
@@ -85,6 +262,7 @@ export function Relatorios() {
       setRelatorio(null); // Limpar relatório anterior
       setDashboard(null);
       setGastosFixosLoja([]);
+      setComparativoMensal(null);
 
       if (lojaSelecionada === TODAS_LOJAS_VALUE) {
         const response = await api.get("/relatorios/todas-lojas", {
@@ -96,6 +274,7 @@ export function Relatorios() {
 
         setRelatorio(response.data);
         setGastosFixosLoja([]);
+        setComparativoMensal(null);
 
         return;
       }
@@ -197,6 +376,114 @@ export function Relatorios() {
         gastoTotalDoRegistrar ??
         Number(response.data?.totais?.gastoTotalPeriodo || 0);
 
+      const relatorioAtualNormalizado = {
+        ...response.data,
+        totais: {
+          ...(response.data?.totais || {}),
+          gastoTotalPeriodo: gastoTotalFinal,
+        },
+      };
+
+      let comparativoCalculado = null;
+      try {
+        const dataInicioMesAnterior = obterMesmoDiaNoMesAnterior(dataInicio);
+        const dataFimMesAnterior = obterMesmoDiaNoMesAnterior(dataFim);
+
+        const responseMesAnterior = await api.get("/relatorios/impressao", {
+          params: {
+            lojaId: lojaSelecionada,
+            dataInicio: dataInicioMesAnterior,
+            dataFim: dataFimMesAnterior,
+          },
+        });
+
+        const relatorioMesAnterior = responseMesAnterior.data;
+
+        if (relatorioMesAnterior) {
+          const lucroLiquidoAtual = calcularLucroLiquidoRelatorio(
+            relatorioAtualNormalizado,
+          );
+          const lucroLiquidoAnterior =
+            calcularLucroLiquidoRelatorio(relatorioMesAnterior);
+
+          const valorFichasAtual = calcularValorFichasRelatorio(
+            relatorioAtualNormalizado,
+          );
+          const valorFichasAnterior =
+            calcularValorFichasRelatorio(relatorioMesAnterior);
+
+          const valorConsolidadoAtual = calcularValorConsolidadoRelatorio(
+            relatorioAtualNormalizado,
+          );
+          const valorConsolidadoAnterior =
+            calcularValorConsolidadoRelatorio(relatorioMesAnterior);
+
+          const custoSaidaAtual = calcularCustoSaidaProdutosRelatorio(
+            relatorioAtualNormalizado,
+          );
+          const custoSaidaAnterior =
+            calcularCustoSaidaProdutosRelatorio(relatorioMesAnterior);
+
+          comparativoCalculado = {
+            periodoAtual: {
+              inicio: dataInicio,
+              fim: dataFim,
+            },
+            periodoAnterior: {
+              inicio: dataInicioMesAnterior,
+              fim: dataFimMesAnterior,
+            },
+            metricas: [
+              {
+                chave: "lucroLiquido",
+                titulo: "Lucro Líquido",
+                icone: "📉",
+                indicador: montarIndicadorComparacao(
+                  lucroLiquidoAtual,
+                  lucroLiquidoAnterior,
+                  "maior",
+                ),
+              },
+              {
+                chave: "valorFichas",
+                titulo: "Valor das Fichas",
+                icone: "🎟️",
+                indicador: montarIndicadorComparacao(
+                  valorFichasAtual,
+                  valorFichasAnterior,
+                  "maior",
+                ),
+              },
+              {
+                chave: "valorConsolidado",
+                titulo: "Valor Consolidado",
+                icone: "💰",
+                indicador: montarIndicadorComparacao(
+                  valorConsolidadoAtual,
+                  valorConsolidadoAnterior,
+                  "maior",
+                ),
+              },
+              {
+                chave: "custoSaidaProdutos",
+                titulo: "Custo de Saída dos Produtos",
+                icone: "💸",
+                indicador: montarIndicadorComparacao(
+                  custoSaidaAtual,
+                  custoSaidaAnterior,
+                  "menor",
+                ),
+              },
+            ],
+          };
+        }
+      } catch (erroComparativo) {
+        console.warn(
+          "Não foi possível gerar comparativo com o mês passado:",
+          erroComparativo,
+        );
+      }
+
       let listaGastosFixos = [];
       try {
         const gastosFixosResponse = await api.get(
@@ -213,14 +500,9 @@ export function Relatorios() {
       }
 
       setGastosFixosLoja(listaGastosFixos);
+      setComparativoMensal(comparativoCalculado);
 
-      setRelatorio({
-        ...response.data,
-        totais: {
-          ...(response.data?.totais || {}),
-          gastoTotalPeriodo: gastoTotalFinal,
-        },
-      });
+      setRelatorio(relatorioAtualNormalizado);
     } catch (error) {
       console.error("Erro ao gerar relatório:", error);
       console.error("Detalhes do erro:", {
@@ -252,6 +534,7 @@ export function Relatorios() {
       setRelatorio(null);
       setDashboard(null);
       setGastosFixosLoja([]);
+      setComparativoMensal(null);
     } finally {
       setLoading(false);
     }
@@ -776,6 +1059,103 @@ export function Relatorios() {
                 </div>
               </div>
             </div>
+
+            {comparativoMensal && (
+              <div className="card bg-gradient-to-r from-slate-50 to-indigo-50 border-2 border-indigo-200">
+                <h3 className="text-lg sm:text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+                  <span className="text-2xl sm:text-3xl">📈</span>
+                  Comparativo com o Mês Passado (mesmos dias)
+                </h3>
+                <p className="text-xs sm:text-sm text-gray-700 mb-4">
+                  Atual:{" "}
+                  {formatarDataExibicao(comparativoMensal.periodoAtual?.inicio)}{" "}
+                  até{" "}
+                  {formatarDataExibicao(comparativoMensal.periodoAtual?.fim)} |
+                  Mês passado:{" "}
+                  {formatarDataExibicao(
+                    comparativoMensal.periodoAnterior?.inicio,
+                  )}{" "}
+                  até{" "}
+                  {formatarDataExibicao(comparativoMensal.periodoAnterior?.fim)}
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                  {(comparativoMensal.metricas || []).map((metrica) => {
+                    const indicador = metrica.indicador || {};
+                    const classes = obterClassesStatusComparacao(
+                      indicador.status,
+                    );
+
+                    const sinalPercentual =
+                      indicador.percentual > 0.0001
+                        ? "+"
+                        : indicador.percentual < -0.0001
+                          ? "-"
+                          : "";
+
+                    const sinalDiferenca =
+                      indicador.diferenca > 0.0001
+                        ? "+"
+                        : indicador.diferenca < -0.0001
+                          ? "-"
+                          : "";
+
+                    const textoStatus =
+                      indicador.status === "melhor"
+                        ? "Melhor"
+                        : indicador.status === "pior"
+                          ? "Pior"
+                          : "Igual";
+
+                    return (
+                      <div
+                        key={metrica.chave}
+                        className={`rounded-xl border-2 p-4 ${classes.card}`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <h4 className="font-bold text-gray-900 text-sm sm:text-base">
+                            {metrica.icone} {metrica.titulo}
+                          </h4>
+                          <span
+                            className={`text-xs font-bold ${classes.texto}`}
+                          >
+                            {classes.icone} {textoStatus}
+                          </span>
+                        </div>
+
+                        <p
+                          className={`text-sm font-bold mt-2 ${classes.texto}`}
+                        >
+                          {sinalPercentual}
+                          {formatarPercentualComparacao(
+                            Math.abs(indicador.percentual || 0),
+                          )}
+                          %{" "}
+                          {indicador.direcao === "igual"
+                            ? "igual ao"
+                            : `${indicador.direcao} do`}{" "}
+                          mês passado
+                        </p>
+
+                        <p className="text-xs text-gray-700 mt-2">
+                          Atual: R$ {formatarMoeda(indicador.atual)}
+                        </p>
+                        <p className="text-xs text-gray-700">
+                          Mês passado: R$ {formatarMoeda(indicador.anterior)}
+                        </p>
+                        <p
+                          className={`text-xs font-semibold mt-1 ${classes.texto}`}
+                        >
+                          Diferença: {sinalDiferenca}R${" "}
+                          {formatarMoeda(Math.abs(indicador.diferenca || 0))}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Detalhamento por máquina */}
             {relatorio.maquinas && relatorio.maquinas.length > 0 && (
               <div className="space-y-6">
