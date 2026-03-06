@@ -1646,74 +1646,102 @@ export function Relatorios() {
 
             {/* Gráfico de saída por máquina */}
             {relatorio.graficoSaidaPorMaquina &&
-              relatorio.graficoSaidaPorMaquina.length > 0 && (
-                <div className="card bg-linear-to-r from-blue-50 to-blue-100 border-2 border-blue-300 mt-8 overflow-x-auto">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <span className="text-2xl">📊</span>
-                    Gráfico: Saída de Produtos por Máquina
-                  </h3>
-                  <div className="flex flex-wrap gap-4">
-                    {relatorio.graficoSaidaPorMaquina.map((item) => (
-                      <div
-                        key={item.maquina}
-                        className="flex flex-col items-center overflow-x-auto"
-                      >
-                        <div className="font-bold text-lg text-blue-700 overflow-x-auto">
-                          {item.maquina}
-                        </div>
-                        <div className="w-12 h-12 flex items-end">
+              relatorio.graficoSaidaPorMaquina.length > 0 &&
+              (() => {
+                const max = Math.max(
+                  ...relatorio.graficoSaidaPorMaquina.map(
+                    (item) => item.produtosSairam,
+                  ),
+                );
+                const maxHeight = 48; // px
+                return (
+                  <div className="card bg-linear-to-r from-blue-50 to-blue-100 border-2 border-blue-300 mt-8 overflow-x-auto">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <span className="text-2xl">📊</span>
+                      Gráfico: Saída de Produtos por Máquina
+                    </h3>
+                    <div className="flex flex-wrap gap-4">
+                      {relatorio.graficoSaidaPorMaquina.map((item) => {
+                        const height =
+                          max > 0 ? (item.produtosSairam / max) * maxHeight : 0;
+                        return (
                           <div
-                            style={{
-                              height: `${item.produtosSairam}px`,
-                              background: "#1976d2",
-                              width: "100%",
-                              borderRadius: 4,
-                            }}
-                          ></div>
-                        </div>
-                        <div className="text-sm text-gray-700 mt-2">
-                          {item.produtosSairam} saíram
-                        </div>
-                      </div>
-                    ))}
+                            key={item.maquina}
+                            className="flex flex-col items-center overflow-x-auto"
+                          >
+                            <div className="font-bold text-lg text-blue-700 overflow-x-auto">
+                              {item.maquina}
+                            </div>
+                            <div className="w-12 h-12 flex items-end">
+                              <div
+                                style={{
+                                  height: `${height}px`,
+                                  background: "#1976d2",
+                                  width: "100%",
+                                  borderRadius: 4,
+                                  transition: "height 0.3s",
+                                }}
+                              ></div>
+                            </div>
+                            <div className="text-sm text-gray-700 mt-2">
+                              {item.produtosSairam} saíram
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             {/* Gráfico de saída por produto */}
             {relatorio.graficoSaidaPorProduto &&
-              relatorio.graficoSaidaPorProduto.length > 0 && (
-                <div className="card bg-linear-to-r from-green-50 to-green-100 border-2 border-green-300 mt-8 overflow-x-auto">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <span className="text-2xl">📦</span>
-                    Gráfico: Saída de Produtos por Tipo
-                  </h3>
-                  <div className="flex flex-wrap gap-4">
-                    {relatorio.graficoSaidaPorProduto.map((item) => (
-                      <div
-                        key={item.produto}
-                        className="flex flex-col items-center"
-                      >
-                        <div className="font-bold text-lg text-green-700">
-                          {item.produto}
-                        </div>
-                        <div className="w-12 h-12 flex items-end">
+              relatorio.graficoSaidaPorProduto.length > 0 &&
+              (() => {
+                const max = Math.max(
+                  ...relatorio.graficoSaidaPorProduto.map(
+                    (item) => item.quantidade,
+                  ),
+                );
+                const maxHeight = 48; // px
+                return (
+                  <div className="card bg-linear-to-r from-green-50 to-green-100 border-2 border-green-300 mt-8 overflow-x-auto">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <span className="text-2xl">📦</span>
+                      Gráfico: Saída de Produtos por Tipo
+                    </h3>
+                    <div className="flex flex-wrap gap-4">
+                      {relatorio.graficoSaidaPorProduto.map((item) => {
+                        const height =
+                          max > 0 ? (item.quantidade / max) * maxHeight : 0;
+                        return (
                           <div
-                            style={{
-                              height: `${item.quantidade}px`,
-                              background: "#43a047",
-                              width: "100%",
-                              borderRadius: 4,
-                            }}
-                          ></div>
-                        </div>
-                        <div className="text-sm text-gray-700 mt-2">
-                          {item.quantidade} saíram
-                        </div>
-                      </div>
-                    ))}
+                            key={item.produto}
+                            className="flex flex-col items-center"
+                          >
+                            <div className="font-bold text-lg text-green-700">
+                              {item.produto}
+                            </div>
+                            <div className="w-12 h-12 flex items-end">
+                              <div
+                                style={{
+                                  height: `${height}px`,
+                                  background: "#43a047",
+                                  width: "100%",
+                                  borderRadius: 4,
+                                  transition: "height 0.3s",
+                                }}
+                              ></div>
+                            </div>
+                            <div className="text-sm text-gray-700 mt-2">
+                              {item.quantidade} saíram
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             {/* Consolidado Geral de Produtos */}
             <div className="card bg-gradient-to-r from-amber-50 to-orange-100 border-2 border-orange-300">
               <h3 className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2">
