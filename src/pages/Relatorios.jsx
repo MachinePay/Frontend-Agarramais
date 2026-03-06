@@ -832,7 +832,7 @@ export function Relatorios() {
                           Resumo de Movimentações desta Máquina
                         </span>
                       </h4>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-2 sm:gap-4">
+                      <div className="flex flex-wrap gap-4 sm:gap-6">
                         {/* Fichas */}
                         <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-3 sm:p-5 rounded-xl shadow-lg">
                           <div className="text-2xl sm:text-4xl mb-1 sm:mb-2 text-center">
@@ -1179,7 +1179,7 @@ export function Relatorios() {
             {/* Gráfico de saída por máquina */}
             {relatorio.graficoSaidaPorMaquina &&
               relatorio.graficoSaidaPorMaquina.length > 0 && (
-                <div className="card bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-300 mt-8">
+                <div className="card bg-linear-to-r from-blue-50 to-blue-100 border-2 border-blue-300 mt-8 overflow-x-auto">
                   <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                     <span className="text-2xl">📊</span>
                     Gráfico: Saída de Produtos por Máquina
@@ -1188,9 +1188,9 @@ export function Relatorios() {
                     {relatorio.graficoSaidaPorMaquina.map((item) => (
                       <div
                         key={item.maquina}
-                        className="flex flex-col items-center"
+                        className="flex flex-col items-center overflow-x-auto"
                       >
-                        <div className="font-bold text-lg text-blue-700">
+                        <div className="font-bold text-lg text-blue-700 overflow-x-auto">
                           {item.maquina}
                         </div>
                         <div className="w-12 h-12 flex items-end">
@@ -1214,7 +1214,7 @@ export function Relatorios() {
             {/* Gráfico de saída por produto */}
             {relatorio.graficoSaidaPorProduto &&
               relatorio.graficoSaidaPorProduto.length > 0 && (
-                <div className="card bg-gradient-to-r from-green-50 to-green-100 border-2 border-green-300 mt-8">
+                <div className="card bg-linear-to-r from-green-50 to-green-100 border-2 border-green-300 mt-8 overflow-x-auto">
                   <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                     <span className="text-2xl">📦</span>
                     Gráfico: Saída de Produtos por Tipo

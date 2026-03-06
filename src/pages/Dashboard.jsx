@@ -258,6 +258,7 @@ export function Dashboard() {
   const [stats, setStats] = useState({
     alertas: [],
     balanco: null,
+    comparativoLucroMensal: null,
     loading: true,
   });
   const [manutencoesPendentes, setManutencoesPendentes] = useState([]);
@@ -290,6 +291,13 @@ export function Dashboard() {
   const carregarDados = useCallback(async () => {
     try {
       const isAdmin = usuario?.role === "ADMIN";
+      const formatarDataParametro = (data) => {
+        const ano = data.getFullYear();
+        const mes = String(data.getMonth() + 1).padStart(2, "0");
+        const dia = String(data.getDate()).padStart(2, "0");
+        return `${ano}-${mes}-${dia}`;
+      };
+      let periodoComparacaoMensal = null;
 
       // Buscar lojas e máquinas (acessível para todos)
       const requisicoes = [
@@ -309,7 +317,65 @@ export function Dashboard() {
 
       // Adicionar requisições de relatórios apenas para ADMIN
       if (isAdmin) {
+        const hoje = new Date();
+        const inicioMesAtual = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+        const ultimoDiaMesAnterior = new Date(
+          hoje.getFullYear(),
+          hoje.getMonth(),
+          0,
+        ).getDate();
+        const diaComparacao = Math.min(hoje.getDate(), ultimoDiaMesAnterior);
+        const inicioMesAnterior = new Date(
+          hoje.getFullYear(),
+          hoje.getMonth() - 1,
+          1,
+        );
+        const fimMesAnterior = new Date(
+          hoje.getFullYear(),
+          hoje.getMonth() - 1,
+          diaComparacao,
+        );
+
+        periodoComparacaoMensal = {
+          diaComparacao,
+          inicioMesAtual: formatarDataParametro(inicioMesAtual),
+          fimMesAtual: formatarDataParametro(hoje),
+          inicioMesAnterior: formatarDataParametro(inicioMesAnterior),
+          fimMesAnterior: formatarDataParametro(fimMesAnterior),
+          nomeMesAnterior: inicioMesAnterior.toLocaleDateString("pt-BR", {
+            month: "long",
+          }),
+        };
+
         requisicoes.unshift(
+          api
+            .get("/relatorios/dashboard", {
+              params: {
+                dataInicio: periodoComparacaoMensal.inicioMesAtual,
+                dataFim: periodoComparacaoMensal.fimMesAtual,
+              },
+            })
+            .catch((err) => {
+              console.error(
+                "Erro ao carregar lucro do mês atual para comparação:",
+                err.message,
+              );
+              return { data: null };
+            }),
+          api
+            .get("/relatorios/dashboard", {
+              params: {
+                dataInicio: periodoComparacaoMensal.inicioMesAnterior,
+                dataFim: periodoComparacaoMensal.fimMesAnterior,
+              },
+            })
+            .catch((err) => {
+              console.error(
+                "Erro ao carregar lucro do mês anterior para comparação:",
+                err.message,
+              );
+              return { data: null };
+            }),
           api.get("/relatorios/alertas-estoque").catch((err) => {
             console.error("Erro ao carregar alertas de máquinas:", err.message);
             return { data: { alertas: [] } };
@@ -323,11 +389,47 @@ export function Dashboard() {
 
       const resultados = await Promise.all(requisicoes);
 
-      let alertasRes, balancoRes, lojasRes, maquinasRes, produtosRes;
+      let lucroMesAtualRes,
+        lucroMesAnteriorRes,
+        alertasRes,
+        balancoRes,
+        lojasRes,
+        maquinasRes,
+        produtosRes;
+
+      let comparativoLucroMensal = null;
 
       if (isAdmin) {
-        [alertasRes, balancoRes, lojasRes, maquinasRes, produtosRes] =
-          resultados;
+        [
+          lucroMesAtualRes,
+          lucroMesAnteriorRes,
+          alertasRes,
+          balancoRes,
+          lojasRes,
+          maquinasRes,
+          produtosRes,
+        ] = resultados;
+
+        const lucroMesAtual = Number(
+          lucroMesAtualRes?.data?.totais?.lucro || 0,
+        );
+        const lucroMesAnterior = Number(
+          lucroMesAnteriorRes?.data?.totais?.lucro || 0,
+        );
+        const diferencaLucro = lucroMesAtual - lucroMesAnterior;
+        const percentualVariacao =
+          Math.abs(lucroMesAnterior) > 0
+            ? (diferencaLucro / Math.abs(lucroMesAnterior)) * 100
+            : null;
+
+        comparativoLucroMensal = {
+          lucroMesAtual,
+          lucroMesAnterior,
+          diferencaLucro,
+          percentualVariacao,
+          diaComparacao: periodoComparacaoMensal?.diaComparacao,
+          nomeMesAnterior: periodoComparacaoMensal?.nomeMesAnterior,
+        };
       } else {
         [lojasRes, maquinasRes, produtosRes] = resultados;
         alertasRes = { data: { alertas: [] } };
@@ -350,6 +452,7 @@ export function Dashboard() {
       setStats({
         alertas: alertasRes.data?.alertas || [],
         balanco: balancoRes.data,
+        comparativoLucroMensal,
         loading: false,
       });
       setLojas(lojasRes.data || []);
@@ -362,7 +465,12 @@ export function Dashboard() {
       }
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
-      setStats({ alertas: [], balanco: null, loading: false });
+      setStats({
+        alertas: [],
+        balanco: null,
+        comparativoLucroMensal: null,
+        loading: false,
+      });
       setLojas([]);
       setMaquinas([]);
     }
@@ -1254,6 +1362,57 @@ export function Dashboard() {
   console.log("Estado stats no render:", stats);
   console.log("Fichas no render:", stats.balanco?.totais?.totalFichas);
 
+  const formatarMoeda = (valor) =>
+    Number(valor || 0).toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+  const comparativoLucroMensal = stats.comparativoLucroMensal;
+  const statusComparativoLucro = !comparativoLucroMensal
+    ? "igual"
+    : comparativoLucroMensal.diferencaLucro > 0
+      ? "acima"
+      : comparativoLucroMensal.diferencaLucro < 0
+        ? "abaixo"
+        : "igual";
+
+  const badgeComparativoLucroClass =
+    statusComparativoLucro === "acima"
+      ? "bg-emerald-100 text-emerald-800"
+      : statusComparativoLucro === "abaixo"
+        ? "bg-red-100 text-red-800"
+        : "bg-slate-100 text-slate-800";
+
+  const percentualComparativoLucro =
+    comparativoLucroMensal?.percentualVariacao === null ||
+    comparativoLucroMensal?.percentualVariacao === undefined
+      ? null
+      : Math.abs(comparativoLucroMensal.percentualVariacao)
+          .toFixed(1)
+          .replace(".", ",");
+
+  const mesAnteriorComparacao =
+    comparativoLucroMensal?.nomeMesAnterior || "mês anterior";
+
+  const textoPercentualComparativoLucro =
+    statusComparativoLucro === "acima"
+      ? `${percentualComparativoLucro ?? "N/A"}% melhor que ${mesAnteriorComparacao}`
+      : statusComparativoLucro === "abaixo"
+        ? `${percentualComparativoLucro ?? "N/A"}% pior que ${mesAnteriorComparacao}`
+        : `0,0% igual a ${mesAnteriorComparacao}`;
+
+  const textoDiferencaLucro = !comparativoLucroMensal
+    ? "R$ 0,00"
+    : `${comparativoLucroMensal.diferencaLucro >= 0 ? "+" : "-"}R$ ${formatarMoeda(Math.abs(comparativoLucroMensal.diferencaLucro || 0))}`;
+
+  const classeTextoDiferencaLucro =
+    statusComparativoLucro === "acima"
+      ? "text-emerald-700"
+      : statusComparativoLucro === "abaixo"
+        ? "text-red-700"
+        : "text-slate-700";
+
   return (
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
       <Navbar />
@@ -1319,10 +1478,41 @@ export function Dashboard() {
                   </div>
                   <p className="text-3xl font-bold">
                     R${" "}
-                    {stats.balanco?.totais?.totalFaturamento?.toFixed(2) ||
-                      "0,00"}
+                    {formatarMoeda(
+                      stats.balanco?.totais?.totalFaturamento || 0,
+                    )}
                   </p>
-                  <p className="text-xs opacity-75 mt-1">💰 Últimos 7 dias</p>
+                  {comparativoLucroMensal ? (
+                    <>
+                      <span
+                        className={`mt-2 inline-flex items-center gap-2 rounded-full px-2 py-1 text-xs font-bold ${badgeComparativoLucroClass}`}
+                      >
+                        <span>
+                          {statusComparativoLucro === "acima"
+                            ? "▲"
+                            : statusComparativoLucro === "abaixo"
+                              ? "▼"
+                              : "="}
+                        </span>
+                        <span>{textoPercentualComparativoLucro}</span>
+                      </span>
+                      <p className="text-xs opacity-90 mt-2">
+                        Até o dia {comparativoLucroMensal.diaComparacao}: lucro
+                        atual R${" "}
+                        {formatarMoeda(comparativoLucroMensal.lucroMesAtual)} vs
+                        R${" "}
+                        {formatarMoeda(comparativoLucroMensal.lucroMesAnterior)}{" "}
+                        em {mesAnteriorComparacao}.
+                      </p>
+                      <p
+                        className={`text-xs font-semibold mt-1 ${classeTextoDiferencaLucro}`}
+                      >
+                        Diferença acumulada: {textoDiferencaLucro}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs opacity-75 mt-1">💰 Mês atual</p>
+                  )}
                 </div>
               </div>
               {/* Fichas Inseridas */}

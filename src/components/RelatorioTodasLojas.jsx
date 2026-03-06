@@ -31,25 +31,27 @@ const GraficoBarras = ({
       {!itens || itens.length === 0 ? (
         <p className="text-gray-500">{vazio}</p>
       ) : (
-        <div className="space-y-3">
-          {itens.map((item) => (
-            <div key={`${item[chaveNome]}-${item[chaveValor]}`}>
-              <div className="flex items-center justify-between text-sm mb-1 gap-2">
-                <span className="font-medium text-gray-800 truncate">
-                  {item[chaveNome]}
-                </span>
-                <span className="font-bold text-gray-900 whitespace-nowrap">
-                  {formatter(item[chaveValor])}
-                </span>
+        <div className="overflow-x-auto">
+          <div className="space-y-3 min-w-[600px]">
+            {itens.map((item) => (
+              <div key={`${item[chaveNome]}-${item[chaveValor]}`}>
+                <div className="flex items-center justify-between text-sm mb-1 gap-2">
+                  <span className="font-medium text-gray-800 truncate">
+                    {item[chaveNome]}
+                  </span>
+                  <span className="font-bold text-gray-900 whitespace-nowrap">
+                    {formatter(item[chaveValor])}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                  <div
+                    className={`${classeBarra} h-3 rounded-full`}
+                    style={{ width: calcularLargura(item[chaveValor], maximo) }}
+                  />
+                </div>
               </div>
-              <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
-                <div
-                  className={`${classeBarra} h-3 rounded-full`}
-                  style={{ width: calcularLargura(item[chaveValor], maximo) }}
-                />
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
     </div>
