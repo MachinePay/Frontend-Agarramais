@@ -67,27 +67,25 @@ const GraficoBarras = ({
       {!itens || itens.length === 0 ? (
         <p className="text-gray-500">{vazio}</p>
       ) : (
-        <div className="overflow-x-auto">
-          <div className="space-y-3 min-w-[600px]">
-            {itens.map((item) => (
-              <div key={`${item[chaveNome]}-${item[chaveValor]}`}>
-                <div className="flex items-center justify-between text-sm mb-1 gap-2">
-                  <span className="font-medium text-gray-800 truncate">
-                    {item[chaveNome]}
-                  </span>
-                  <span className="font-bold text-gray-900 whitespace-nowrap">
-                    {formatter(item[chaveValor])}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
-                  <div
-                    className={`${classeBarra} h-3 rounded-full`}
-                    style={{ width: calcularLargura(item[chaveValor], maximo) }}
-                  />
-                </div>
+        <div className="space-y-3 w-full">
+          {itens.map((item) => (
+            <div key={`${item[chaveNome]}-${item[chaveValor]}`}>
+              <div className="flex items-center justify-between text-sm mb-1 gap-2">
+                <span className="font-medium text-gray-800 truncate flex-1 min-w-0">
+                  {item[chaveNome]}
+                </span>
+                <span className="font-bold text-gray-900 whitespace-nowrap">
+                  {formatter(item[chaveValor])}
+                </span>
               </div>
-            ))}
-          </div>
+              <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                <div
+                  className={`${classeBarra} h-3 rounded-full`}
+                  style={{ width: calcularLargura(item[chaveValor], maximo) }}
+                />
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -271,7 +269,7 @@ export function RelatorioTodasLojas({ relatorio }) {
           <div className="text-2xl font-bold">
             {formatarMoeda(totais.lucroBrutoTotal)}
           </div>
-          <div className="text-sm opacity-90">Lucro Bruto Total</div>
+          <div className="text-sm opacity-90">Total de Vendas</div>
         </div>
         <div className="card bg-linear-to-br from-blue-600 to-cyan-700 text-white">
           <div className="text-2xl mb-1">📉</div>
@@ -327,23 +325,6 @@ export function RelatorioTodasLojas({ relatorio }) {
           </div>
           <div className="text-sm opacity-90">Produtos Saíram (Total)</div>
         </div>
-        <div className="card bg-linear-to-br from-green-500 to-emerald-700 text-white">
-          <div className="text-2xl mb-1">📥</div>
-          <div className="text-2xl font-bold">
-            {Number(totais.produtosEntraramTotal || 0).toLocaleString("pt-BR")}
-          </div>
-          <div className="text-sm opacity-90">Produtos Entraram (Total)</div>
-        </div>
-        <div className="card bg-linear-to-br from-blue-500 to-indigo-700 text-white">
-          <div className="text-2xl mb-1">🎟️</div>
-          <div className="text-2xl font-bold">
-            {Number(totais.fichasTotal || 0).toLocaleString("pt-BR")}
-          </div>
-          <div className="text-sm opacity-90">Quantidade de Fichas</div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <div className="card bg-linear-to-br from-pink-500 to-fuchsia-700 text-white">
           <div className="text-2xl mb-1">💳</div>
           <div className="text-2xl font-bold">
@@ -363,6 +344,27 @@ export function RelatorioTodasLojas({ relatorio }) {
           <div className="text-xs opacity-80 mt-1">
             Valor bruto: {formatarMoeda(totais.cartaoPixTotal)}
           </div>
+        </div>
+        <div className="card bg-linear-to-br from-cyan-500 to-blue-700 text-white">
+          <div className="text-2xl mb-1">✅</div>
+          <div className="text-2xl font-bold">
+            {formatarMoeda(totais.dinheiroTotal)}
+          </div>
+          <div className="text-sm opacity-90">Dinheiro</div>
+        </div>
+        <div className="card bg-linear-to-br from-green-500 to-emerald-700 text-white">
+          <div className="text-2xl mb-1">📥</div>
+          <div className="text-2xl font-bold">
+            {Number(totais.produtosEntraramTotal || 0).toLocaleString("pt-BR")}
+          </div>
+          <div className="text-sm opacity-90">Produtos Entraram (Total)</div>
+        </div>
+        <div className="card bg-linear-to-br from-blue-500 to-indigo-700 text-white">
+          <div className="text-2xl mb-1">🎟️</div>
+          <div className="text-2xl font-bold">
+            {Number(totais.fichasTotal || 0).toLocaleString("pt-BR")}
+          </div>
+          <div className="text-sm opacity-90">Quantidade de Fichas</div>
         </div>
       </div>
 
