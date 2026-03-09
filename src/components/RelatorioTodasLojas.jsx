@@ -309,15 +309,6 @@ export function RelatorioTodasLojas({ relatorio }) {
           </div>
           <div className="text-sm opacity-90">Custo Total de Produtos</div>
         </div>
-        <div className="card bg-linear-to-br from-orange-500 to-amber-700 text-white">
-          <div className="text-2xl mb-1">💵</div>
-          <div className="text-2xl font-bold">
-            {formatarMoeda(brutoConsolidado)}
-          </div>
-          <div className="text-sm opacity-90">
-            Bruto Consolidado (Lojas + Máquinas)
-          </div>
-        </div>
         <div className="card bg-linear-to-br from-red-500 to-rose-700 text-white">
           <div className="text-2xl mb-1">📤</div>
           <div className="text-2xl font-bold">
@@ -421,7 +412,7 @@ export function RelatorioTodasLojas({ relatorio }) {
           chaveValor="lucroBruto"
           classeBarra="bg-linear-to-r from-teal-500 to-emerald-700"
           formatter={formatarMoeda}
-          vazio="Sem dados para ranking de lucro bruto."
+          vazio="Sem dados para ranking de Total Vendas."
         />
 
         <GraficoBarras

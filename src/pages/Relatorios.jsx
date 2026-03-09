@@ -864,7 +864,7 @@ export function Relatorios() {
                     Valor bruto das máquinas
                   </div>
                 </div>
-                {/* Lucro Bruto da Loja */}
+                {/*Total vendas da Loja */}
                 <div className="card bg-gradient-to-br from-yellow-500 to-orange-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">💰</div>
                   <div className="text-xl sm:text-2xl font-bold">

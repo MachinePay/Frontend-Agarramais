@@ -745,7 +745,7 @@ export function Graficos() {
           <div className="space-y-8 animate-fade-in">
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              <RankingCard titulo="Ranking: Lucro Bruto das Lojas"   icon="🏆" dados={rankingLucroBruto}  campoNome="lojaNome" campoValor="lucroBruto"            formatValor={formatMoney} />
+              <RankingCard titulo="Ranking: Total Vendas das Lojas"   icon="🏆" dados={rankingLucroBruto}  campoNome="lojaNome" campoValor="lucroBruto"            formatValor={formatMoney} />
               <RankingCard titulo="Ranking: Lucro Líquido das Lojas" icon="💰" dados={rankingLucroLojas}  campoNome="lojaNome" campoValor="lucroLiquido"           formatValor={formatMoney} />
               <RankingCard titulo="Ranking: Gasto Total das Lojas"   icon="🧾" dados={rankingGastoLojas}  campoNome="lojaNome" campoValor="custoTotal"             formatValor={formatMoney} />
               <RankingCard titulo="Ranking: Gasto Fixo das Lojas"    icon="🏠" dados={gastosFixosPorLoja} campoNome="lojaNome" campoValor="custoFixo"              formatValor={formatMoney} />
