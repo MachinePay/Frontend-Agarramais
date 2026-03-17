@@ -1243,7 +1243,7 @@ export function Movimentacoes() {
                 </div>
               </div>
 
-              <div className="flex gap-4 justify-end pt-4 border-t border-gray-200">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:justify-end pt-4 border-t border-gray-200">
                 {error && (
                   <AlertBox
                     type="error"
@@ -1257,7 +1257,7 @@ export function Movimentacoes() {
                     setShowForm(false);
                     setFiltroLojaForm("");
                   }}
-                  className="btn-secondary"
+                  className="btn-secondary w-full sm:w-auto"
                   disabled={salvandoMovimentacao}
                 >
                   Cancelar
@@ -1265,7 +1265,7 @@ export function Movimentacoes() {
                 <button
                   type="button"
                   onClick={enviarParaWhatsapp}
-                  className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg transition-colors flex items-center gap-2 shadow"
+                  className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 shadow w-full sm:w-auto"
                   disabled={salvandoMovimentacao}
                 >
                   <svg
@@ -1279,7 +1279,7 @@ export function Movimentacoes() {
                 </button>
                 <button
                   type="submit"
-                  className="btn-primary"
+                  className="btn-primary w-full sm:w-auto"
                   disabled={salvandoMovimentacao}
                 >
                   {salvandoMovimentacao ? (
