@@ -13,6 +13,21 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
   const [observacoes, setObservacoes] = useState("");
   const [gastosVariaveis, setGastosVariaveis] = useState([]);
 
+  const parseLocaleNumber = (value) => {
+    if (value === "" || value === null || value === undefined) return null;
+
+    const raw = String(value).trim();
+    if (!raw) return null;
+
+    // Aceita formatos como 10,50 e 1.234,56 sem quebrar o parse no backend.
+    const normalized = raw.includes(",")
+      ? raw.replace(/\./g, "").replace(",", ".")
+      : raw;
+    const parsed = Number(normalized);
+
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
   const handleAddGasto = () => {
     setGastosVariaveis([
       ...gastosVariaveis,
@@ -42,18 +57,49 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
       alert("Preencha todos os campos obrigatórios: loja, início e fim.");
       return;
     }
+
+    const dinheiroNumero = parseLocaleNumber(valorDinheiro);
+    const cartaoPixNumero = parseLocaleNumber(valorCartaoPix);
+    const taxaMediaNumero = parseLocaleNumber(percentualTaxaCartaoMedia);
+
+    if (valorDinheiro !== "" && dinheiroNumero === null) {
+      alert("Valor de dinheiro inválido.");
+      return;
+    }
+
+    if (valorCartaoPix !== "" && cartaoPixNumero === null) {
+      alert("Valor de cartão/pix inválido.");
+      return;
+    }
+
+    if (percentualTaxaCartaoMedia !== "" && taxaMediaNumero === null) {
+      alert("Taxa média de cartão inválida.");
+      return;
+    }
+
+    const gastosNormalizados = registrarTotalLoja
+      ? gastosVariaveis.map((gasto) => ({
+          ...gasto,
+          valor: parseLocaleNumber(gasto.valor),
+        }))
+      : [];
+
+    if (gastosNormalizados.some((gasto) => gasto.valor === null)) {
+      alert("Preencha os valores dos gastos variáveis corretamente.");
+      return;
+    }
+
     await onSubmit({
       loja: lojaSelecionada,
       maquina: registrarTotalLoja ? null : maquinaSelecionada || null,
       registrarTotalLoja,
       inicio,
       fim,
-      valorDinheiro: valorDinheiro === "" ? null : valorDinheiro,
-      valorCartaoPix: valorCartaoPix === "" ? null : valorCartaoPix,
-      percentualTaxaCartaoMedia:
-        percentualTaxaCartaoMedia === "" ? null : percentualTaxaCartaoMedia,
+      valorDinheiro: dinheiroNumero,
+      valorCartaoPix: cartaoPixNumero,
+      percentualTaxaCartaoMedia: taxaMediaNumero,
       observacoes: observacoes === "" ? null : observacoes,
-      gastosVariaveis: registrarTotalLoja ? gastosVariaveis : [],
+      gastosVariaveis: gastosNormalizados,
     });
   };
 
@@ -203,14 +249,13 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
                   Valor (R$)
                 </label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   value={gasto.valor}
                   onChange={(e) =>
                     handleChangeGasto(idx, "valor", e.target.value)
                   }
                   required
-                  min="0"
-                  step="0.01"
                   placeholder="0,00"
                   style={{
                     width: "100%",
@@ -429,11 +474,11 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
           Dinheiro (R$):
         </label>
         <input
-          type="number"
+          type="text"
+          inputMode="decimal"
           value={valorDinheiro}
           onChange={(e) => setValorDinheiro(e.target.value)}
-          min="0"
-          step="0.01"
+          placeholder="Ex: 10,50"
           style={{
             width: "100%",
             marginTop: 6,
@@ -452,11 +497,11 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
           Cartão / Pix (R$):
         </label>
         <input
-          type="number"
+          type="text"
+          inputMode="decimal"
           value={valorCartaoPix}
           onChange={(e) => setValorCartaoPix(e.target.value)}
-          min="0"
-          step="0.01"
+          placeholder="Ex: 25,90"
           style={{
             width: "100%",
             marginTop: 6,
@@ -475,12 +520,11 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
           Taxa média de cartão (%):
         </label>
         <input
-          type="number"
+          type="text"
+          inputMode="decimal"
           value={percentualTaxaCartaoMedia}
           onChange={(e) => setPercentualTaxaCartaoMedia(e.target.value)}
-          min="0"
-          step="0.01"
-          placeholder="Ex: 4.99"
+          placeholder="Ex: 4,99"
           style={{
             width: "100%",
             marginTop: 6,
