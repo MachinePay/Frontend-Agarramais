@@ -480,13 +480,13 @@ export function LojaDetalhes() {
                           >
                             <div className="flex items-center justify-between mb-2">
                               <span className="text-sm text-gray-600">
-                                {new Date(mov.createdAt).toLocaleDateString(
-                                  "pt-BR",
-                                )}{" "}
+                                {new Date(
+                                  mov.dataColeta || mov.createdAt,
+                                ).toLocaleDateString("pt-BR")}{" "}
                                 às{" "}
-                                {new Date(mov.createdAt).toLocaleTimeString(
-                                  "pt-BR",
-                                )}
+                                {new Date(
+                                  mov.dataColeta || mov.createdAt,
+                                ).toLocaleTimeString("pt-BR")}
                               </span>
                             </div>
                             <div className="grid grid-cols-5 gap-4 mt-3 text-sm">
