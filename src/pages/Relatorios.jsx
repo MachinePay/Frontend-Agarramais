@@ -433,6 +433,7 @@ export function Relatorios() {
       });
 
       let gastoTotalDoRegistrar = null;
+      let observacaoDoRegistrar = "";
       try {
         const registrosResponse = await api.get("/registro-dinheiro");
         const registros = Array.isArray(registrosResponse.data)
@@ -488,6 +489,13 @@ export function Relatorios() {
               0,
           );
 
+          observacaoDoRegistrar = String(
+            registroMaisRecente.observacao ??
+              registroMaisRecente.observacoes ??
+              registroMaisRecente.obs ??
+              "",
+          ).trim();
+
           if (!Number.isNaN(valorRegistro)) {
             gastoTotalDoRegistrar = valorRegistro;
           }
@@ -505,6 +513,7 @@ export function Relatorios() {
 
       const relatorioAtualNormalizado = {
         ...response.data,
+        observacaoRegistrar: observacaoDoRegistrar,
         totais: {
           ...(response.data?.totais || {}),
           gastoTotalPeriodo: gastoTotalFinal,
@@ -782,6 +791,14 @@ export function Relatorios() {
 
         {relatorio && !loading && relatorio.tipo !== "todas-lojas" && (
           <div className="space-y-6">
+            {relatorio.observacaoRegistrar && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded mb-4">
+                <p className="text-sm text-blue-800">
+                  <strong>Observação do Registrar Dinheiro:</strong>{" "}
+                  {relatorio.observacaoRegistrar}
+                </p>
+              </div>
+            )}
             {/* Aviso de diferença de fichas */}
             {relatorio.avisoFichas && (
               <div className="p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-900 rounded mb-4">
