@@ -24,13 +24,29 @@ export function LojaForm() {
   });
 
   const parseDecimalInput = (value, defaultValue = 0) => {
-    const normalized = String(value || "")
-      .trim()
-      .replace(/\./g, "")
-      .replace(",", ".");
+    const raw = String(value || "").trim();
+    if (!raw) return defaultValue;
+
+    // Aceita formatos: 5,00 | 5.00 | 1.234,56 | 1234.56
+    let normalized = raw;
+    const hasComma = normalized.includes(",");
+    const hasDot = normalized.includes(".");
+
+    if (hasComma && hasDot) {
+      normalized = normalized.replace(/\./g, "").replace(",", ".");
+    } else if (hasComma) {
+      normalized = normalized.replace(",", ".");
+    }
 
     const parsed = Number(normalized);
     return Number.isFinite(parsed) ? parsed : defaultValue;
+  };
+
+  const formatarValorFichaParaInput = (valor) => {
+    if (valor === undefined || valor === null || valor === "") return "2,50";
+    const numero = Number(valor);
+    if (!Number.isFinite(numero)) return "2,50";
+    return numero.toFixed(2).replace(".", ",");
   };
 
   // Gastos fixos pré-definidos
@@ -173,13 +189,12 @@ export function LojaForm() {
     try {
       setLoadingData(true);
       const response = await api.get(`/lojas/${id}`);
+      const valorFichaApi =
+        response.data?.valorFichaPadrao ?? response.data?.valor_ficha_padrao;
+
       setFormData({
         ...response.data,
-        valorFichaPadrao:
-          response.data?.valorFichaPadrao !== undefined &&
-          response.data?.valorFichaPadrao !== null
-            ? String(response.data.valorFichaPadrao).replace(".", ",")
-            : "2,50",
+        valorFichaPadrao: formatarValorFichaParaInput(valorFichaApi),
       });
     } catch (error) {
       setError(

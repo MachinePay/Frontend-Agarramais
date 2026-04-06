@@ -222,6 +222,19 @@ export function LojaDetalhes() {
                 <p className="text-gray-900">{loja.telefone}</p>
               </div>
 
+              <div>
+                <label className="text-sm font-semibold text-gray-500">
+                  Valor da Ficha
+                </label>
+                <p className="text-gray-900 font-semibold">
+                  R${" "}
+                  {Number(loja.valorFichaPadrao ?? 2.5).toLocaleString(
+                    "pt-BR",
+                    { minimumFractionDigits: 2 },
+                  )}
+                </p>
+              </div>
+
               {loja.responsavel && (
                 <div>
                   <label className="text-sm font-semibold text-gray-500">

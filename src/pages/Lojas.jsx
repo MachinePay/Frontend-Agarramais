@@ -36,7 +36,7 @@ export function Lojas() {
     } catch (error) {
       setError(
         "Erro ao carregar lojas: " +
-          (error.response?.data?.error || error.message)
+          (error.response?.data?.error || error.message),
       );
     } finally {
       setLoading(false);
@@ -53,7 +53,7 @@ export function Lojas() {
       setDeleteDialog({ open: false, lojaId: null });
       setError(
         "Erro ao excluir loja: " +
-          (error.response?.data?.error || error.message)
+          (error.response?.data?.error || error.message),
       );
     }
   };
@@ -105,6 +105,18 @@ export function Lojas() {
           <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
         </svg>
       ),
+    },
+    {
+      label: "Valor Ficha",
+      key: "valorFichaPadrao",
+      render: (loja) => {
+        const valor = Number(loja.valorFichaPadrao ?? 2.5);
+        return (
+          <span className="font-semibold text-gray-700">
+            R$ {valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+          </span>
+        );
+      },
     },
     {
       label: "Status",
@@ -291,7 +303,7 @@ export function Lojas() {
                 <p className="text-3xl font-bold">
                   {lojas.reduce(
                     (acc, loja) => acc + (loja.maquinas?.length || 0),
-                    0
+                    0,
                   )}
                 </p>
               </div>
