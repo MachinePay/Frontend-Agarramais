@@ -19,8 +19,19 @@ export function LojaForm() {
     cep: "",
     telefone: "",
     responsavel: "",
+    valorFichaPadrao: "2,50",
     ativo: true,
   });
+
+  const parseDecimalInput = (value, defaultValue = 0) => {
+    const normalized = String(value || "")
+      .trim()
+      .replace(/\./g, "")
+      .replace(",", ".");
+
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : defaultValue;
+  };
 
   // Gastos fixos pré-definidos
   const normalizarNomeGasto = (nomeOriginal) =>
@@ -162,7 +173,14 @@ export function LojaForm() {
     try {
       setLoadingData(true);
       const response = await api.get(`/lojas/${id}`);
-      setFormData(response.data);
+      setFormData({
+        ...response.data,
+        valorFichaPadrao:
+          response.data?.valorFichaPadrao !== undefined &&
+          response.data?.valorFichaPadrao !== null
+            ? String(response.data.valorFichaPadrao).replace(".", ",")
+            : "2,50",
+      });
     } catch (error) {
       setError(
         "Erro ao carregar loja: " +
@@ -218,6 +236,7 @@ export function LojaForm() {
         cep: formData.cep?.trim() || null,
         telefone: formData.telefone.trim(),
         responsavel: formData.responsavel?.trim() || null,
+        valorFichaPadrao: parseDecimalInput(formData.valorFichaPadrao, 2.5),
         ativo: formData.ativo,
       };
 
@@ -482,6 +501,23 @@ export function LojaForm() {
                     onChange={handleChange}
                     className="input-field"
                     placeholder="(11) 99999-9999"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Valor da Ficha (R$) *
+                  </label>
+                  <input
+                    type="text"
+                    name="valorFichaPadrao"
+                    inputMode="decimal"
+                    pattern="[0-9.,]*"
+                    value={formData.valorFichaPadrao ?? ""}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="Ex: 2,50"
                     required
                   />
                 </div>

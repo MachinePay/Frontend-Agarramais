@@ -87,9 +87,46 @@ export function Relatorios() {
 
   const toNumber = (valor) => Number(valor || 0);
 
+  const obterValorFichaPadraoDaLojaSelecionada = () => {
+    const lojaAtual = lojas.find(
+      (loja) => String(loja.id) === String(lojaSelecionada),
+    );
+
+    const valorFicha = Number(lojaAtual?.valorFichaPadrao);
+    return Number.isFinite(valorFicha) && valorFicha > 0 ? valorFicha : 2.5;
+  };
+
+  const calcularValorFichasConsolidadoTodasLojas = (dadosRelatorio) => {
+    const valorDireto = Number(
+      dadosRelatorio?.totais?.valorFichasTotal ??
+        dadosRelatorio?.totais?.valorFichas,
+    );
+
+    if (Number.isFinite(valorDireto) && valorDireto > 0) {
+      return valorDireto;
+    }
+
+    if (Array.isArray(dadosRelatorio?.lojas) && dadosRelatorio.lojas.length) {
+      return dadosRelatorio.lojas.reduce((acc, loja) => {
+        const fichas = toNumber(loja?.totais?.fichas ?? loja?.fichasTotal);
+        const valorFicha = Number(
+          loja?.valorFichaPadrao ?? loja?.loja?.valorFichaPadrao,
+        );
+        const valorValido =
+          Number.isFinite(valorFicha) && valorFicha > 0 ? valorFicha : 2.5;
+        return acc + fichas * valorValido;
+      }, 0);
+    }
+
+    return toNumber(dadosRelatorio?.totais?.fichasTotal) * 2.5;
+  };
+
   const calcularValorFichasRelatorio = (dadosRelatorio) => {
     const totalFichas = toNumber(dadosRelatorio?.totais?.fichas);
-    const valorFicha = toNumber(dadosRelatorio?.loja?.valorFichaPadrao || 2.5);
+    const valorFicha = toNumber(
+      dadosRelatorio?.loja?.valorFichaPadrao ??
+        obterValorFichaPadraoDaLojaSelecionada(),
+    );
     return totalFichas * valorFicha;
   };
 
@@ -321,10 +358,12 @@ export function Relatorios() {
                 titulo: "Valor das Fichas (Estimado)",
                 icone: "🎟️",
                 observacao:
-                  "Estimado com valor médio de R$ 2,50 por ficha no consolidado.",
+                  "Estimado com o valor da ficha de cada loja quando disponível.",
                 indicador: montarIndicadorComparacao(
-                  toNumber(totaisAtual.fichasTotal) * 2.5,
-                  toNumber(totaisAnterior.fichasTotal) * 2.5,
+                  calcularValorFichasConsolidadoTodasLojas(response.data),
+                  calcularValorFichasConsolidadoTodasLojas(
+                    responseMesAnterior.data,
+                  ),
                   "maior",
                 ),
               },
@@ -775,8 +814,10 @@ export function Relatorios() {
                     ${" "}
                     {(() => {
                       const totalFichas = relatorio.totais?.fichas || 0;
-                      const valorFicha =
-                        relatorio.loja?.valorFichaPadrao || 2.5;
+                      const valorFicha = toNumber(
+                        relatorio.loja?.valorFichaPadrao ??
+                          obterValorFichaPadraoDaLojaSelecionada(),
+                      );
                       return (totalFichas * valorFicha).toLocaleString(
                         "pt-BR",
                         { minimumFractionDigits: 2 },
@@ -1430,8 +1471,11 @@ export function Relatorios() {
                             R${" "}
                             {(() => {
                               const fichas = maquina.totais.fichas || 0;
-                              const valorFicha =
-                                maquina.maquina.valorFicha || 2.5;
+                              const valorFicha = toNumber(
+                                maquina.maquina.valorFicha ??
+                                  relatorio.loja?.valorFichaPadrao ??
+                                  obterValorFichaPadraoDaLojaSelecionada(),
+                              );
                               return (fichas * valorFicha).toFixed(2);
                             })()}
                           </div>
