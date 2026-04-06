@@ -891,36 +891,79 @@ export function Relatorios() {
                 {/* Valor Bruto das máquinas */}
                 <div className="card bg-gradient-to-br from-yellow-300 to-yellow-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">📉</div>
-                  <div className="text-xl sm:text-2xl font-bold">
-                    R${" "}
-                    {(() => {
-                      if (
-                        relatorio.totais?.valorBrutoMaquinas !== undefined &&
-                        relatorio.totais?.valorBrutoMaquinas !== null
-                      ) {
-                        return Number(
-                          relatorio.totais?.valorBrutoMaquinas || 0,
-                        ).toLocaleString("pt-BR", {
-                          minimumFractionDigits: 2,
-                        });
-                      }
+                  {(() => {
+                    const dinheiroDireto =
+                      relatorio.totais?.valorDinheiroMaquinas;
+                    const cartaoDireto =
+                      relatorio.totais?.valorCartaoPixMaquinasBruto;
 
-                      let valorBrutoMaquinas = 0;
-                      if (relatorio.maquinas && relatorio.maquinas.length > 0) {
-                        relatorio.maquinas.forEach((m) => {
-                          valorBrutoMaquinas +=
-                            Number(m.totais?.dinheiro || 0) +
-                            Number(m.totais?.cartaoPix || 0);
-                        });
-                      }
-                      return valorBrutoMaquinas.toLocaleString("pt-BR", {
-                        minimumFractionDigits: 2,
-                      });
-                    })()}
-                  </div>
-                  <div className="text-xs sm:text-sm opacity-90">
-                    Valor bruto das máquinas
-                  </div>
+                    const dinheiroMaquinas =
+                      dinheiroDireto !== undefined && dinheiroDireto !== null
+                        ? Number(dinheiroDireto || 0)
+                        : Array.isArray(relatorio.maquinas)
+                          ? relatorio.maquinas.reduce(
+                              (acc, m) => acc + Number(m.totais?.dinheiro || 0),
+                              0,
+                            )
+                          : 0;
+
+                    const cartaoPixMaquinas =
+                      cartaoDireto !== undefined && cartaoDireto !== null
+                        ? Number(cartaoDireto || 0)
+                        : Array.isArray(relatorio.maquinas)
+                          ? relatorio.maquinas.reduce(
+                              (acc, m) =>
+                                acc + Number(m.totais?.cartaoPix || 0),
+                              0,
+                            )
+                          : 0;
+
+                    const valorBrutoMaquinas =
+                      relatorio.totais?.valorBrutoMaquinas !== undefined &&
+                      relatorio.totais?.valorBrutoMaquinas !== null
+                        ? Number(relatorio.totais?.valorBrutoMaquinas || 0)
+                        : dinheiroMaquinas + cartaoPixMaquinas;
+
+                    return (
+                      <>
+                        <div className="text-xl sm:text-2xl font-bold">
+                          R${" "}
+                          {valorBrutoMaquinas.toLocaleString("pt-BR", {
+                            minimumFractionDigits: 2,
+                          })}
+                        </div>
+                        <div className="text-xs sm:text-sm opacity-90">
+                          Valor bruto das máquinas
+                        </div>
+                        <div className="flex gap-3 items-end mt-2">
+                          <div className="flex flex-col items-center">
+                            <div className="text-lg sm:text-xl mb-1">💵</div>
+                            <div className="text-base sm:text-lg font-bold">
+                              R${" "}
+                              {dinheiroMaquinas.toLocaleString("pt-BR", {
+                                minimumFractionDigits: 2,
+                              })}
+                            </div>
+                            <div className="text-[10px] sm:text-xs opacity-80">
+                              Dinheiro
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-center">
+                            <div className="text-lg sm:text-xl mb-1">🟢</div>
+                            <div className="text-base sm:text-lg font-bold">
+                              R${" "}
+                              {cartaoPixMaquinas.toLocaleString("pt-BR", {
+                                minimumFractionDigits: 2,
+                              })}
+                            </div>
+                            <div className="text-[10px] sm:text-xs opacity-80">
+                              Cartão / Pix (Bruto)
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
                 {/*Total vendas da Loja */}
                 <div className="card bg-gradient-to-br from-yellow-500 to-orange-600 text-white">
