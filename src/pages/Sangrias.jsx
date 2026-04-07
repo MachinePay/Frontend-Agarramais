@@ -98,9 +98,12 @@ export function Sangrias() {
   const [loadingLojas, setLoadingLojas] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loadingList, setLoadingList] = useState(false);
+  const [deletingBatch, setDeletingBatch] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [historico, setHistorico] = useState([]);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [endpointIndisponivel, setEndpointIndisponivel] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -189,6 +192,7 @@ export function Sangrias() {
       const response = await api.get("/sangrias", { params });
       setEndpointIndisponivel(false);
       setHistorico(normalizarHistorico(response.data));
+      setSelectedIds([]);
     } catch (err) {
       if (err?.response?.status === 404) {
         setEndpointIndisponivel(true);
@@ -379,6 +383,93 @@ export function Sangrias() {
       { totalQuantidade: 0, totalCalculadoNotas: 0 },
     );
   }, [historico]);
+
+  const getSangriaId = (item) =>
+    item?.id || item?._id || item?.sangriaId || item?.sangria_id || null;
+
+  const idsVisiveis = useMemo(
+    () => historico.map((item) => getSangriaId(item)).filter(Boolean),
+    [historico],
+  );
+
+  const todosSelecionados =
+    idsVisiveis.length > 0 &&
+    idsVisiveis.every((id) => selectedIds.includes(String(id)));
+
+  const toggleSelecionarTodos = () => {
+    if (todosSelecionados) {
+      setSelectedIds([]);
+      return;
+    }
+
+    setSelectedIds(idsVisiveis.map((id) => String(id)));
+  };
+
+  const toggleSelecionarUm = (id) => {
+    const key = String(id);
+    setSelectedIds((prev) =>
+      prev.includes(key)
+        ? prev.filter((item) => item !== key)
+        : [...prev, key],
+    );
+  };
+
+  const excluirSangria = async (item) => {
+    const id = getSangriaId(item);
+    if (!id) {
+      setError("Não foi possível excluir: registro sem ID.");
+      return;
+    }
+
+    const confirmou = window.confirm("Deseja excluir esta sangria?");
+    if (!confirmou) return;
+
+    try {
+      setDeletingId(String(id));
+      setError("");
+      await api.delete(`/sangrias/${id}`);
+      setSuccess("Sangria excluída com sucesso.");
+      await carregarHistorico();
+    } catch (err) {
+      console.error("Erro ao excluir sangria:", err);
+      setError(
+        extractApiErrorMessage(err, "Erro ao excluir sangria."),
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const excluirSangriasEmLote = async () => {
+    if (selectedIds.length === 0) {
+      setError("Selecione ao menos uma sangria para excluir em lote.");
+      return;
+    }
+
+    const confirmou = window.confirm(
+      `Deseja excluir ${selectedIds.length} sangria(s)?`,
+    );
+    if (!confirmou) return;
+
+    try {
+      setDeletingBatch(true);
+      setError("");
+      await api.delete("/sangrias", {
+        data: {
+          ids: selectedIds,
+        },
+      });
+      setSuccess("Sangrias selecionadas excluídas com sucesso.");
+      await carregarHistorico();
+    } catch (err) {
+      console.error("Erro ao excluir sangrias em lote:", err);
+      setError(
+        extractApiErrorMessage(err, "Erro ao excluir sangrias em lote."),
+      );
+    } finally {
+      setDeletingBatch(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
@@ -679,6 +770,24 @@ export function Sangrias() {
               Histórico de Sangrias
             </h2>
 
+            <div className="mb-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-60"
+                onClick={excluirSangriasEmLote}
+                disabled={
+                  selectedIds.length === 0 ||
+                  loadingList ||
+                  deletingBatch ||
+                  endpointIndisponivel
+                }
+              >
+                {deletingBatch
+                  ? "⏳ Excluindo..."
+                  : `🗑️ Excluir Selecionadas (${selectedIds.length})`}
+              </button>
+            </div>
+
           {loadingList ? (
             <div className="py-8 text-center text-gray-600">Carregando histórico...</div>
           ) : historico.length === 0 ? (
@@ -690,15 +799,27 @@ export function Sangrias() {
               <table className="table-modern">
                 <thead>
                   <tr>
+                    <th>
+                      <input
+                        type="checkbox"
+                        checked={todosSelecionados}
+                        onChange={toggleSelecionarTodos}
+                        aria-label="Selecionar todas as sangrias"
+                      />
+                    </th>
                     <th>Loja</th>
                     <th>Data/Hora</th>
                     <th>Total Retirado</th>
                     <th>Total pelas Notas</th>
                     <th>Observação</th>
+                    <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {historico.map((item) => {
+                    const idSangria = getSangriaId(item);
+                    const idSelecionado =
+                      idSangria && selectedIds.includes(String(idSangria));
                     const lojaNome =
                       item.lojaNome ||
                       item.loja?.nome ||
@@ -708,6 +829,15 @@ export function Sangrias() {
 
                     return (
                       <tr key={item.id || `${item.lojaId}-${item.dataHoraContagem}`}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={!!idSelecionado}
+                            onChange={() => idSangria && toggleSelecionarUm(idSangria)}
+                            disabled={!idSangria}
+                            aria-label="Selecionar sangria"
+                          />
+                        </td>
                         <td>{lojaNome}</td>
                         <td>
                           {formatDateTime(
@@ -732,6 +862,18 @@ export function Sangrias() {
                           )}
                         </td>
                         <td>{item.observacao || item.observacoes || "-"}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-60"
+                            onClick={() => excluirSangria(item)}
+                            disabled={!idSangria || deletingId === String(idSangria)}
+                          >
+                            {deletingId === String(idSangria)
+                              ? "Excluindo..."
+                              : "Excluir"}
+                          </button>
+                        </td>
                       </tr>
                     );
                   })}
