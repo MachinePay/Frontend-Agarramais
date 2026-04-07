@@ -278,13 +278,13 @@ export function Relatorios() {
     return `${dia}/${mes}/${ano}`;
   };
 
-<<<<<<< HEAD
   const formatarDataHoraExibicao = (dataTexto) => {
     if (!dataTexto) return "-";
     const data = new Date(dataTexto);
     if (Number.isNaN(data.getTime())) return String(dataTexto);
     return data.toLocaleString("pt-BR");
-=======
+  };
+
   const validarPeriodoFechamentoMensal = () => {
     if (!dataInicio || !dataFim) {
       return { valido: false, motivo: "Selecione data inicial e final." };
@@ -402,7 +402,6 @@ export function Relatorios() {
     } finally {
       setSalvandoFechamento(false);
     }
->>>>>>> cffaeb2dcc31033e43fa110561bb407acca525b5
   };
 
   const obterClassesStatusComparacao = (status) => {
@@ -844,7 +843,6 @@ export function Relatorios() {
     0,
   );
 
-<<<<<<< HEAD
   const sangriaRelatorio = relatorio?.sangria || {};
   const valorSangriaTotalPeriodo = Number(
     relatorio?.totais?.valorSangriaTotalPeriodo ??
@@ -880,9 +878,8 @@ export function Relatorios() {
 
     return usuariosMap[String(usuarioId)] || `ID ${usuarioId}`;
   };
-=======
+
   const fechamentoValido = validarPeriodoFechamentoMensal();
->>>>>>> cffaeb2dcc31033e43fa110561bb407acca525b5
 
   if (loadingLojas) return <PageLoader />;
 
