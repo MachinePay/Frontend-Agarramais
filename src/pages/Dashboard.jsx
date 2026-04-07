@@ -285,6 +285,9 @@ export function Dashboard() {
   // Estados para edição de estoque
   const [estoqueEditando, setEstoqueEditando] = useState(null); // { lojaId, estoque: [...] }
   const [salvandoEstoque, setSalvandoEstoque] = useState(false);
+  const [movimentacaoEditandoId, setMovimentacaoEditandoId] = useState(null);
+  const [movimentacaoForm, setMovimentacaoForm] = useState(null);
+  const [salvandoMovimentacaoId, setSalvandoMovimentacaoId] = useState(null);
 
   // Função para remover produto do estoque da loja (usando o id do registro)
 
@@ -1286,6 +1289,8 @@ export function Dashboard() {
     setMaquinaSelecionada(null);
     setMovimentacoes([]);
     setSearchTerm("");
+    setMovimentacaoEditandoId(null);
+    setMovimentacaoForm(null);
   };
 
   const handleSelecionarMaquina = async (maquina) => {
@@ -1323,10 +1328,14 @@ export function Dashboard() {
         estoqueAtual,
         ultimoProduto,
       });
+      setMovimentacaoEditandoId(null);
+      setMovimentacaoForm(null);
       carregarDetalhesMaquina(maquina.id);
     } catch (error) {
       console.error("Erro ao carregar detalhes da máquina:", error);
       setMaquinaSelecionada(maquina);
+      setMovimentacaoEditandoId(null);
+      setMovimentacaoForm(null);
       carregarDetalhesMaquina(maquina.id);
     }
   };
@@ -1335,8 +1344,155 @@ export function Dashboard() {
     if (maquinaSelecionada) {
       setMaquinaSelecionada(null);
       setMovimentacoes([]);
+      setMovimentacaoEditandoId(null);
+      setMovimentacaoForm(null);
     } else if (lojaSelecionada) {
       setLojaSelecionada(null);
+      setMovimentacaoEditandoId(null);
+      setMovimentacaoForm(null);
+    }
+  };
+
+  const formatarDataHoraParaInput = (valor) => {
+    if (!valor) return "";
+    const data = new Date(valor);
+    if (Number.isNaN(data.getTime())) return "";
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${data.getFullYear()}-${pad(data.getMonth() + 1)}-${pad(data.getDate())}T${pad(data.getHours())}:${pad(data.getMinutes())}`;
+  };
+
+  const iniciarEdicaoMovimentacao = (mov) => {
+    setMovimentacaoEditandoId(mov.id);
+    setMovimentacaoForm({
+      dataColeta: formatarDataHoraParaInput(mov.dataColeta || mov.createdAt),
+      totalPre: String(mov.totalPre ?? 0),
+      sairam: String(mov.sairam ?? 0),
+      abastecidas: String(mov.abastecidas ?? 0),
+      totalPos: String(mov.totalPos ?? 0),
+      fichas: String(mov.fichas ?? 0),
+      contadorIn:
+        mov.contadorIn === null || mov.contadorIn === undefined
+          ? ""
+          : String(mov.contadorIn),
+      contadorOut:
+        mov.contadorOut === null || mov.contadorOut === undefined
+          ? ""
+          : String(mov.contadorOut),
+      observacoes: mov.observacoes || "",
+      produtos: Array.isArray(mov.detalhesProdutos)
+        ? mov.detalhesProdutos.map((p) => ({
+            produtoId: p.produtoId || "",
+            quantidadeSaiu: String(p.quantidadeSaiu ?? 0),
+            quantidadeAbastecida: String(p.quantidadeAbastecida ?? 0),
+            retiradaProduto: String(p.retiradaProduto ?? 0),
+          }))
+        : [],
+    });
+  };
+
+  const cancelarEdicaoMovimentacao = () => {
+    setMovimentacaoEditandoId(null);
+    setMovimentacaoForm(null);
+  };
+
+  const atualizarCampoMovimentacao = (campo, valor) => {
+    setMovimentacaoForm((prev) => ({ ...prev, [campo]: valor }));
+  };
+
+  const atualizarProdutoMovimentacao = (index, campo, valor) => {
+    setMovimentacaoForm((prev) => {
+      const produtos = [...(prev?.produtos || [])];
+      produtos[index] = { ...produtos[index], [campo]: valor };
+      return { ...prev, produtos };
+    });
+  };
+
+  const adicionarProdutoMovimentacao = () => {
+    setMovimentacaoForm((prev) => ({
+      ...prev,
+      produtos: [
+        ...(prev?.produtos || []),
+        {
+          produtoId: "",
+          quantidadeSaiu: "0",
+          quantidadeAbastecida: "0",
+          retiradaProduto: "0",
+        },
+      ],
+    }));
+  };
+
+  const removerProdutoMovimentacao = (index) => {
+    setMovimentacaoForm((prev) => {
+      const produtos = [...(prev?.produtos || [])];
+      produtos.splice(index, 1);
+      return { ...prev, produtos };
+    });
+  };
+
+  const parseNumeroInteiro = (valor, permitirNulo = false) => {
+    if (valor === "" || valor === null || valor === undefined) {
+      return permitirNulo ? null : 0;
+    }
+    const numero = parseInt(valor, 10);
+    if (Number.isNaN(numero)) {
+      return permitirNulo ? null : 0;
+    }
+    return numero;
+  };
+
+  const salvarEdicaoMovimentacao = async (movimentacaoId) => {
+    if (!movimentacaoForm) return;
+
+    try {
+      setSalvandoMovimentacaoId(movimentacaoId);
+
+      const payload = {
+        dataColeta: movimentacaoForm.dataColeta || null,
+        totalPre: parseNumeroInteiro(movimentacaoForm.totalPre),
+        sairam: parseNumeroInteiro(movimentacaoForm.sairam),
+        abastecidas: parseNumeroInteiro(movimentacaoForm.abastecidas),
+        totalPos: parseNumeroInteiro(movimentacaoForm.totalPos),
+        fichas: parseNumeroInteiro(movimentacaoForm.fichas),
+        contadorIn: parseNumeroInteiro(movimentacaoForm.contadorIn, true),
+        contadorOut: parseNumeroInteiro(movimentacaoForm.contadorOut, true),
+        observacoes: movimentacaoForm.observacoes || "",
+        produtos: (movimentacaoForm.produtos || [])
+          .filter((p) => p.produtoId)
+          .map((p) => ({
+            produtoId: p.produtoId,
+            quantidadeSaiu: parseNumeroInteiro(p.quantidadeSaiu),
+            quantidadeAbastecida: parseNumeroInteiro(p.quantidadeAbastecida),
+            retiradaProduto: parseNumeroInteiro(p.retiradaProduto),
+          })),
+      };
+
+      await api.put(`/movimentacoes/${movimentacaoId}`, payload);
+
+      Swal.fire({
+        icon: "success",
+        title: "Movimentação atualizada",
+        text: "As alterações foram salvas com sucesso.",
+        confirmButtonColor: "#fbbf24",
+      });
+
+      if (maquinaSelecionada?.id) {
+        await carregarDetalhesMaquina(maquinaSelecionada.id);
+      }
+
+      cancelarEdicaoMovimentacao();
+    } catch (error) {
+      console.error("Erro ao salvar edição da movimentação:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Erro ao salvar",
+        text:
+          error?.response?.data?.error ||
+          "Não foi possível salvar a movimentação.",
+        confirmButtonColor: "#ef4444",
+      });
+    } finally {
+      setSalvandoMovimentacaoId(null);
     }
   };
 
@@ -2710,7 +2866,7 @@ export function Dashboard() {
                             key={mov.id}
                             className="p-4 border border-gray-200 rounded-lg bg-white"
                           >
-                            <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center justify-between mb-2 gap-3">
                               <Badge
                                 variant={
                                   mov.tipo === "entrada" ? "success" : "danger"
@@ -2720,15 +2876,37 @@ export function Dashboard() {
                                   ? "📥 Entrada"
                                   : "📤 Saída"}
                               </Badge>
-                              <span className="text-sm text-gray-600">
-                                {new Date(mov.createdAt).toLocaleDateString(
-                                  "pt-BR",
-                                )}{" "}
-                                às{" "}
-                                {new Date(mov.createdAt).toLocaleTimeString(
-                                  "pt-BR",
+                              <div className="flex items-center gap-3">
+                                <span className="text-sm text-gray-600">
+                                  {new Date(
+                                    mov.dataColeta || mov.createdAt,
+                                  ).toLocaleDateString("pt-BR")}{" "}
+                                  às{" "}
+                                  {new Date(
+                                    mov.dataColeta || mov.createdAt,
+                                  ).toLocaleTimeString("pt-BR")}
+                                </span>
+                                {movimentacaoEditandoId === mov.id ? (
+                                  <button
+                                    type="button"
+                                    onClick={cancelarEdicaoMovimentacao}
+                                    className="px-3 py-1 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100 text-xs font-semibold"
+                                    disabled={salvandoMovimentacaoId === mov.id}
+                                  >
+                                    Cancelar
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      iniciarEdicaoMovimentacao(mov)
+                                    }
+                                    className="px-3 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-700 text-xs font-semibold"
+                                  >
+                                    Editar
+                                  </button>
                                 )}
-                              </span>
+                              </div>
                             </div>
                             <div className="grid grid-cols-6 gap-4 mt-3 text-sm">
                               <div>
@@ -2814,6 +2992,284 @@ export function Dashboard() {
                                 💬 {mov.observacoes}
                               </p>
                             )}
+
+                            {movimentacaoEditandoId === mov.id &&
+                              movimentacaoForm && (
+                                <div className="mt-4 pt-4 border-t border-gray-200 space-y-4">
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    <div>
+                                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                        Data/Hora
+                                      </label>
+                                      <input
+                                        type="datetime-local"
+                                        value={movimentacaoForm.dataColeta}
+                                        onChange={(e) =>
+                                          atualizarCampoMovimentacao(
+                                            "dataColeta",
+                                            e.target.value,
+                                          )
+                                        }
+                                        className="input-field w-full"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                        Total Pré
+                                      </label>
+                                      <input
+                                        type="number"
+                                        value={movimentacaoForm.totalPre}
+                                        onChange={(e) =>
+                                          atualizarCampoMovimentacao(
+                                            "totalPre",
+                                            e.target.value,
+                                          )
+                                        }
+                                        className="input-field w-full"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                        Total Atual
+                                      </label>
+                                      <input
+                                        type="number"
+                                        value={movimentacaoForm.totalPos}
+                                        onChange={(e) =>
+                                          atualizarCampoMovimentacao(
+                                            "totalPos",
+                                            e.target.value,
+                                          )
+                                        }
+                                        className="input-field w-full"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                        Saíram
+                                      </label>
+                                      <input
+                                        type="number"
+                                        value={movimentacaoForm.sairam}
+                                        onChange={(e) =>
+                                          atualizarCampoMovimentacao(
+                                            "sairam",
+                                            e.target.value,
+                                          )
+                                        }
+                                        className="input-field w-full"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                        Abastecidas
+                                      </label>
+                                      <input
+                                        type="number"
+                                        value={movimentacaoForm.abastecidas}
+                                        onChange={(e) =>
+                                          atualizarCampoMovimentacao(
+                                            "abastecidas",
+                                            e.target.value,
+                                          )
+                                        }
+                                        className="input-field w-full"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                        Fichas
+                                      </label>
+                                      <input
+                                        type="number"
+                                        value={movimentacaoForm.fichas}
+                                        onChange={(e) =>
+                                          atualizarCampoMovimentacao(
+                                            "fichas",
+                                            e.target.value,
+                                          )
+                                        }
+                                        className="input-field w-full"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                        Contador IN
+                                      </label>
+                                      <input
+                                        type="number"
+                                        value={movimentacaoForm.contadorIn}
+                                        onChange={(e) =>
+                                          atualizarCampoMovimentacao(
+                                            "contadorIn",
+                                            e.target.value,
+                                          )
+                                        }
+                                        className="input-field w-full"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                        Contador OUT
+                                      </label>
+                                      <input
+                                        type="number"
+                                        value={movimentacaoForm.contadorOut}
+                                        onChange={(e) =>
+                                          atualizarCampoMovimentacao(
+                                            "contadorOut",
+                                            e.target.value,
+                                          )
+                                        }
+                                        className="input-field w-full"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                      Observações
+                                    </label>
+                                    <textarea
+                                      value={movimentacaoForm.observacoes}
+                                      onChange={(e) =>
+                                        atualizarCampoMovimentacao(
+                                          "observacoes",
+                                          e.target.value,
+                                        )
+                                      }
+                                      rows={2}
+                                      className="input-field w-full"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <div className="flex items-center justify-between mb-2">
+                                      <p className="text-xs font-semibold text-gray-700">
+                                        Produtos da Movimentação
+                                      </p>
+                                      <button
+                                        type="button"
+                                        onClick={adicionarProdutoMovimentacao}
+                                        className="px-2 py-1 rounded-md text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700"
+                                      >
+                                        + Produto
+                                      </button>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      {(movimentacaoForm.produtos || []).map(
+                                        (produto, index) => (
+                                          <div
+                                            key={`${mov.id}-produto-${index}`}
+                                            className="grid grid-cols-1 md:grid-cols-5 gap-2"
+                                          >
+                                            <select
+                                              value={produto.produtoId}
+                                              onChange={(e) =>
+                                                atualizarProdutoMovimentacao(
+                                                  index,
+                                                  "produtoId",
+                                                  e.target.value,
+                                                )
+                                              }
+                                              className="input-field md:col-span-2"
+                                            >
+                                              <option value="">
+                                                Selecione o produto
+                                              </option>
+                                              {produtos.map((itemProduto) => (
+                                                <option
+                                                  key={itemProduto.id}
+                                                  value={itemProduto.id}
+                                                >
+                                                  {itemProduto.nome}
+                                                </option>
+                                              ))}
+                                            </select>
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              value={produto.quantidadeSaiu}
+                                              onChange={(e) =>
+                                                atualizarProdutoMovimentacao(
+                                                  index,
+                                                  "quantidadeSaiu",
+                                                  e.target.value,
+                                                )
+                                              }
+                                              className="input-field"
+                                              placeholder="Saiu"
+                                            />
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              value={
+                                                produto.quantidadeAbastecida
+                                              }
+                                              onChange={(e) =>
+                                                atualizarProdutoMovimentacao(
+                                                  index,
+                                                  "quantidadeAbastecida",
+                                                  e.target.value,
+                                                )
+                                              }
+                                              className="input-field"
+                                              placeholder="Abastecida"
+                                            />
+                                            <div className="flex gap-2">
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                value={produto.retiradaProduto}
+                                                onChange={(e) =>
+                                                  atualizarProdutoMovimentacao(
+                                                    index,
+                                                    "retiradaProduto",
+                                                    e.target.value,
+                                                  )
+                                                }
+                                                className="input-field"
+                                                placeholder="Retirada"
+                                              />
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  removerProdutoMovimentacao(
+                                                    index,
+                                                  )
+                                                }
+                                                className="px-2 rounded-md bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold"
+                                                title="Remover produto"
+                                              >
+                                                X
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ),
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="flex justify-end">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        salvarEdicaoMovimentacao(mov.id)
+                                      }
+                                      className="px-4 py-2 rounded-md bg-green-600 hover:bg-green-700 text-white text-sm font-semibold"
+                                      disabled={
+                                        salvandoMovimentacaoId === mov.id
+                                      }
+                                    >
+                                      {salvandoMovimentacaoId === mov.id
+                                        ? "Salvando..."
+                                        : "Salvar edição"}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                           </div>
                         ))}
                     </div>

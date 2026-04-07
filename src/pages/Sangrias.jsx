@@ -126,6 +126,7 @@ export function Sangrias() {
     [formData.notas],
   );
 
+  const isAdmin = usuario?.role === "ADMIN";
   const podeVerHistorico = usuario?.role === "ADMIN";
 
   useEffect(() => {
@@ -236,7 +237,9 @@ export function Sangrias() {
         return;
       }
 
-      const dataHoraIso = new Date(formData.dataHoraContagem).toISOString();
+      const dataHoraIso = isAdmin
+        ? new Date(formData.dataHoraContagem).toISOString()
+        : new Date().toISOString();
       const notasObj = NOTE_VALUES.reduce((acc, note) => {
         acc[note] = toNumber(formData.notas[note]);
         return acc;
@@ -452,16 +455,22 @@ export function Sangrias() {
                   <input
                     type="datetime-local"
                     value={formData.dataHoraContagem}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      if (!isAdmin) return;
                       setFormData((prev) => ({
                         ...prev,
                         dataHoraContagem: event.target.value,
-                      }))
-                    }
+                      }));
+                    }}
                     className="input-field w-full"
                     required
-                    disabled={endpointIndisponivel}
+                    disabled={endpointIndisponivel || !isAdmin}
                   />
+                  {!isAdmin && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Registro automático no momento da sangria.
+                    </p>
+                  )}
                 </div>
 
                 <div>

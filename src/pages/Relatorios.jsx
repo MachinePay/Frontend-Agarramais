@@ -5,6 +5,7 @@ import { Footer } from "../components/Footer";
 import { PageHeader } from "../components/UIComponents";
 import { PageLoader } from "../components/Loading";
 import { RelatorioTodasLojas } from "../components/RelatorioTodasLojas";
+import Swal from "sweetalert2";
 
 const TODAS_LOJAS_VALUE = "__TODAS_AS_LOJAS__";
 
@@ -21,6 +22,7 @@ export function Relatorios() {
   const [error, setError] = useState("");
   const [gastosFixosLoja, setGastosFixosLoja] = useState([]);
   const [comparativoMensal, setComparativoMensal] = useState(null);
+  const [salvandoFechamento, setSalvandoFechamento] = useState(false);
 
   // Buscar dados do dashboard para fichas corretas
   const carregarDashboard = async (lojaId, dataInicio, dataFim) => {
@@ -109,9 +111,46 @@ export function Relatorios() {
 
   const toNumber = (valor) => Number(valor || 0);
 
+  const obterValorFichaPadraoDaLojaSelecionada = () => {
+    const lojaAtual = lojas.find(
+      (loja) => String(loja.id) === String(lojaSelecionada),
+    );
+
+    const valorFicha = Number(lojaAtual?.valorFichaPadrao);
+    return Number.isFinite(valorFicha) && valorFicha > 0 ? valorFicha : 2.5;
+  };
+
+  const calcularValorFichasConsolidadoTodasLojas = (dadosRelatorio) => {
+    const valorDireto = Number(
+      dadosRelatorio?.totais?.valorFichasTotal ??
+        dadosRelatorio?.totais?.valorFichas,
+    );
+
+    if (Number.isFinite(valorDireto) && valorDireto > 0) {
+      return valorDireto;
+    }
+
+    if (Array.isArray(dadosRelatorio?.lojas) && dadosRelatorio.lojas.length) {
+      return dadosRelatorio.lojas.reduce((acc, loja) => {
+        const fichas = toNumber(loja?.totais?.fichas ?? loja?.fichasTotal);
+        const valorFicha = Number(
+          loja?.valorFichaPadrao ?? loja?.loja?.valorFichaPadrao,
+        );
+        const valorValido =
+          Number.isFinite(valorFicha) && valorFicha > 0 ? valorFicha : 2.5;
+        return acc + fichas * valorValido;
+      }, 0);
+    }
+
+    return toNumber(dadosRelatorio?.totais?.fichasTotal) * 2.5;
+  };
+
   const calcularValorFichasRelatorio = (dadosRelatorio) => {
     const totalFichas = toNumber(dadosRelatorio?.totais?.fichas);
-    const valorFicha = toNumber(dadosRelatorio?.loja?.valorFichaPadrao || 2.5);
+    const valorFicha = toNumber(
+      dadosRelatorio?.loja?.valorFichaPadrao ??
+        obterValorFichaPadraoDaLojaSelecionada(),
+    );
     return totalFichas * valorFicha;
   };
 
@@ -239,11 +278,131 @@ export function Relatorios() {
     return `${dia}/${mes}/${ano}`;
   };
 
+<<<<<<< HEAD
   const formatarDataHoraExibicao = (dataTexto) => {
     if (!dataTexto) return "-";
     const data = new Date(dataTexto);
     if (Number.isNaN(data.getTime())) return String(dataTexto);
     return data.toLocaleString("pt-BR");
+=======
+  const validarPeriodoFechamentoMensal = () => {
+    if (!dataInicio || !dataFim) {
+      return { valido: false, motivo: "Selecione data inicial e final." };
+    }
+
+    const inicio = new Date(`${dataInicio}T00:00:00`);
+    const fim = new Date(`${dataFim}T00:00:00`);
+
+    if (Number.isNaN(inicio.getTime()) || Number.isNaN(fim.getTime())) {
+      return { valido: false, motivo: "Período inválido." };
+    }
+
+    if (
+      inicio.getFullYear() !== fim.getFullYear() ||
+      inicio.getMonth() !== fim.getMonth()
+    ) {
+      return {
+        valido: false,
+        motivo: "O fechamento precisa estar dentro do mesmo mês.",
+      };
+    }
+
+    const ultimoDiaDoMes = new Date(
+      inicio.getFullYear(),
+      inicio.getMonth() + 1,
+      0,
+    ).getDate();
+
+    if (inicio.getDate() !== 1 || fim.getDate() !== ultimoDiaDoMes) {
+      return {
+        valido: false,
+        motivo:
+          "O fechamento só pode ser feito com período completo: dia 1 até o último dia do mês.",
+      };
+    }
+
+    const fimDoPeriodo = new Date(
+      fim.getFullYear(),
+      fim.getMonth(),
+      fim.getDate(),
+      23,
+      59,
+      59,
+      999,
+    );
+
+    if (new Date().getTime() <= fimDoPeriodo.getTime()) {
+      return {
+        valido: false,
+        motivo:
+          "O fechamento só pode ser feito após o término completo do período.",
+      };
+    }
+
+    return { valido: true, motivo: "" };
+  };
+
+  const salvarFechamentoMensal = async () => {
+    if (!relatorio || lojaSelecionada === TODAS_LOJAS_VALUE) {
+      Swal.fire({
+        icon: "warning",
+        title: "Fechamento indisponível",
+        text: "Selecione uma única loja para fechar o mês.",
+      });
+      return;
+    }
+
+    const validacao = validarPeriodoFechamentoMensal();
+    if (!validacao.valido) {
+      Swal.fire({
+        icon: "warning",
+        title: "Período inválido para fechamento",
+        text: validacao.motivo,
+      });
+      return;
+    }
+
+    const confirmacao = await Swal.fire({
+      icon: "question",
+      title: "Confirmar fechamento mensal?",
+      html: `Loja: <b>${relatorio?.loja?.nome || "-"}</b><br/>Período: <b>${formatarDataExibicao(dataInicio)} até ${formatarDataExibicao(dataFim)}</b>`,
+      showCancelButton: true,
+      confirmButtonText: "Sim, fechar mês",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#16a34a",
+    });
+
+    if (!confirmacao.isConfirmed) return;
+
+    try {
+      setSalvandoFechamento(true);
+
+      await api.post("/fechamentos-mensais-relatorio", {
+        lojaId: lojaSelecionada,
+        dataInicio,
+        dataFim,
+        relatorio,
+        gastosFixosDetalhados: gastosFixosComValor,
+      });
+
+      Swal.fire({
+        icon: "success",
+        title: "Fechamento salvo",
+        text: "Os dados do fechamento mensal foram salvos com sucesso.",
+        confirmButtonColor: "#16a34a",
+      });
+    } catch (erroFechamento) {
+      Swal.fire({
+        icon: "error",
+        title: "Erro ao salvar fechamento",
+        text:
+          erroFechamento?.response?.data?.error ||
+          "Não foi possível salvar o fechamento mensal.",
+      });
+    } finally {
+      setSalvandoFechamento(false);
+    }
+>>>>>>> cffaeb2dcc31033e43fa110561bb407acca525b5
   };
 
   const obterClassesStatusComparacao = (status) => {
@@ -350,10 +509,12 @@ export function Relatorios() {
                 titulo: "Valor das Fichas (Estimado)",
                 icone: "🎟️",
                 observacao:
-                  "Estimado com valor médio de R$ 2,50 por ficha no consolidado.",
+                  "Estimado com o valor da ficha de cada loja quando disponível.",
                 indicador: montarIndicadorComparacao(
-                  toNumber(totaisAtual.fichasTotal) * 2.5,
-                  toNumber(totaisAnterior.fichasTotal) * 2.5,
+                  calcularValorFichasConsolidadoTodasLojas(response.data),
+                  calcularValorFichasConsolidadoTodasLojas(
+                    responseMesAnterior.data,
+                  ),
                   "maior",
                 ),
               },
@@ -423,6 +584,7 @@ export function Relatorios() {
       });
 
       let gastoTotalDoRegistrar = null;
+      let observacaoDoRegistrar = "";
       try {
         const registrosResponse = await api.get("/registro-dinheiro");
         const registros = Array.isArray(registrosResponse.data)
@@ -478,6 +640,13 @@ export function Relatorios() {
               0,
           );
 
+          observacaoDoRegistrar = String(
+            registroMaisRecente.observacao ??
+              registroMaisRecente.observacoes ??
+              registroMaisRecente.obs ??
+              "",
+          ).trim();
+
           if (!Number.isNaN(valorRegistro)) {
             gastoTotalDoRegistrar = valorRegistro;
           }
@@ -495,6 +664,7 @@ export function Relatorios() {
 
       const relatorioAtualNormalizado = {
         ...response.data,
+        observacaoRegistrar: observacaoDoRegistrar,
         totais: {
           ...(response.data?.totais || {}),
           gastoTotalPeriodo: gastoTotalFinal,
@@ -674,6 +844,7 @@ export function Relatorios() {
     0,
   );
 
+<<<<<<< HEAD
   const sangriaRelatorio = relatorio?.sangria || {};
   const valorSangriaTotalPeriodo = Number(
     relatorio?.totais?.valorSangriaTotalPeriodo ??
@@ -709,6 +880,9 @@ export function Relatorios() {
 
     return usuariosMap[String(usuarioId)] || `ID ${usuarioId}`;
   };
+=======
+  const fechamentoValido = validarPeriodoFechamentoMensal();
+>>>>>>> cffaeb2dcc31033e43fa110561bb407acca525b5
 
   if (loadingLojas) return <PageLoader />;
 
@@ -808,6 +982,14 @@ export function Relatorios() {
 
         {relatorio && !loading && relatorio.tipo !== "todas-lojas" && (
           <div className="space-y-6">
+            {relatorio.observacaoRegistrar && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded mb-4">
+                <p className="text-sm text-blue-800">
+                  <strong>Observação do Registrar Dinheiro:</strong>{" "}
+                  {relatorio.observacaoRegistrar}
+                </p>
+              </div>
+            )}
             {/* Aviso de diferença de fichas */}
             {relatorio.avisoFichas && (
               <div className="p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-900 rounded mb-4">
@@ -840,8 +1022,10 @@ export function Relatorios() {
                     ${" "}
                     {(() => {
                       const totalFichas = relatorio.totais?.fichas || 0;
-                      const valorFicha =
-                        relatorio.loja?.valorFichaPadrao || 2.5;
+                      const valorFicha = toNumber(
+                        relatorio.loja?.valorFichaPadrao ??
+                          obterValorFichaPadraoDaLojaSelecionada(),
+                      );
                       return (totalFichas * valorFicha).toLocaleString(
                         "pt-BR",
                         { minimumFractionDigits: 2 },
@@ -898,36 +1082,79 @@ export function Relatorios() {
                 {/* Valor Bruto das máquinas */}
                 <div className="card bg-gradient-to-br from-yellow-300 to-yellow-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">📉</div>
-                  <div className="text-xl sm:text-2xl font-bold">
-                    R${" "}
-                    {(() => {
-                      if (
-                        relatorio.totais?.valorBrutoMaquinas !== undefined &&
-                        relatorio.totais?.valorBrutoMaquinas !== null
-                      ) {
-                        return Number(
-                          relatorio.totais?.valorBrutoMaquinas || 0,
-                        ).toLocaleString("pt-BR", {
-                          minimumFractionDigits: 2,
-                        });
-                      }
+                  {(() => {
+                    const dinheiroDireto =
+                      relatorio.totais?.valorDinheiroMaquinas;
+                    const cartaoDireto =
+                      relatorio.totais?.valorCartaoPixMaquinasBruto;
 
-                      let valorBrutoMaquinas = 0;
-                      if (relatorio.maquinas && relatorio.maquinas.length > 0) {
-                        relatorio.maquinas.forEach((m) => {
-                          valorBrutoMaquinas +=
-                            Number(m.totais?.dinheiro || 0) +
-                            Number(m.totais?.cartaoPix || 0);
-                        });
-                      }
-                      return valorBrutoMaquinas.toLocaleString("pt-BR", {
-                        minimumFractionDigits: 2,
-                      });
-                    })()}
-                  </div>
-                  <div className="text-xs sm:text-sm opacity-90">
-                    Valor bruto das máquinas
-                  </div>
+                    const dinheiroMaquinas =
+                      dinheiroDireto !== undefined && dinheiroDireto !== null
+                        ? Number(dinheiroDireto || 0)
+                        : Array.isArray(relatorio.maquinas)
+                          ? relatorio.maquinas.reduce(
+                              (acc, m) => acc + Number(m.totais?.dinheiro || 0),
+                              0,
+                            )
+                          : 0;
+
+                    const cartaoPixMaquinas =
+                      cartaoDireto !== undefined && cartaoDireto !== null
+                        ? Number(cartaoDireto || 0)
+                        : Array.isArray(relatorio.maquinas)
+                          ? relatorio.maquinas.reduce(
+                              (acc, m) =>
+                                acc + Number(m.totais?.cartaoPix || 0),
+                              0,
+                            )
+                          : 0;
+
+                    const valorBrutoMaquinas =
+                      relatorio.totais?.valorBrutoMaquinas !== undefined &&
+                      relatorio.totais?.valorBrutoMaquinas !== null
+                        ? Number(relatorio.totais?.valorBrutoMaquinas || 0)
+                        : dinheiroMaquinas + cartaoPixMaquinas;
+
+                    return (
+                      <>
+                        <div className="text-xl sm:text-2xl font-bold">
+                          R${" "}
+                          {valorBrutoMaquinas.toLocaleString("pt-BR", {
+                            minimumFractionDigits: 2,
+                          })}
+                        </div>
+                        <div className="text-xs sm:text-sm opacity-90">
+                          Valor bruto das máquinas
+                        </div>
+                        <div className="flex gap-3 items-end mt-2">
+                          <div className="flex flex-col items-center">
+                            <div className="text-lg sm:text-xl mb-1">💵</div>
+                            <div className="text-base sm:text-lg font-bold">
+                              R${" "}
+                              {dinheiroMaquinas.toLocaleString("pt-BR", {
+                                minimumFractionDigits: 2,
+                              })}
+                            </div>
+                            <div className="text-[10px] sm:text-xs opacity-80">
+                              Dinheiro
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-center">
+                            <div className="text-lg sm:text-xl mb-1">🟢</div>
+                            <div className="text-base sm:text-lg font-bold">
+                              R${" "}
+                              {cartaoPixMaquinas.toLocaleString("pt-BR", {
+                                minimumFractionDigits: 2,
+                              })}
+                            </div>
+                            <div className="text-[10px] sm:text-xs opacity-80">
+                              Cartão / Pix (Bruto)
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
                 {/*Total vendas da Loja */}
                 <div className="card bg-gradient-to-br from-yellow-500 to-orange-600 text-white">
@@ -1224,6 +1451,39 @@ export function Relatorios() {
                   <div className="text-[10px] sm:text-xs opacity-80 mt-1">
                     Registros: {quantidadeRegistrosSangria.toLocaleString("pt-BR")}
                   </div>
+                </div>
+              </div>
+
+              <div className="mt-5 border-t border-purple-200 pt-4 no-print">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">
+                      Fechamento Mensal do Relatório
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      Salva um snapshot detalhado para integração no outro
+                      backend.
+                    </p>
+                    {!fechamentoValido.valido && (
+                      <p className="text-xs text-amber-700 mt-1">
+                        ⚠️ {fechamentoValido.motivo}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={salvarFechamentoMensal}
+                    disabled={
+                      salvandoFechamento ||
+                      !fechamentoValido.valido ||
+                      lojaSelecionada === TODAS_LOJAS_VALUE
+                    }
+                    className="px-4 py-2 rounded-lg font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {salvandoFechamento
+                      ? "Salvando fechamento..."
+                      : "💾 Fechar mês e salvar snapshot"}
+                  </button>
                 </div>
               </div>
             </div>
@@ -1597,8 +1857,11 @@ export function Relatorios() {
                             R${" "}
                             {(() => {
                               const fichas = maquina.totais.fichas || 0;
-                              const valorFicha =
-                                maquina.maquina.valorFicha || 2.5;
+                              const valorFicha = toNumber(
+                                maquina.maquina.valorFicha ??
+                                  relatorio.loja?.valorFichaPadrao ??
+                                  obterValorFichaPadraoDaLojaSelecionada(),
+                              );
                               return (fichas * valorFicha).toFixed(2);
                             })()}
                           </div>

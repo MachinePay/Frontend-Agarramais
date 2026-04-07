@@ -222,6 +222,19 @@ export function LojaDetalhes() {
                 <p className="text-gray-900">{loja.telefone}</p>
               </div>
 
+              <div>
+                <label className="text-sm font-semibold text-gray-500">
+                  Valor da Ficha
+                </label>
+                <p className="text-gray-900 font-semibold">
+                  R${" "}
+                  {Number(loja.valorFichaPadrao ?? 2.5).toLocaleString(
+                    "pt-BR",
+                    { minimumFractionDigits: 2 },
+                  )}
+                </p>
+              </div>
+
               {loja.responsavel && (
                 <div>
                   <label className="text-sm font-semibold text-gray-500">
@@ -480,13 +493,13 @@ export function LojaDetalhes() {
                           >
                             <div className="flex items-center justify-between mb-2">
                               <span className="text-sm text-gray-600">
-                                {new Date(mov.createdAt).toLocaleDateString(
-                                  "pt-BR",
-                                )}{" "}
+                                {new Date(
+                                  mov.dataColeta || mov.createdAt,
+                                ).toLocaleDateString("pt-BR")}{" "}
                                 às{" "}
-                                {new Date(mov.createdAt).toLocaleTimeString(
-                                  "pt-BR",
-                                )}
+                                {new Date(
+                                  mov.dataColeta || mov.createdAt,
+                                ).toLocaleTimeString("pt-BR")}
                               </span>
                             </div>
                             <div className="grid grid-cols-5 gap-4 mt-3 text-sm">
