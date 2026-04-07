@@ -3,6 +3,7 @@ import api from "../services/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { PageHeader } from "../components/UIComponents";
+import { useAuth } from "../contexts/AuthContext";
 
 const NOTE_VALUES = [2, 5, 10, 20, 50, 100, 200];
 
@@ -91,6 +92,7 @@ const normalizeLojaIdValue = (value) => {
 };
 
 export function Sangrias() {
+  const { usuario } = useAuth();
   const didInitRef = useRef(false);
   const [lojas, setLojas] = useState([]);
   const [loadingLojas, setLoadingLojas] = useState(true);
@@ -124,11 +126,15 @@ export function Sangrias() {
     [formData.notas],
   );
 
+  const podeVerHistorico = usuario?.role === "ADMIN";
+
   useEffect(() => {
     if (didInitRef.current) return;
     didInitRef.current = true;
     carregarLojas();
-    carregarHistorico();
+    if (podeVerHistorico) {
+      carregarHistorico();
+    }
   }, []);
 
   const carregarLojas = async () => {
@@ -313,7 +319,9 @@ export function Sangrias() {
         notas: createEmptyNotes(),
       });
 
-      await carregarHistorico();
+      if (podeVerHistorico) {
+        await carregarHistorico();
+      }
     } catch (err) {
       if (err?.response?.status === 404) {
         setEndpointIndisponivel(true);
@@ -334,10 +342,12 @@ export function Sangrias() {
 
   const handleFiltroSubmit = async (event) => {
     event.preventDefault();
+    if (!podeVerHistorico) return;
     await carregarHistorico(filtros);
   };
 
   const handleLimparFiltros = async () => {
+    if (!podeVerHistorico) return;
     const filtrosLimpos = {
       lojaId: "",
       dataInicio: "",
@@ -402,7 +412,7 @@ export function Sangrias() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className={`grid grid-cols-1 ${podeVerHistorico ? "xl:grid-cols-2" : ""} gap-6`}>
           <div className="card">
             <h2 className="text-xl font-bold text-gray-900 mb-4">
               Registrar Sangria
@@ -545,117 +555,120 @@ export function Sangrias() {
             </form>
           </div>
 
-          <div className="card">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">
-              Filtros do Histórico
-            </h2>
+          {podeVerHistorico ? (
+            <div className="card">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">
+                Filtros do Histórico
+              </h2>
 
-            <form onSubmit={handleFiltroSubmit} className="space-y-4 mb-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  🏪 Loja
-                </label>
-                <select
-                  value={filtros.lojaId}
-                  onChange={(event) =>
-                    setFiltros((prev) => ({
-                      ...prev,
-                      lojaId: event.target.value,
-                    }))
-                  }
-                  className="input-field w-full"
-                  disabled={loadingLojas || endpointIndisponivel}
-                >
-                  <option value="">Todas as lojas</option>
-                  {lojas.map((loja) => (
-                    <option key={loja.id} value={loja.id}>
-                      {loja.nome}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <form onSubmit={handleFiltroSubmit} className="space-y-4 mb-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    📅 Data inicial
+                    🏪 Loja
                   </label>
-                  <input
-                    type="date"
-                    value={filtros.dataInicio}
+                  <select
+                    value={filtros.lojaId}
                     onChange={(event) =>
                       setFiltros((prev) => ({
                         ...prev,
-                        dataInicio: event.target.value,
+                        lojaId: event.target.value,
                       }))
                     }
                     className="input-field w-full"
-                    disabled={endpointIndisponivel}
-                  />
+                    disabled={loadingLojas || endpointIndisponivel}
+                  >
+                    <option value="">Todas as lojas</option>
+                    {lojas.map((loja) => (
+                      <option key={loja.id} value={loja.id}>
+                        {loja.nome}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    📅 Data final
-                  </label>
-                  <input
-                    type="date"
-                    value={filtros.dataFim}
-                    onChange={(event) =>
-                      setFiltros((prev) => ({
-                        ...prev,
-                        dataFim: event.target.value,
-                      }))
-                    }
-                    className="input-field w-full"
-                    disabled={endpointIndisponivel}
-                  />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      📅 Data inicial
+                    </label>
+                    <input
+                      type="date"
+                      value={filtros.dataInicio}
+                      onChange={(event) =>
+                        setFiltros((prev) => ({
+                          ...prev,
+                          dataInicio: event.target.value,
+                        }))
+                      }
+                      className="input-field w-full"
+                      disabled={endpointIndisponivel}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      📅 Data final
+                    </label>
+                    <input
+                      type="date"
+                      value={filtros.dataFim}
+                      onChange={(event) =>
+                        setFiltros((prev) => ({
+                          ...prev,
+                          dataFim: event.target.value,
+                        }))
+                      }
+                      className="input-field w-full"
+                      disabled={endpointIndisponivel}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="submit"
-                  className="btn-primary"
-                  disabled={loadingList || endpointIndisponivel}
-                >
-                  {loadingList ? "⏳ Filtrando..." : "🔎 Filtrar Histórico"}
-                </button>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={handleLimparFiltros}
-                  disabled={loadingList || endpointIndisponivel}
-                >
-                  Limpar
-                </button>
-              </div>
-            </form>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={loadingList || endpointIndisponivel}
+                  >
+                    {loadingList ? "⏳ Filtrando..." : "🔎 Filtrar Histórico"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={handleLimparFiltros}
+                    disabled={loadingList || endpointIndisponivel}
+                  >
+                    Limpar
+                  </button>
+                </div>
+              </form>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="p-3 rounded-lg border border-gray-200 bg-white">
-                <p className="text-xs text-gray-500">Registros</p>
-                <p className="text-xl font-bold text-gray-900">{historico.length}</p>
-              </div>
-              <div className="p-3 rounded-lg border border-gray-200 bg-white">
-                <p className="text-xs text-gray-500">Total Sangria</p>
-                <p className="text-xl font-bold text-red-600">
-                  R$ {formatCurrency(resumoHistorico.totalQuantidade)}
-                </p>
-              </div>
-              <div className="p-3 rounded-lg border border-gray-200 bg-white">
-                <p className="text-xs text-gray-500">Total Notas</p>
-                <p className="text-xl font-bold text-blue-600">
-                  R$ {formatCurrency(resumoHistorico.totalCalculadoNotas)}
-                </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-3 rounded-lg border border-gray-200 bg-white">
+                  <p className="text-xs text-gray-500">Registros</p>
+                  <p className="text-xl font-bold text-gray-900">{historico.length}</p>
+                </div>
+                <div className="p-3 rounded-lg border border-gray-200 bg-white">
+                  <p className="text-xs text-gray-500">Total Sangria</p>
+                  <p className="text-xl font-bold text-red-600">
+                    R$ {formatCurrency(resumoHistorico.totalQuantidade)}
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg border border-gray-200 bg-white">
+                  <p className="text-xs text-gray-500">Total Notas</p>
+                  <p className="text-xl font-bold text-blue-600">
+                    R$ {formatCurrency(resumoHistorico.totalCalculadoNotas)}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          ) : null}
         </div>
 
-        <div className="card mt-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">
-            Histórico de Sangrias
-          </h2>
+        {podeVerHistorico ? (
+          <div className="card mt-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Histórico de Sangrias
+            </h2>
 
           {loadingList ? (
             <div className="py-8 text-center text-gray-600">Carregando histórico...</div>
@@ -717,7 +730,14 @@ export function Sangrias() {
               </table>
             </div>
           )}
-        </div>
+          </div>
+        ) : (
+          <div className="card mt-6">
+            <p className="text-sm text-gray-600">
+              Histórico de sangrias disponível apenas para administradores.
+            </p>
+          </div>
+        )}
       </div>
 
       <Footer />
