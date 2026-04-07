@@ -5,6 +5,7 @@ import { Footer } from "../components/Footer";
 import { PageHeader } from "../components/UIComponents";
 import { PageLoader } from "../components/Loading";
 import { RelatorioTodasLojas } from "../components/RelatorioTodasLojas";
+import Swal from "sweetalert2";
 
 const TODAS_LOJAS_VALUE = "__TODAS_AS_LOJAS__";
 
@@ -20,6 +21,7 @@ export function Relatorios() {
   const [error, setError] = useState("");
   const [gastosFixosLoja, setGastosFixosLoja] = useState([]);
   const [comparativoMensal, setComparativoMensal] = useState(null);
+  const [salvandoFechamento, setSalvandoFechamento] = useState(false);
 
   // Buscar dados do dashboard para fichas corretas
   const carregarDashboard = async (lojaId, dataInicio, dataFim) => {
@@ -252,6 +254,125 @@ export function Relatorios() {
     const [ano, mes, dia] = String(dataTexto || "").split("-");
     if (!ano || !mes || !dia) return dataTexto || "-";
     return `${dia}/${mes}/${ano}`;
+  };
+
+  const validarPeriodoFechamentoMensal = () => {
+    if (!dataInicio || !dataFim) {
+      return { valido: false, motivo: "Selecione data inicial e final." };
+    }
+
+    const inicio = new Date(`${dataInicio}T00:00:00`);
+    const fim = new Date(`${dataFim}T00:00:00`);
+
+    if (Number.isNaN(inicio.getTime()) || Number.isNaN(fim.getTime())) {
+      return { valido: false, motivo: "Período inválido." };
+    }
+
+    if (
+      inicio.getFullYear() !== fim.getFullYear() ||
+      inicio.getMonth() !== fim.getMonth()
+    ) {
+      return {
+        valido: false,
+        motivo: "O fechamento precisa estar dentro do mesmo mês.",
+      };
+    }
+
+    const ultimoDiaDoMes = new Date(
+      inicio.getFullYear(),
+      inicio.getMonth() + 1,
+      0,
+    ).getDate();
+
+    if (inicio.getDate() !== 1 || fim.getDate() !== ultimoDiaDoMes) {
+      return {
+        valido: false,
+        motivo:
+          "O fechamento só pode ser feito com período completo: dia 1 até o último dia do mês.",
+      };
+    }
+
+    const fimDoPeriodo = new Date(
+      fim.getFullYear(),
+      fim.getMonth(),
+      fim.getDate(),
+      23,
+      59,
+      59,
+      999,
+    );
+
+    if (new Date().getTime() <= fimDoPeriodo.getTime()) {
+      return {
+        valido: false,
+        motivo:
+          "O fechamento só pode ser feito após o término completo do período.",
+      };
+    }
+
+    return { valido: true, motivo: "" };
+  };
+
+  const salvarFechamentoMensal = async () => {
+    if (!relatorio || lojaSelecionada === TODAS_LOJAS_VALUE) {
+      Swal.fire({
+        icon: "warning",
+        title: "Fechamento indisponível",
+        text: "Selecione uma única loja para fechar o mês.",
+      });
+      return;
+    }
+
+    const validacao = validarPeriodoFechamentoMensal();
+    if (!validacao.valido) {
+      Swal.fire({
+        icon: "warning",
+        title: "Período inválido para fechamento",
+        text: validacao.motivo,
+      });
+      return;
+    }
+
+    const confirmacao = await Swal.fire({
+      icon: "question",
+      title: "Confirmar fechamento mensal?",
+      html: `Loja: <b>${relatorio?.loja?.nome || "-"}</b><br/>Período: <b>${formatarDataExibicao(dataInicio)} até ${formatarDataExibicao(dataFim)}</b>`,
+      showCancelButton: true,
+      confirmButtonText: "Sim, fechar mês",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#16a34a",
+    });
+
+    if (!confirmacao.isConfirmed) return;
+
+    try {
+      setSalvandoFechamento(true);
+
+      await api.post("/fechamentos-mensais-relatorio", {
+        lojaId: lojaSelecionada,
+        dataInicio,
+        dataFim,
+        relatorio,
+        gastosFixosDetalhados: gastosFixosComValor,
+      });
+
+      Swal.fire({
+        icon: "success",
+        title: "Fechamento salvo",
+        text: "Os dados do fechamento mensal foram salvos com sucesso.",
+        confirmButtonColor: "#16a34a",
+      });
+    } catch (erroFechamento) {
+      Swal.fire({
+        icon: "error",
+        title: "Erro ao salvar fechamento",
+        text:
+          erroFechamento?.response?.data?.error ||
+          "Não foi possível salvar o fechamento mensal.",
+      });
+    } finally {
+      setSalvandoFechamento(false);
+    }
   };
 
   const obterClassesStatusComparacao = (status) => {
@@ -692,6 +813,8 @@ export function Relatorios() {
     (acc, item) => acc + item.valor,
     0,
   );
+
+  const fechamentoValido = validarPeriodoFechamentoMensal();
 
   if (loadingLojas) return <PageLoader />;
 
@@ -1245,6 +1368,39 @@ export function Relatorios() {
                   <div className="text-xs sm:text-sm opacity-90">
                     Lucro Líquido
                   </div>
+                </div>
+              </div>
+
+              <div className="mt-5 border-t border-purple-200 pt-4 no-print">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">
+                      Fechamento Mensal do Relatório
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      Salva um snapshot detalhado para integração no outro
+                      backend.
+                    </p>
+                    {!fechamentoValido.valido && (
+                      <p className="text-xs text-amber-700 mt-1">
+                        ⚠️ {fechamentoValido.motivo}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={salvarFechamentoMensal}
+                    disabled={
+                      salvandoFechamento ||
+                      !fechamentoValido.valido ||
+                      lojaSelecionada === TODAS_LOJAS_VALUE
+                    }
+                    className="px-4 py-2 rounded-lg font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {salvandoFechamento
+                      ? "Salvando fechamento..."
+                      : "💾 Fechar mês e salvar snapshot"}
+                  </button>
                 </div>
               </div>
             </div>
