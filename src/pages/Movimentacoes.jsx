@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
@@ -16,6 +17,7 @@ import AvisosMaquinasFaltam from "../components/AvisosMaquinasFaltam";
 import TabelaMovimentacoesEstoqueDeLoja from "../components/TabelaMovimentacoesEstoqueDeLoja";
 
 export function Movimentacoes() {
+  const navigate = useNavigate();
   const [modalRegistrarDinheiro, setModalRegistrarDinheiro] = useState(false);
   const { usuario } = useAuth();
 
@@ -777,6 +779,12 @@ export function Movimentacoes() {
               onClick={() => setShowForm((v) => !v)}
             >
               {showForm ? "Cancelar" : "Nova Movimentação"}
+            </button>
+            <button
+              className="px-6 py-2 bg-rose-600 text-white rounded hover:bg-rose-700 font-bold shadow text-base"
+              onClick={() => navigate("/sangrias")}
+            >
+              Sangria
             </button>
             <button
               className="px-6 py-2 bg-blue-700 text-white rounded hover:bg-blue-800 font-bold shadow text-base"

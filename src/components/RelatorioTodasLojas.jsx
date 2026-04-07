@@ -97,6 +97,7 @@ export function RelatorioTodasLojas({ relatorio }) {
   const destaques = relatorio?.destaques || {};
   const graficos = relatorio?.graficos || {};
   const comparativoMensal = relatorio?.comparativoMensal || null;
+  const sangria = relatorio?.sangria || {};
   const cartaoPixLiquidoTotal =
     totais.cartaoPixLiquidoTotal ??
     Number(totais.cartaoPixTotal || 0) - Number(totais.taxaDeCartaoTotal || 0);
@@ -152,6 +153,15 @@ export function RelatorioTodasLojas({ relatorio }) {
           : 0,
     },
   ];
+  const valorSangriaTotalPeriodo = Number(
+    totais.valorSangriaTotalPeriodo ?? sangria.totalPeriodo ?? 0,
+  );
+  const quantidadeRegistrosSangria = Number(
+    totais.quantidadeRegistrosSangria ?? sangria.quantidadeRegistros ?? 0,
+  );
+  const registrosSangria = Array.isArray(sangria.registros)
+    ? sangria.registros
+    : [];
 
   return (
     <div className="space-y-6">
@@ -357,6 +367,80 @@ export function RelatorioTodasLojas({ relatorio }) {
           </div>
           <div className="text-sm opacity-90">Quantidade de Fichas</div>
         </div>
+        <div className="card bg-linear-to-br from-red-500 to-rose-700 text-white">
+          <div className="text-2xl mb-1">💸</div>
+          <div className="text-2xl font-bold">
+            {formatarMoeda(valorSangriaTotalPeriodo)}
+          </div>
+          <div className="text-sm opacity-90">Sangria no Período</div>
+          <div className="text-xs opacity-80 mt-1">
+            Registros: {quantidadeRegistrosSangria.toLocaleString("pt-BR")}
+          </div>
+        </div>
+      </div>
+
+      <div className="card bg-linear-to-r from-red-50 to-rose-100 border-2 border-rose-200">
+        <h4 className="text-lg font-bold text-gray-900 mb-2">💸 Sangria (Separada)</h4>
+        <p className="text-sm text-gray-700 mb-4">
+          Exibição informativa da sangria no período, sem interferir nos totais e cálculos já existentes.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+          <div className="bg-white border border-rose-200 rounded-lg p-3">
+            <div className="text-xs text-gray-500">Total Sangria</div>
+            <div className="text-lg font-bold text-rose-700">
+              {formatarMoeda(valorSangriaTotalPeriodo)}
+            </div>
+          </div>
+          <div className="bg-white border border-rose-200 rounded-lg p-3">
+            <div className="text-xs text-gray-500">Quantidade de registros</div>
+            <div className="text-lg font-bold text-gray-900">
+              {quantidadeRegistrosSangria.toLocaleString("pt-BR")}
+            </div>
+          </div>
+        </div>
+
+        {registrosSangria.length > 0 ? (
+          <div className="overflow-x-auto rounded-xl border border-rose-200">
+            <table className="table-modern">
+              <thead>
+                <tr>
+                  <th>Loja</th>
+                  <th>Data/Hora</th>
+                  <th>Valor</th>
+                  <th>Notas</th>
+                  <th>Observação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {registrosSangria.map((item) => (
+                  <tr key={item.id || `${item.lojaId}-${item.dataHoraContagem || item.createdAt}`}>
+                    <td>{item.lojaNome || item.loja?.nome || "-"}</td>
+                    <td>
+                      {item.dataHoraContagem || item.dataHora || item.createdAt
+                        ? new Date(
+                            item.dataHoraContagem || item.dataHora || item.createdAt,
+                          ).toLocaleString("pt-BR")
+                        : "-"}
+                    </td>
+                    <td>{formatarMoeda(item.quantidade || item.totalRetirado || 0)}</td>
+                    <td>
+                      {formatarMoeda(
+                        item.totalCalculadoPelasNotas ||
+                          item.valorCalculadoNotas ||
+                          item.totalNotas ||
+                          0,
+                      )}
+                    </td>
+                    <td>{item.observacao || item.observacoes || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-600">Sem registros de sangria detalhados para o período.</p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
