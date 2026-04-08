@@ -47,6 +47,126 @@ const calcularLargura = (valor, maximo) => {
   return `${Math.max(percentual, 4).toFixed(2)}%`;
 };
 
+const obterNumeroFinito = (...valores) => {
+  for (const valor of valores) {
+    const numero = Number(valor);
+    if (Number.isFinite(numero)) {
+      return numero;
+    }
+  }
+  return null;
+};
+
+const calcularTotalSangriaTodasLojas = (
+  relatorio,
+  totais,
+  sangria,
+  registros,
+) => {
+  const totalDireto = obterNumeroFinito(
+    totais?.valorSangriaTotalPeriodo,
+    totais?.valorSangriaTotal,
+    totais?.sangriaTotalPeriodo,
+    totais?.sangriaTotal,
+    totais?.totalSangriaPeriodo,
+    totais?.totalSangria,
+    totais?.valor_sangria_total_periodo,
+    totais?.valor_sangria_total,
+    totais?.sangria_total_periodo,
+    totais?.sangria_total,
+    totais?.total_sangria_periodo,
+    totais?.total_sangria,
+    sangria?.totalPeriodo,
+    sangria?.total,
+    sangria?.valorTotalPeriodo,
+    sangria?.valorTotal,
+    sangria?.total_periodo,
+    sangria?.total_geral,
+    sangria?.valor_total_periodo,
+    sangria?.valor_total,
+  );
+
+  if (totalDireto !== null) return totalDireto;
+
+  if (Array.isArray(relatorio?.lojas) && relatorio.lojas.length > 0) {
+    const totalPorLojas = relatorio.lojas.reduce((acc, loja) => {
+      const totalLoja = obterNumeroFinito(
+        loja?.totais?.valorSangriaTotalPeriodo,
+        loja?.totais?.valorSangriaTotal,
+        loja?.totais?.sangriaTotalPeriodo,
+        loja?.totais?.sangriaTotal,
+        loja?.totais?.valor_sangria_total_periodo,
+        loja?.totais?.valor_sangria_total,
+        loja?.sangria?.totalPeriodo,
+        loja?.sangria?.valorTotalPeriodo,
+        loja?.sangria?.total,
+      );
+      return acc + (totalLoja ?? 0);
+    }, 0);
+
+    if (totalPorLojas > 0) return totalPorLojas;
+  }
+
+  if (Array.isArray(registros) && registros.length > 0) {
+    return registros.reduce(
+      (acc, item) =>
+        acc +
+        (obterNumeroFinito(
+          item?.quantidade,
+          item?.totalRetirado,
+          item?.valor,
+          item?.valorRetirado,
+          item?.valor_sangria,
+        ) ?? 0),
+      0,
+    );
+  }
+
+  return 0;
+};
+
+const calcularQuantidadeRegistrosSangriaTodasLojas = (
+  relatorio,
+  totais,
+  sangria,
+  registros,
+) => {
+  const quantidadeDireta = obterNumeroFinito(
+    totais?.quantidadeRegistrosSangria,
+    totais?.quantidadeSangrias,
+    totais?.qtdRegistrosSangria,
+    totais?.quantidade_registros_sangria,
+    totais?.quantidade_sangrias,
+    sangria?.quantidadeRegistros,
+    sangria?.quantidade,
+    sangria?.qtdRegistros,
+    sangria?.quantidade_registros,
+  );
+
+  if (quantidadeDireta !== null) return quantidadeDireta;
+
+  if (Array.isArray(relatorio?.lojas) && relatorio.lojas.length > 0) {
+    const quantidadePorLojas = relatorio.lojas.reduce((acc, loja) => {
+      const qtdLoja = obterNumeroFinito(
+        loja?.totais?.quantidadeRegistrosSangria,
+        loja?.totais?.quantidadeSangrias,
+        loja?.totais?.quantidade_registros_sangria,
+        loja?.sangria?.quantidadeRegistros,
+        loja?.sangria?.quantidade,
+      );
+      return acc + (qtdLoja ?? 0);
+    }, 0);
+
+    if (quantidadePorLojas > 0) return quantidadePorLojas;
+  }
+
+  if (Array.isArray(registros) && registros.length > 0) {
+    return registros.length;
+  }
+
+  return 0;
+};
+
 const GraficoBarras = ({
   titulo,
   itens,
@@ -153,15 +273,26 @@ export function RelatorioTodasLojas({ relatorio }) {
           : 0,
     },
   ];
-  const valorSangriaTotalPeriodo = Number(
-    totais.valorSangriaTotalPeriodo ?? sangria.totalPeriodo ?? 0,
-  );
-  const quantidadeRegistrosSangria = Number(
-    totais.quantidadeRegistrosSangria ?? sangria.quantidadeRegistros ?? 0,
-  );
   const registrosSangria = Array.isArray(sangria.registros)
     ? sangria.registros
-    : [];
+    : Array.isArray(relatorio?.registrosSangria)
+      ? relatorio.registrosSangria
+      : Array.isArray(relatorio?.sangrias)
+        ? relatorio.sangrias
+        : [];
+  const valorSangriaTotalPeriodo = calcularTotalSangriaTodasLojas(
+    relatorio,
+    totais,
+    sangria,
+    registrosSangria,
+  );
+  const quantidadeRegistrosSangria =
+    calcularQuantidadeRegistrosSangriaTodasLojas(
+      relatorio,
+      totais,
+      sangria,
+      registrosSangria,
+    );
 
   return (
     <div className="space-y-6">
@@ -380,9 +511,12 @@ export function RelatorioTodasLojas({ relatorio }) {
       </div>
 
       <div className="card bg-linear-to-r from-red-50 to-rose-100 border-2 border-rose-200">
-        <h4 className="text-lg font-bold text-gray-900 mb-2">💸 Sangria (Separada)</h4>
+        <h4 className="text-lg font-bold text-gray-900 mb-2">
+          💸 Sangria (Separada)
+        </h4>
         <p className="text-sm text-gray-700 mb-4">
-          Exibição informativa da sangria no período, sem interferir nos totais e cálculos já existentes.
+          Exibição informativa da sangria no período, sem interferir nos totais
+          e cálculos já existentes.
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
@@ -414,16 +548,27 @@ export function RelatorioTodasLojas({ relatorio }) {
               </thead>
               <tbody>
                 {registrosSangria.map((item) => (
-                  <tr key={item.id || `${item.lojaId}-${item.dataHoraContagem || item.createdAt}`}>
+                  <tr
+                    key={
+                      item.id ||
+                      `${item.lojaId}-${item.dataHoraContagem || item.createdAt}`
+                    }
+                  >
                     <td>{item.lojaNome || item.loja?.nome || "-"}</td>
                     <td>
                       {item.dataHoraContagem || item.dataHora || item.createdAt
                         ? new Date(
-                            item.dataHoraContagem || item.dataHora || item.createdAt,
+                            item.dataHoraContagem ||
+                              item.dataHora ||
+                              item.createdAt,
                           ).toLocaleString("pt-BR")
                         : "-"}
                     </td>
-                    <td>{formatarMoeda(item.quantidade || item.totalRetirado || 0)}</td>
+                    <td>
+                      {formatarMoeda(
+                        item.quantidade || item.totalRetirado || 0,
+                      )}
+                    </td>
                     <td>
                       {formatarMoeda(
                         item.totalCalculadoPelasNotas ||
@@ -439,7 +584,9 @@ export function RelatorioTodasLojas({ relatorio }) {
             </table>
           </div>
         ) : (
-          <p className="text-sm text-gray-600">Sem registros de sangria detalhados para o período.</p>
+          <p className="text-sm text-gray-600">
+            Sem registros de sangria detalhados para o período.
+          </p>
         )}
       </div>
 
