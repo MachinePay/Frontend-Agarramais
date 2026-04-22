@@ -387,6 +387,15 @@ export function Sangrias() {
   const getSangriaId = (item) =>
     item?.id || item?._id || item?.sangriaId || item?.sangria_id || null;
 
+  const getSangriaDataHora = (item) =>
+    item?.dataContagem ||
+    item?.dataHoraContagem ||
+    item?.dataHora ||
+    item?.data_contagem ||
+    item?.createdAt ||
+    item?.created_at ||
+    null;
+
   const idsVisiveis = useMemo(
     () => historico.map((item) => getSangriaId(item)).filter(Boolean),
     [historico],
@@ -820,6 +829,7 @@ export function Sangrias() {
                     const idSangria = getSangriaId(item);
                     const idSelecionado =
                       idSangria && selectedIds.includes(String(idSangria));
+                    const dataHoraSangria = getSangriaDataHora(item);
                     const lojaNome =
                       item.lojaNome ||
                       item.loja?.nome ||
@@ -828,7 +838,7 @@ export function Sangrias() {
                       "-";
 
                     return (
-                      <tr key={item.id || `${item.lojaId}-${item.dataHoraContagem}`}>
+                      <tr key={item.id || `${item.lojaId}-${dataHoraSangria || "sem-data"}`}>
                         <td>
                           <input
                             type="checkbox"
@@ -840,12 +850,7 @@ export function Sangrias() {
                         </td>
                         <td>{lojaNome}</td>
                         <td>
-                          {formatDateTime(
-                            item.dataHoraContagem ||
-                              item.dataHora ||
-                              item.data_contagem ||
-                              item.createdAt,
-                          )}
+                          {formatDateTime(dataHoraSangria)}
                         </td>
                         <td>
                           R${" "}
