@@ -3340,6 +3340,19 @@ export function Dashboard() {
                         </svg>
                         {alerta.maquina.loja}
                       </p>
+                      {alerta.produtos && alerta.produtos.length > 0 && (
+                        <p className="text-sm text-gray-700 mt-1 flex flex-wrap gap-1">
+                          {alerta.produtos.map((p, i) => (
+                            <span
+                              key={i}
+                              className="bg-white/70 border border-gray-200 px-2 py-0.5 rounded-full text-xs font-medium"
+                            >
+                              {p.emoji ? `${p.emoji} ` : ""}
+                              {p.nome}
+                            </span>
+                          ))}
+                        </p>
+                      )}
                     </div>
                     <div className="text-right">
                       <div className="flex items-baseline gap-1">
@@ -3402,6 +3415,19 @@ export function Dashboard() {
                           </svg>
                           {alerta.maquina.loja}
                         </p>
+                        {alerta.produtos && alerta.produtos.length > 0 && (
+                          <p className="text-sm text-gray-700 mt-1 flex flex-wrap gap-1">
+                            {alerta.produtos.map((p, i) => (
+                              <span
+                                key={i}
+                                className="bg-white/70 border border-gray-200 px-2 py-0.5 rounded-full text-xs font-medium"
+                              >
+                                {p.emoji ? `${p.emoji} ` : ""}
+                                {p.nome}
+                              </span>
+                            ))}
+                          </p>
+                        )}
                       </div>
                       <div className="text-right">
                         <div className="flex items-baseline gap-1">
