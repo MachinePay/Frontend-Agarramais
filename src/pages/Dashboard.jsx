@@ -2247,7 +2247,7 @@ export function Dashboard() {
                   >
                     {/* Header - sempre visível */}
                     <div className="p-5 bg-gray-50">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div
                           className="flex items-center gap-4 flex-1 cursor-pointer hover:opacity-80 transition-opacity"
                           onClick={() => toggleLojaEstoque(loja.id)}
@@ -2277,39 +2277,41 @@ export function Dashboard() {
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              imprimirRelatorioLoja(loja);
-                            }}
-                            className="w-full sm:w-auto px-3 py-2 bg-linear-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all font-medium text-sm flex items-center justify-center gap-2 wrap-break-word"
-                            style={{ minWidth: 0, maxWidth: "100%" }}
-                          >
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
+                        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                imprimirRelatorioLoja(loja);
+                              }}
+                              className="w-full sm:w-auto px-3 py-2 bg-linear-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all font-medium text-sm flex items-center justify-center gap-2 wrap-break-word"
+                              style={{ minWidth: 0, maxWidth: "100%" }}
                             >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-                              />
-                            </svg>
-                            Imprimir
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              abrirEdicaoEstoque(loja);
-                            }}
-                            className="px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/90 transition-colors font-medium text-sm flex items-center gap-2"
-                          >
-                            ✏️ Editar Estoque
-                          </button>
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                                />
+                              </svg>
+                              Imprimir
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                abrirEdicaoEstoque(loja);
+                              }}
+                              className="w-full sm:w-auto px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/90 transition-colors font-medium text-sm flex items-center justify-center gap-2"
+                            >
+                              ✏️ Editar Estoque
+                            </button>
+                          </div>
                           <svg
                             className={`w-6 h-6 text-gray-500 transition-transform ${
                               lojaEstoqueExpanded[loja.id] ? "rotate-180" : ""
