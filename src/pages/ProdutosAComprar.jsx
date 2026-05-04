@@ -16,15 +16,10 @@ const normalizeText = (value) =>
 
 const getApiErrorMessage = (err, fallback) => {
   const data = err?.response?.data;
-
   if (typeof data === "string" && data.trim()) return data;
-  if (typeof data?.message === "string" && data.message.trim()) {
+  if (typeof data?.message === "string" && data.message.trim())
     return data.message;
-  }
-  if (typeof data?.error === "string" && data.error.trim()) {
-    return data.error;
-  }
-
+  if (typeof data?.error === "string" && data.error.trim()) return data.error;
   return fallback;
 };
 
@@ -34,179 +29,47 @@ const normalizeIdentifier = (value) =>
 const getProductKey = (produto, fallback = "") => {
   const codigoKey = normalizeIdentifier(produto?.codigo);
   if (codigoKey) return codigoKey;
-
   const nomeKey = normalizeIdentifier(produto?.nome);
   if (nomeKey) return nomeKey;
-
   const id = produto?.id ?? produto?.produtoId ?? produto?.idProduto;
-  if (id !== undefined && id !== null && String(id).trim()) {
-    return `id-${id}`;
-  }
-
+  if (id !== undefined && id !== null && String(id).trim()) return `id-${id}`;
   return `fallback-${fallback}`;
 };
 
-const isAlertFromStore = (alerta, lojaSelecionada) => {
-  if (!lojaSelecionada) return false;
-
-  const lojaIdSelecionada = String(lojaSelecionada.id || "");
-  const lojaNomeSelecionada = normalizeText(lojaSelecionada.nome);
-  const lojaNomeSelecionadaCompacto = lojaNomeSelecionada.replace(/\s+/g, " ");
-
-  const alertaLojaId = String(
-    alerta?.lojaId ??
-      alerta?.loja?.id ??
-      alerta?.maquina?.lojaId ??
-      alerta?.maquina?.loja?.id ??
-      "",
-  );
-
-  if (alertaLojaId && lojaIdSelecionada && alertaLojaId === lojaIdSelecionada) {
-    return true;
-  }
-
-  const alertaLojaNome = normalizeText(
-    alerta?.lojaNome ??
-      alerta?.loja?.nome ??
-      alerta?.maquina?.lojaNome ??
-      alerta?.maquina?.loja?.nome ??
-      alerta?.maquina?.loja,
-  );
-
-  if (!alertaLojaNome) return false;
-
-  const alertaLojaNomeCompacto = alertaLojaNome.replace(/\s+/g, " ");
-
-  if (alertaLojaNomeCompacto === lojaNomeSelecionadaCompacto) return true;
-
-  // Fallback tolerante para pequenas diferenças no nome da loja.
-  return (
-    alertaLojaNomeCompacto.includes(lojaNomeSelecionadaCompacto) ||
-    lojaNomeSelecionadaCompacto.includes(alertaLojaNomeCompacto)
-  );
-};
-
-const buildMachineCapacityByProduct = (alertasMaquinas, lojaSelecionada) => {
-  const capacidadePorProduto = new Map();
-
-  const alertasDaLoja = (alertasMaquinas || []).filter((alerta) =>
-    isAlertFromStore(alerta, lojaSelecionada),
-  );
-
-  alertasDaLoja.forEach((alerta, alertaIndex) => {
-    const capacidadePadrao = toNumber(
-      alerta?.capacidadePadrao ??
-        alerta?.padrao ??
-        alerta?.maquina?.capacidadePadrao ??
-        alerta?.maquina?.capacidade,
-    );
-    const estoqueAtual = toNumber(
-      alerta?.estoqueAtual ?? alerta?.maquina?.estoqueAtual,
-    );
-    const deficitTotal = Math.max(0, capacidadePadrao - estoqueAtual);
-
-    if (deficitTotal <= 0) return;
-
-    let produtosRelacionados = Array.isArray(alerta?.produtos)
-      ? alerta.produtos.filter(Boolean)
-      : [];
-
-    if (produtosRelacionados.length === 0) {
-      const fallbackProduto =
-        alerta?.produto ??
-        alerta?.maquina?.produtoAtual ??
-        alerta?.maquina?.produto ??
-        null;
-
-      if (fallbackProduto) {
-        produtosRelacionados = [fallbackProduto];
-      } else {
-        const nomeTipo =
-          alerta?.maquina?.tipo ??
-          alerta?.tipoProduto ??
-          alerta?.produtoNome ??
-          "Produto da máquina";
-
-        produtosRelacionados = [
-          {
-            id: alerta?.maquina?.produtoId,
-            codigo: alerta?.maquina?.codigo || "",
-            nome: nomeTipo,
-            emoji: "📦",
-          },
-        ];
-      }
-    }
-
-    if (produtosRelacionados.length === 0) return;
-
-    const base = Math.floor(deficitTotal / produtosRelacionados.length);
-    const resto = deficitTotal % produtosRelacionados.length;
-
-    produtosRelacionados.forEach((produto, idx) => {
-      const parcela = base + (idx < resto ? 1 : 0);
-      if (parcela <= 0) return;
-
-      const key = getProductKey(produto, `alerta-${alertaIndex}-${idx}`);
-      const acumulado = capacidadePorProduto.get(key) || {
-        produto: {
-          id: produto?.id ?? produto?.produtoId ?? produto?.idProduto,
-          codigo: produto?.codigo || "",
-          nome: produto?.nome || "Produto sem nome",
-          emoji: produto?.emoji || "📦",
-        },
-        faltaCapacidade: 0,
-      };
-
-      acumulado.faltaCapacidade += parcela;
-      capacidadePorProduto.set(key, acumulado);
-    });
-  });
-
-  return capacidadePorProduto;
-};
-
+// Tenta associar um produto do estoque a uma entrada no mapa de déficit (por código ou nome)
 const takeCapacityForProduct = (capacidadePorProduto, produto, fallback) => {
   const primaryKey = getProductKey(produto, fallback);
   const primaryValue = capacidadePorProduto.get(primaryKey);
-
   if (primaryValue) {
     capacidadePorProduto.delete(primaryKey);
     return toNumber(primaryValue.faltaCapacidade);
   }
-
   const codigo = normalizeIdentifier(produto?.codigo);
   const nome = normalizeIdentifier(produto?.nome);
-
   for (const [key, value] of capacidadePorProduto.entries()) {
     const nomeMap = normalizeIdentifier(value?.produto?.nome);
     const codigoMap = normalizeIdentifier(value?.produto?.codigo);
-
     const codigoMatch =
       !!codigo && (codigo === codigoMap || codigo === nomeMap);
     const nomeMatch = !!nome && (nome === nomeMap || nome === codigoMap);
-
     if (codigoMatch || nomeMatch) {
       capacidadePorProduto.delete(key);
       return toNumber(value?.faltaCapacidade);
     }
   }
-
   return 0;
 };
 
 export function ProdutosAComprar() {
   const [lojas, setLojas] = useState([]);
-  // IDs das lojas marcadas (multi-select)
   const [lojasSelecionadas, setLojasSelecionadas] = useState(new Set());
-  // Estoque por loja: Map<lojaId, Array>
   const [estoquePorLoja, setEstoquePorLoja] = useState(new Map());
-  // Lojas que estão carregando
   const [carregandoLoja, setCarregandoLoja] = useState(new Set());
-  const [alertasMaquinas, setAlertasMaquinas] = useState([]);
+  // Map<lojaId, Map<productKey, {produto, faltaCapacidade}>>
+  const [deficitPorLoja, setDeficitPorLoja] = useState(new Map());
+  const [produtos, setProdutos] = useState([]);
   const [loadingInicial, setLoadingInicial] = useState(true);
   const [erro, setErro] = useState("");
-  const [avisoAlertas, setAvisoAlertas] = useState("");
 
   const printRef = useRef(null);
 
@@ -216,14 +79,11 @@ export function ProdutosAComprar() {
       .map((lojaId) => {
         const loja = lojas.find((l) => String(l.id) === String(lojaId));
         if (!loja) return null;
-
         const estoque = estoquePorLoja.get(String(lojaId)) || [];
-
-        const capacidadePorProduto = buildMachineCapacityByProduct(
-          alertasMaquinas,
-          loja,
+        // Cópia rasa para que takeCapacityForProduct possa deletar chaves sem mutar o estado
+        const capacidadePorProduto = new Map(
+          deficitPorLoja.get(String(lojaId)) || new Map(),
         );
-
         const produtosMap = new Map();
 
         estoque.forEach((item, index) => {
@@ -238,7 +98,6 @@ export function ProdutosAComprar() {
             `estoque-${index}`,
           );
           const quantidadeComprar = faltaMinimo + faltaCapacidade;
-
           produtosMap.set(key, {
             key,
             produto,
@@ -250,6 +109,7 @@ export function ProdutosAComprar() {
           });
         });
 
+        // Produtos com déficit de capacidade mas não listados no estoque mínimo
         capacidadePorProduto.forEach((value, key) => {
           const quantidadeComprar = Math.max(
             0,
@@ -269,37 +129,105 @@ export function ProdutosAComprar() {
           });
         });
 
-        const produtos = Array.from(produtosMap.values())
+        const ps = Array.from(produtosMap.values())
           .filter((p) => p.quantidadeComprar > 0)
           .sort((a, b) => b.quantidadeComprar - a.quantidadeComprar);
-
-        return { loja, produtos };
+        return { loja, produtos: ps };
       })
       .filter(Boolean);
-  }, [lojasSelecionadas, estoquePorLoja, alertasMaquinas, lojas]);
+  }, [lojasSelecionadas, estoquePorLoja, deficitPorLoja, lojas]);
 
   const totalGeral = useMemo(
     () =>
       listaPorLoja.reduce(
-        (acc, { produtos }) =>
-          acc + produtos.reduce((s, p) => s + p.quantidadeComprar, 0),
+        (acc, { produtos: ps }) =>
+          acc + ps.reduce((s, p) => s + p.quantidadeComprar, 0),
         0,
       ),
     [listaPorLoja],
   );
 
-  // ── buscar estoque de uma loja (com cache) ───────────────────────────────
+  // ── buscar estoque + déficit de capacidade de uma loja ───────────────────
   const fetchEstoqueLoja = useCallback(
     async (lojaId) => {
       const key = String(lojaId);
       if (estoquePorLoja.has(key) || carregandoLoja.has(key)) return;
-
       setCarregandoLoja((prev) => new Set(prev).add(key));
       try {
-        const res = await api.get(`/estoque-lojas/${lojaId}`);
+        const [estoqueRes, maquinasRes] = await Promise.all([
+          api.get(`/estoque-lojas/${lojaId}`),
+          api.get(`/maquinas`),
+        ]);
+
         setEstoquePorLoja((prev) => {
           const next = new Map(prev);
-          next.set(key, Array.isArray(res.data) ? res.data : []);
+          next.set(key, Array.isArray(estoqueRes.data) ? estoqueRes.data : []);
+          return next;
+        });
+
+        const maquinasDaLoja = (maquinasRes.data || []).filter(
+          (m) => String(m.lojaId) === key,
+        );
+
+        const deficitMap = new Map();
+        await Promise.all(
+          maquinasDaLoja.map(async (maquina) => {
+            try {
+              const [estoqRes, movRes] = await Promise.all([
+                api.get(`/maquinas/${maquina.id}/estoque`),
+                api.get(`/movimentacoes?maquinaId=${maquina.id}`),
+              ]);
+              const estoqueAtual = estoqRes.data.estoqueAtual ?? 0;
+              const capacidade = maquina.capacidadePadrao || 0;
+              const deficit = Math.max(0, capacidade - estoqueAtual);
+              if (deficit <= 0) return;
+
+              // Produto da última movimentação
+              const movs = (movRes.data || []).sort(
+                (a, b) =>
+                  new Date(b.dataColeta || b.createdAt) -
+                  new Date(a.dataColeta || a.createdAt),
+              );
+              let produto = null;
+              if (movs.length > 0) {
+                const produtoId = movs[0].detalhesProdutos?.[0]?.produtoId;
+                if (produtoId) {
+                  const found = produtos.find((p) => p.id === produtoId);
+                  if (found) {
+                    produto = {
+                      id: found.id,
+                      codigo: found.codigo || "",
+                      nome: found.nome || "Produto sem nome",
+                      emoji: found.emoji || "📦",
+                    };
+                  }
+                }
+              }
+              // Fallback: tipo da máquina
+              if (!produto) {
+                produto = {
+                  nome: maquina.tipo || `Máquina ${maquina.codigo}`,
+                  codigo: maquina.codigo || "",
+                  emoji: "📦",
+                };
+              }
+
+              const pKey = getProductKey(produto, `maq-${maquina.id}`);
+              const existing = deficitMap.get(pKey) || {
+                produto,
+                faltaCapacidade: 0,
+              };
+              existing.faltaCapacidade += deficit;
+              deficitMap.set(pKey, existing);
+            } catch {
+              // ignora falha individual de máquina
+            }
+          }),
+        );
+
+        setDeficitPorLoja((prev) => {
+          const next = new Map(prev);
+          next.set(key, deficitMap);
           return next;
         });
       } catch (err) {
@@ -307,6 +235,11 @@ export function ProdutosAComprar() {
         setEstoquePorLoja((prev) => {
           const next = new Map(prev);
           next.set(key, []);
+          return next;
+        });
+        setDeficitPorLoja((prev) => {
+          const next = new Map(prev);
+          next.set(key, new Map());
           return next;
         });
       } finally {
@@ -317,7 +250,7 @@ export function ProdutosAComprar() {
         });
       }
     },
-    [estoquePorLoja, carregandoLoja],
+    [estoquePorLoja, carregandoLoja, produtos],
   );
 
   const toggleLoja = useCallback(
@@ -343,21 +276,12 @@ export function ProdutosAComprar() {
       try {
         setLoadingInicial(true);
         setErro("");
-        const [lojasRes, alertasRes] = await Promise.all([
+        const [lojasRes, produtosRes] = await Promise.all([
           api.get("/lojas"),
-          api.get("/relatorios/alertas-estoque").catch(() => {
-            setAvisoAlertas(
-              "Não foi possível carregar alertas de máquinas. O cálculo usará apenas o estoque mínimo das lojas.",
-            );
-            return { data: { alertas: [] } };
-          }),
+          api.get("/produtos"),
         ]);
         setLojas(Array.isArray(lojasRes.data) ? lojasRes.data : []);
-        setAlertasMaquinas(
-          Array.isArray(alertasRes?.data?.alertas)
-            ? alertasRes.data.alertas
-            : [],
-        );
+        setProdutos(Array.isArray(produtosRes.data) ? produtosRes.data : []);
       } catch (err) {
         setErro(getApiErrorMessage(err, "Erro ao carregar lojas."));
       } finally {
@@ -367,7 +291,6 @@ export function ProdutosAComprar() {
     carregar();
   }, []);
 
-  // ── impressão ────────────────────────────────────────────────────────────
   const handlePrint = () => window.print();
 
   if (loadingInicial) return <PageLoader />;
@@ -376,23 +299,19 @@ export function ProdutosAComprar() {
 
   return (
     <>
-      {/* CSS de impressão */}
       <style>{`
-        @media print {
-          .no-print { display: none !important; }
-          .print-only { display: block !important; }
-          body { background: white !important; }
-          .print-area { padding: 0 !important; margin: 0 !important; }
-          .print-store-section { page-break-after: always; }
-          .print-store-section:last-child { page-break-after: avoid; }
-        }
-        @media screen {
-          .print-only { display: none !important; }
-        }
-      `}</style>
+				@media print {
+					.no-print { display: none !important; }
+					.print-only { display: block !important; }
+					body { background: white !important; }
+					.print-area { padding: 0 !important; margin: 0 !important; }
+					.print-store-section { page-break-after: always; }
+					.print-store-section:last-child { page-break-after: avoid; }
+				}
+				@media screen { .print-only { display: none !important; } }
+			`}</style>
 
       <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
-        {/* Navbar e Header ficam fora da impressão */}
         <div className="no-print">
           <Navbar />
         </div>
@@ -408,12 +327,6 @@ export function ProdutosAComprar() {
             {erro && (
               <div className="mb-6 p-4 rounded-xl border border-red-300 bg-red-50 text-red-800 font-medium">
                 {erro}
-              </div>
-            )}
-
-            {avisoAlertas && (
-              <div className="mb-6 p-4 rounded-xl border border-yellow-300 bg-yellow-50 text-yellow-800 font-medium">
-                {avisoAlertas}
               </div>
             )}
 
@@ -439,11 +352,7 @@ export function ProdutosAComprar() {
                   return (
                     <label
                       key={loja.id}
-                      className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all select-none ${
-                        selecionada
-                          ? "bg-primary/10 border-primary shadow-sm"
-                          : "bg-white border-gray-200 hover:border-gray-300"
-                      }`}
+                      className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all select-none ${selecionada ? "bg-primary/10 border-primary shadow-sm" : "bg-white border-gray-200 hover:border-gray-300"}`}
                     >
                       <input
                         type="checkbox"
@@ -465,7 +374,6 @@ export function ProdutosAComprar() {
               </div>
             </section>
 
-            {/* ── Estado vazio ── */}
             {lojasSelecionadas.size === 0 && (
               <section className="card text-center py-14">
                 <div className="text-5xl mb-3">🏪</div>
@@ -478,7 +386,6 @@ export function ProdutosAComprar() {
               </section>
             )}
 
-            {/* ── Resumo geral e botão imprimir ── */}
             {lojasSelecionadas.size > 0 && !algumCarregando && (
               <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                 <div className="flex flex-wrap gap-3">
@@ -529,21 +436,18 @@ export function ProdutosAComprar() {
 
           {/* ── Lista por loja (tela) ── */}
           {!algumCarregando &&
-            listaPorLoja.map(({ loja, produtos }) => (
+            listaPorLoja.map(({ loja, produtos: ps }) => (
               <section key={loja.id} className="card mb-6 no-print">
                 <div className="flex items-center justify-between mb-5">
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900">
-                      🏪 {loja.nome}
-                    </h2>
-                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    🏪 {loja.nome}
+                  </h2>
                   <span className="badge bg-red-100 text-red-700 border-red-300">
-                    {produtos.reduce((s, p) => s + p.quantidadeComprar, 0)}{" "}
-                    unidades
+                    {ps.reduce((s, p) => s + p.quantidadeComprar, 0)} unidades
                   </span>
                 </div>
 
-                {produtos.length === 0 ? (
+                {ps.length === 0 ? (
                   <div className="text-center py-10">
                     <p className="text-4xl mb-2">✅</p>
                     <p className="text-gray-600 font-medium">
@@ -573,7 +477,7 @@ export function ProdutosAComprar() {
                         </tr>
                       </thead>
                       <tbody>
-                        {produtos.map((item, idx) => (
+                        {ps.map((item, idx) => (
                           <tr
                             key={item.key}
                             className={
@@ -618,13 +522,10 @@ export function ProdutosAComprar() {
               </section>
             ))}
 
-          {/* ══════════════════════════════════════════════════════
-              ÁREA DE IMPRESSÃO — só aparece ao imprimir
-          ══════════════════════════════════════════════════════ */}
+          {/* ── Área de impressão ── */}
           <div ref={printRef} className="print-only">
-            {listaPorLoja.map(({ loja, produtos }) => (
+            {listaPorLoja.map(({ loja, produtos: ps }) => (
               <div key={loja.id} className="print-store-section">
-                {/* Cabeçalho da loja */}
                 <div
                   style={{
                     borderBottom: "2px solid #111",
@@ -633,11 +534,7 @@ export function ProdutosAComprar() {
                   }}
                 >
                   <h1
-                    style={{
-                      fontSize: "20px",
-                      fontWeight: "bold",
-                      margin: 0,
-                    }}
+                    style={{ fontSize: "20px", fontWeight: "bold", margin: 0 }}
                   >
                     Lista de Compra — {loja.nome}
                   </h1>
@@ -656,8 +553,7 @@ export function ProdutosAComprar() {
                   </p>
                 </div>
 
-                {/* Tabela de produtos */}
-                {produtos.length === 0 ? (
+                {ps.length === 0 ? (
                   <p style={{ fontStyle: "italic", color: "#666" }}>
                     Nenhuma compra necessária.
                   </p>
@@ -703,7 +599,7 @@ export function ProdutosAComprar() {
                       </tr>
                     </thead>
                     <tbody>
-                      {produtos.map((item, idx) => (
+                      {ps.map((item, idx) => (
                         <tr
                           key={item.key}
                           style={{
@@ -741,7 +637,6 @@ export function ProdutosAComprar() {
                           <td
                             style={{ textAlign: "center", padding: "7px 8px" }}
                           >
-                            {/* Checkbox físico para o papel */}
                             <span
                               style={{
                                 display: "inline-block",
@@ -758,12 +653,7 @@ export function ProdutosAComprar() {
                     </tbody>
                     <tfoot>
                       <tr style={{ borderTop: "2px solid #333" }}>
-                        <td
-                          style={{
-                            padding: "6px 8px",
-                            fontWeight: "bold",
-                          }}
-                        >
+                        <td style={{ padding: "6px 8px", fontWeight: "bold" }}>
                           Total
                         </td>
                         <td
@@ -774,10 +664,7 @@ export function ProdutosAComprar() {
                             fontSize: "15px",
                           }}
                         >
-                          {produtos.reduce(
-                            (s, p) => s + p.quantidadeComprar,
-                            0,
-                          )}
+                          {ps.reduce((s, p) => s + p.quantidadeComprar, 0)}
                         </td>
                         <td />
                       </tr>
@@ -785,13 +672,8 @@ export function ProdutosAComprar() {
                   </table>
                 )}
 
-                {/* Assinatura */}
                 <div
-                  style={{
-                    marginTop: "32px",
-                    display: "flex",
-                    gap: "40px",
-                  }}
+                  style={{ marginTop: "32px", display: "flex", gap: "40px" }}
                 >
                   <div style={{ flex: 1 }}>
                     <div
