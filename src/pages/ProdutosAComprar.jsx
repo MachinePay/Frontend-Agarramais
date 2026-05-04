@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import api from "../services/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
@@ -71,8 +71,6 @@ export function ProdutosAComprar() {
   const [produtos, setProdutos] = useState([]);
   const [loadingInicial, setLoadingInicial] = useState(true);
   const [erro, setErro] = useState("");
-
-  const printRef = useRef(null);
 
   // ── cálculo de produtos por loja ─────────────────────────────────────────
   const listaPorLoja = useMemo(() => {
@@ -319,8 +317,71 @@ export function ProdutosAComprar() {
   }, []);
 
   const handlePrint = () => {
-    const printContent = printRef.current?.innerHTML;
-    if (!printContent) return;
+    if (listaPorLoja.length === 0) return;
+
+    const hoje = new Date().toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+
+    const lojasSectionsHtml = listaPorLoja
+      .map(({ loja, produtos: ps }) => {
+        const rowsHtml = ps
+          .map(
+            (item, idx) => `
+          <tr style="border-bottom:1px solid #ddd;background:${idx % 2 === 0 ? "#fff" : "#f9f9f9"}">
+            <td style="padding:7px 8px">
+              ${item.produto.emoji ? `<span style="margin-right:5px">${item.produto.emoji}</span>` : ""}
+              <strong>${item.produto.nome}</strong>
+              ${item.produto.codigo ? `<span style="font-size:11px;color:#888;margin-left:6px">(${item.produto.codigo})</span>` : ""}
+            </td>
+            <td style="text-align:center;padding:7px 8px;font-weight:bold;font-size:15px">${item.quantidadeLevar}</td>
+            <td style="text-align:center;padding:7px 8px">
+              <span style="display:inline-block;width:18px;height:18px;border:2px solid #333;border-radius:3px;vertical-align:middle"></span>
+            </td>
+          </tr>`,
+          )
+          .join("");
+
+        const total = ps.reduce((s, p) => s + p.quantidadeLevar, 0);
+
+        const tableHtml =
+          ps.length === 0
+            ? `<p style="font-style:italic;color:#666">Nenhuma compra necessária.</p>`
+            : `
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead>
+              <tr style="border-bottom:1px solid #333">
+                <th style="text-align:left;padding:6px 8px;font-weight:bold">Produto</th>
+                <th style="text-align:center;padding:6px 8px;font-weight:bold;width:80px">Levar</th>
+                <th style="text-align:center;padding:6px 8px;font-weight:bold;width:90px">Levou ✓</th>
+              </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+            <tfoot>
+              <tr style="border-top:2px solid #333">
+                <td style="padding:6px 8px;font-weight:bold">Total</td>
+                <td style="text-align:center;padding:6px 8px;font-weight:bold;font-size:15px">${total}</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>`;
+
+        return `
+        <div class="store-section">
+          <div style="border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:12px">
+            <h1 style="font-size:20px;font-weight:bold;margin:0">Lista de Compra — ${loja.nome}</h1>
+            <p style="font-size:12px;color:#555;margin:2px 0 0">${hoje}</p>
+          </div>
+          ${tableHtml}
+          <div style="margin-top:32px;display:flex;gap:40px">
+            <div style="flex:1"><div style="border-top:1px solid #333;padding-top:4px"><span style="font-size:11px;color:#555">Responsável</span></div></div>
+            <div style="flex:1"><div style="border-top:1px solid #333;padding-top:4px"><span style="font-size:11px;color:#555">Data de entrega</span></div></div>
+          </div>
+        </div>`;
+      })
+      .join("");
 
     const printWindow = window.open("", "_blank", "noopener,noreferrer");
     if (!printWindow) return;
@@ -330,26 +391,15 @@ export function ProdutosAComprar() {
       <html lang="pt-BR">
         <head>
           <meta charset="UTF-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
           <title>Lista de Compra</title>
           <style>
-            body {
-              margin: 0;
-              padding: 24px;
-              font-family: Arial, sans-serif;
-              color: #111827;
-              background: #ffffff;
-            }
-            .print-store-section {
-              page-break-after: always;
-            }
-            .print-store-section:last-child {
-              page-break-after: avoid;
-            }
+            body { margin: 0; padding: 24px; font-family: Arial, sans-serif; color: #111827; background: #fff; }
+            .store-section { page-break-after: always; }
+            .store-section:last-child { page-break-after: avoid; }
           </style>
         </head>
         <body>
-          ${printContent}
+          ${lojasSectionsHtml}
         </body>
       </html>
     `);
@@ -604,181 +654,6 @@ export function ProdutosAComprar() {
                 )}
               </section>
             ))}
-
-          <div ref={printRef} className="print-only">
-            {listaPorLoja.map(({ loja, produtos: ps }) => (
-              <div key={loja.id} className="print-store-section">
-                <div
-                  style={{
-                    borderBottom: "2px solid #111",
-                    paddingBottom: "8px",
-                    marginBottom: "12px",
-                  }}
-                >
-                  <h1
-                    style={{ fontSize: "20px", fontWeight: "bold", margin: 0 }}
-                  >
-                    Lista de Compra — {loja.nome}
-                  </h1>
-                  <p
-                    style={{
-                      fontSize: "12px",
-                      color: "#555",
-                      margin: "2px 0 0",
-                    }}
-                  >
-                    {new Date().toLocaleDateString("pt-BR", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                    })}
-                  </p>
-                </div>
-
-                {ps.length === 0 ? (
-                  <p style={{ fontStyle: "italic", color: "#666" }}>
-                    Nenhuma compra necessária.
-                  </p>
-                ) : (
-                  <table
-                    style={{
-                      width: "100%",
-                      borderCollapse: "collapse",
-                      fontSize: "13px",
-                    }}
-                  >
-                    <thead>
-                      <tr style={{ borderBottom: "1px solid #333" }}>
-                        <th
-                          style={{
-                            textAlign: "left",
-                            padding: "6px 8px",
-                            fontWeight: "bold",
-                          }}
-                        >
-                          Produto
-                        </th>
-                        <th
-                          style={{
-                            textAlign: "center",
-                            padding: "6px 8px",
-                            fontWeight: "bold",
-                            width: "80px",
-                          }}
-                        >
-                          Levar
-                        </th>
-                        <th
-                          style={{
-                            textAlign: "center",
-                            padding: "6px 8px",
-                            fontWeight: "bold",
-                            width: "90px",
-                          }}
-                        >
-                          Levou ✓
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ps.map((item, idx) => (
-                        <tr
-                          key={item.key}
-                          style={{
-                            borderBottom: "1px solid #ddd",
-                            backgroundColor: idx % 2 === 0 ? "#fff" : "#f9f9f9",
-                          }}
-                        >
-                          <td style={{ padding: "7px 8px" }}>
-                            <span style={{ marginRight: "6px" }}>
-                              {item.produto.emoji || ""}
-                            </span>
-                            <strong>{item.produto.nome}</strong>
-                            {item.produto.codigo && (
-                              <span
-                                style={{
-                                  fontSize: "11px",
-                                  color: "#888",
-                                  marginLeft: "6px",
-                                }}
-                              >
-                                ({item.produto.codigo})
-                              </span>
-                            )}
-                          </td>
-                          <td
-                            style={{
-                              textAlign: "center",
-                              padding: "7px 8px",
-                              fontWeight: "bold",
-                              fontSize: "15px",
-                            }}
-                          >
-                            {item.quantidadeLevar}
-                          </td>
-                          <td
-                            style={{ textAlign: "center", padding: "7px 8px" }}
-                          >
-                            <span
-                              style={{
-                                display: "inline-block",
-                                width: "18px",
-                                height: "18px",
-                                border: "2px solid #333",
-                                borderRadius: "3px",
-                                verticalAlign: "middle",
-                              }}
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr style={{ borderTop: "2px solid #333" }}>
-                        <td style={{ padding: "6px 8px", fontWeight: "bold" }}>
-                          Total
-                        </td>
-                        <td
-                          style={{
-                            textAlign: "center",
-                            padding: "6px 8px",
-                            fontWeight: "bold",
-                            fontSize: "15px",
-                          }}
-                        >
-                          {ps.reduce((s, p) => s + p.quantidadeLevar, 0)}
-                        </td>
-                        <td />
-                      </tr>
-                    </tfoot>
-                  </table>
-                )}
-
-                <div
-                  style={{ marginTop: "32px", display: "flex", gap: "40px" }}
-                >
-                  <div style={{ flex: 1 }}>
-                    <div
-                      style={{ borderTop: "1px solid #333", paddingTop: "4px" }}
-                    >
-                      <span style={{ fontSize: "11px", color: "#555" }}>
-                        Responsável
-                      </span>
-                    </div>
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div
-                      style={{ borderTop: "1px solid #333", paddingTop: "4px" }}
-                    >
-                      <span style={{ fontSize: "11px", color: "#555" }}>
-                        Data de entrega
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
         </main>
 
         <div className="no-print">
