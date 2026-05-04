@@ -67,6 +67,7 @@ export function ProdutosAComprar() {
   const [carregandoLoja, setCarregandoLoja] = useState(new Set());
   // Map<lojaId, Map<productKey, {produto, faltaCapacidade}>>
   const [deficitPorLoja, setDeficitPorLoja] = useState(new Map());
+  const [quantidadesLevar, setQuantidadesLevar] = useState({});
   const [produtos, setProdutos] = useState([]);
   const [loadingInicial, setLoadingInicial] = useState(true);
   const [erro, setErro] = useState("");
@@ -98,6 +99,11 @@ export function ProdutosAComprar() {
             `estoque-${index}`,
           );
           const quantidadeComprar = faltaMinimo + faltaCapacidade;
+          const levarKey = `${lojaId}:${key}`;
+          const quantidadeLevar = Math.max(
+            0,
+            toNumber(quantidadesLevar[levarKey] ?? quantidadeComprar),
+          );
           produtosMap.set(key, {
             key,
             produto,
@@ -106,6 +112,7 @@ export function ProdutosAComprar() {
             faltaMinimo,
             faltaCapacidade,
             quantidadeComprar,
+            quantidadeLevar,
           });
         });
 
@@ -126,6 +133,12 @@ export function ProdutosAComprar() {
             faltaMinimo: 0,
             faltaCapacidade: quantidadeComprar,
             quantidadeComprar,
+            quantidadeLevar: Math.max(
+              0,
+              toNumber(
+                quantidadesLevar[`${lojaId}:${key}`] ?? quantidadeComprar,
+              ),
+            ),
           });
         });
 
@@ -135,17 +148,31 @@ export function ProdutosAComprar() {
         return { loja, produtos: ps };
       })
       .filter(Boolean);
-  }, [lojasSelecionadas, estoquePorLoja, deficitPorLoja, lojas]);
+  }, [
+    lojasSelecionadas,
+    estoquePorLoja,
+    deficitPorLoja,
+    lojas,
+    quantidadesLevar,
+  ]);
 
   const totalGeral = useMemo(
     () =>
       listaPorLoja.reduce(
         (acc, { produtos: ps }) =>
-          acc + ps.reduce((s, p) => s + p.quantidadeComprar, 0),
+          acc + ps.reduce((s, p) => s + p.quantidadeLevar, 0),
         0,
       ),
     [listaPorLoja],
   );
+
+  const handleQuantidadeLevarChange = useCallback((lojaId, itemKey, value) => {
+    const parsedValue = value === "" ? "" : Math.max(0, toNumber(value));
+    setQuantidadesLevar((prev) => ({
+      ...prev,
+      [`${lojaId}:${itemKey}`]: parsedValue,
+    }));
+  }, []);
 
   // ── buscar estoque + déficit de capacidade de uma loja ───────────────────
   const fetchEstoqueLoja = useCallback(
@@ -397,7 +424,7 @@ export function ProdutosAComprar() {
                   </div>
                   <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-2 text-center">
                     <p className="text-xs text-orange-600 font-medium">
-                      Total a comprar
+                      Total a levar
                     </p>
                     <p className="text-2xl font-bold text-orange-700">
                       {totalGeral}
@@ -443,7 +470,7 @@ export function ProdutosAComprar() {
                     🏪 {loja.nome}
                   </h2>
                   <span className="badge bg-red-100 text-red-700 border-red-300">
-                    {ps.reduce((s, p) => s + p.quantidadeComprar, 0)} unidades
+                    {ps.reduce((s, p) => s + p.quantidadeLevar, 0)} unidades
                   </span>
                 </div>
 
@@ -473,6 +500,9 @@ export function ProdutosAComprar() {
                           </th>
                           <th className="text-center px-4 py-3 font-semibold text-red-700">
                             Comprar
+                          </th>
+                          <th className="text-center px-4 py-3 font-semibold text-blue-700">
+                            Levar
                           </th>
                         </tr>
                       </thead>
@@ -513,6 +543,21 @@ export function ProdutosAComprar() {
                             <td className="px-4 py-3 text-center font-extrabold text-red-700 text-lg">
                               {item.quantidadeComprar}
                             </td>
+                            <td className="px-4 py-3 text-center">
+                              <input
+                                type="number"
+                                min="0"
+                                value={item.quantidadeLevar}
+                                onChange={(e) =>
+                                  handleQuantidadeLevarChange(
+                                    loja.id,
+                                    item.key,
+                                    e.target.value,
+                                  )
+                                }
+                                className="w-24 rounded-lg border border-blue-200 px-3 py-2 text-center font-semibold text-blue-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                              />
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -522,7 +567,7 @@ export function ProdutosAComprar() {
               </section>
             ))}
 
-          {/* ── Área de impressão ── */}
+          {item.quantidadeLevar}
           <div ref={printRef} className="print-only">
             {listaPorLoja.map(({ loja, produtos: ps }) => (
               <div key={loja.id} className="print-store-section">
@@ -664,7 +709,7 @@ export function ProdutosAComprar() {
                             fontSize: "15px",
                           }}
                         >
-                          {ps.reduce((s, p) => s + p.quantidadeComprar, 0)}
+                          {ps.reduce((s, p) => s + p.quantidadeLevar, 0)}
                         </td>
                         <td />
                       </tr>
