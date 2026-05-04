@@ -383,7 +383,7 @@ export function ProdutosAComprar() {
       })
       .join("");
 
-    const printWindow = window.open("", "_blank", "noopener,noreferrer");
+    const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
     printWindow.document.write(`
