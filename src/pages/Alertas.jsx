@@ -1,7 +1,7 @@
 import AlertAdmin from "../components/AlertAdmin";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-
+// Página de Alertas de Movimentação Inconsistente
 export default function Alertas() {
   const { usuario } = useAuth();
   const navigate = useNavigate();
