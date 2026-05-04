@@ -272,6 +272,8 @@ export function Dashboard() {
   const [maquinaSelecionada, setMaquinaSelecionada] = useState(null);
   // Estoque por máquina na lista: { [maquinaId]: number }
   const [estoqueMaquinas, setEstoqueMaquinas] = useState({});
+  // Produto atual por máquina na lista: { [maquinaId]: produto | null }
+  const [produtoAtualMaquinas, setProdutoAtualMaquinas] = useState({});
   const [loadingMaquina, setLoadingMaquina] = useState(false);
   const [mostrarDetalhesProdutos, setMostrarDetalhesProdutos] = useState(false);
   const [vendasPorProduto, setVendasPorProduto] = useState([]);
@@ -1516,19 +1518,76 @@ export function Dashboard() {
 
   // Busca estoques das máquinas da loja selecionada
   useEffect(() => {
-    if (!lojaSelecionada || maquinasDaLoja.length === 0) return;
+    if (!lojaSelecionada || maquinasDaLoja.length === 0) {
+      setEstoqueMaquinas({});
+      setProdutoAtualMaquinas({});
+      return;
+    }
+
     setEstoqueMaquinas({});
-    maquinasDaLoja.forEach(async (maquina) => {
+    setProdutoAtualMaquinas({});
+
+    let ativo = true;
+
+    const carregarResumoMaquinas = async () => {
       try {
-        const res = await api.get(`/maquinas/${maquina.id}/estoque`);
-        setEstoqueMaquinas((prev) => ({
-          ...prev,
-          [maquina.id]: res.data.estoqueAtual ?? 0,
-        }));
+        const produtosRes = await api.get("/produtos");
+        const produtos = Array.isArray(produtosRes.data)
+          ? produtosRes.data
+          : [];
+
+        await Promise.all(
+          maquinasDaLoja.map(async (maquina) => {
+            try {
+              const [estoqueRes, movRes] = await Promise.all([
+                api.get(`/maquinas/${maquina.id}/estoque`),
+                api.get(`/movimentacoes?maquinaId=${maquina.id}`),
+              ]);
+
+              if (!ativo) return;
+
+              setEstoqueMaquinas((prev) => ({
+                ...prev,
+                [maquina.id]: estoqueRes.data.estoqueAtual ?? 0,
+              }));
+
+              const movimentacoesMaquina = Array.isArray(movRes.data)
+                ? [...movRes.data].sort(
+                    (a, b) =>
+                      new Date(b.dataColeta || b.createdAt) -
+                      new Date(a.dataColeta || a.createdAt),
+                  )
+                : [];
+
+              const produtoId =
+                movimentacoesMaquina[0]?.detalhesProdutos?.[0]?.produtoId;
+              const ultimoProduto = produtoId
+                ? produtos.find((produto) => produto.id === produtoId) || null
+                : null;
+
+              setProdutoAtualMaquinas((prev) => ({
+                ...prev,
+                [maquina.id]: ultimoProduto,
+              }));
+            } catch {
+              if (!ativo) return;
+              setProdutoAtualMaquinas((prev) => ({
+                ...prev,
+                [maquina.id]: null,
+              }));
+            }
+          }),
+        );
       } catch {
-        // mantém 0 em caso de erro
+        if (!ativo) return;
       }
-    });
+    };
+
+    carregarResumoMaquinas();
+
+    return () => {
+      ativo = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lojaSelecionada]);
 
@@ -2623,6 +2682,7 @@ export function Dashboard() {
             <div className="space-y-3">
               {maquinasDaLoja.length > 0 ? (
                 maquinasDaLoja.map((maquina) => {
+                  const produtoAtual = produtoAtualMaquinas[maquina.id];
                   console.log("Dados da máquina:", maquina);
                   if (maquina.movimentacoes) {
                     console.log(
@@ -2651,6 +2711,12 @@ export function Dashboard() {
                             {maquina.tipo && (
                               <span className="text-xs text-gray-600">
                                 Tipo: {maquina.tipo}
+                              </span>
+                            )}
+                            {produtoAtual && (
+                              <span className="text-xs bg-amber-100 text-amber-800 px-3 py-1 rounded-full font-semibold flex items-center gap-1">
+                                <span>{produtoAtual.emoji || "🧸"}</span>
+                                <span>{produtoAtual.nome}</span>
                               </span>
                             )}
                             <span className="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-semibold">
