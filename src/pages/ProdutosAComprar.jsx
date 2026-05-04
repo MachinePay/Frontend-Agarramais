@@ -567,7 +567,6 @@ export function ProdutosAComprar() {
               </section>
             ))}
 
-          {item.quantidadeLevar}
           <div ref={printRef} className="print-only">
             {listaPorLoja.map(({ loja, produtos: ps }) => (
               <div key={loja.id} className="print-store-section">
@@ -677,7 +676,7 @@ export function ProdutosAComprar() {
                               fontSize: "15px",
                             }}
                           >
-                            {item.quantidadeComprar}
+                            {item.quantidadeLevar}
                           </td>
                           <td
                             style={{ textAlign: "center", padding: "7px 8px" }}
