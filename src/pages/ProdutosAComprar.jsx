@@ -28,15 +28,23 @@ const getApiErrorMessage = (err, fallback) => {
   return fallback;
 };
 
-const getProductKey = (produto, fallback = "") =>
-  String(
-    produto?.id ??
-      produto?.produtoId ??
-      produto?.idProduto ??
-      produto?.codigo ??
-      produto?.nome ??
-      fallback,
-  );
+const normalizeIdentifier = (value) =>
+  normalizeText(value).replace(/\s+/g, " ");
+
+const getProductKey = (produto, fallback = "") => {
+  const codigoKey = normalizeIdentifier(produto?.codigo);
+  if (codigoKey) return codigoKey;
+
+  const nomeKey = normalizeIdentifier(produto?.nome);
+  if (nomeKey) return nomeKey;
+
+  const id = produto?.id ?? produto?.produtoId ?? produto?.idProduto;
+  if (id !== undefined && id !== null && String(id).trim()) {
+    return `id-${id}`;
+  }
+
+  return `fallback-${fallback}`;
+};
 
 const isAlertFromStore = (alerta, lojaSelecionada) => {
   if (!lojaSelecionada) return false;
@@ -108,6 +116,35 @@ const buildMachineCapacityByProduct = (alertasMaquinas, lojaSelecionada) => {
   return capacidadePorProduto;
 };
 
+const takeCapacityForProduct = (capacidadePorProduto, produto, fallback) => {
+  const primaryKey = getProductKey(produto, fallback);
+  const primaryValue = capacidadePorProduto.get(primaryKey);
+
+  if (primaryValue) {
+    capacidadePorProduto.delete(primaryKey);
+    return toNumber(primaryValue.faltaCapacidade);
+  }
+
+  const codigo = normalizeIdentifier(produto?.codigo);
+  const nome = normalizeIdentifier(produto?.nome);
+
+  for (const [key, value] of capacidadePorProduto.entries()) {
+    const nomeMap = normalizeIdentifier(value?.produto?.nome);
+    const codigoMap = normalizeIdentifier(value?.produto?.codigo);
+
+    const codigoMatch =
+      !!codigo && (codigo === codigoMap || codigo === nomeMap);
+    const nomeMatch = !!nome && (nome === nomeMap || nome === codigoMap);
+
+    if (codigoMatch || nomeMatch) {
+      capacidadePorProduto.delete(key);
+      return toNumber(value?.faltaCapacidade);
+    }
+  }
+
+  return 0;
+};
+
 export function ProdutosAComprar() {
   const [lojas, setLojas] = useState([]);
   const [lojaIdSelecionada, setLojaIdSelecionada] = useState("");
@@ -137,8 +174,10 @@ export function ProdutosAComprar() {
       const quantidadeAtual = Math.max(0, toNumber(item?.quantidade));
       const estoqueMinimo = Math.max(0, toNumber(item?.estoqueMinimo));
       const faltaMinimo = Math.max(0, estoqueMinimo - quantidadeAtual);
-      const faltaCapacidade = toNumber(
-        capacidadePorProduto.get(key)?.faltaCapacidade,
+      const faltaCapacidade = takeCapacityForProduct(
+        capacidadePorProduto,
+        produto,
+        `estoque-${index}`,
       );
       const quantidadeComprar = faltaMinimo + faltaCapacidade;
 
@@ -151,8 +190,6 @@ export function ProdutosAComprar() {
         faltaCapacidade,
         quantidadeComprar,
       });
-
-      capacidadePorProduto.delete(key);
     });
 
     capacidadePorProduto.forEach((value, key) => {
