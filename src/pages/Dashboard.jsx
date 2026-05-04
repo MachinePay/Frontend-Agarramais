@@ -270,6 +270,8 @@ export function Dashboard() {
   const [movimentacoes, setMovimentacoes] = useState([]);
   const [lojaSelecionada, setLojaSelecionada] = useState(null);
   const [maquinaSelecionada, setMaquinaSelecionada] = useState(null);
+  // Estoque por máquina na lista: { [maquinaId]: number }
+  const [estoqueMaquinas, setEstoqueMaquinas] = useState({});
   const [loadingMaquina, setLoadingMaquina] = useState(false);
   const [mostrarDetalhesProdutos, setMostrarDetalhesProdutos] = useState(false);
   const [vendasPorProduto, setVendasPorProduto] = useState([]);
@@ -1512,6 +1514,24 @@ export function Dashboard() {
       })()
     : [];
 
+  // Busca estoques das máquinas da loja selecionada
+  useEffect(() => {
+    if (!lojaSelecionada || maquinasDaLoja.length === 0) return;
+    setEstoqueMaquinas({});
+    maquinasDaLoja.forEach(async (maquina) => {
+      try {
+        const res = await api.get(`/maquinas/${maquina.id}/estoque`);
+        setEstoqueMaquinas((prev) => ({
+          ...prev,
+          [maquina.id]: res.data.estoqueAtual ?? 0,
+        }));
+      } catch {
+        // mantém 0 em caso de erro
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lojaSelecionada]);
+
   if (stats.loading) {
     return <PageLoader />;
   }
@@ -2637,8 +2657,11 @@ export function Dashboard() {
                               Capacidade: {maquina.capacidadePadrao || 0}
                             </span>
                             <span className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-semibold">
-                              Estoque: {maquina.estoqueAtual ?? 0}/
-                              {maquina.capacidadePadrao || 0}
+                              Estoque:{" "}
+                              {estoqueMaquinas[maquina.id] ??
+                                maquina.estoqueAtual ??
+                                0}
+                              /{maquina.capacidadePadrao || 0}
                             </span>
                             {maquina.ativo && (
                               <Badge variant="success">Ativa</Badge>
