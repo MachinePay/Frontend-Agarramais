@@ -2636,6 +2636,10 @@ export function Dashboard() {
                             <span className="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-semibold">
                               Capacidade: {maquina.capacidadePadrao || 0}
                             </span>
+                            <span className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-semibold">
+                              Estoque: {maquina.estoqueAtual ?? 0}/
+                              {maquina.capacidadePadrao || 0}
+                            </span>
                             {maquina.ativo && (
                               <Badge variant="success">Ativa</Badge>
                             )}
