@@ -514,6 +514,9 @@ export function ProdutosAComprar() {
                           <th className="text-center px-4 py-3 font-semibold text-gray-700">
                             Mín.
                           </th>
+                          <th className="text-center px-4 py-3 font-semibold text-orange-600">
+                            Falta cap.
+                          </th>
                           <th className="text-center px-4 py-3 font-semibold text-red-700">
                             Comprar
                           </th>
@@ -547,6 +550,11 @@ export function ProdutosAComprar() {
                             </td>
                             <td className="px-4 py-3 text-center text-gray-700">
                               {item.estoqueMinimo}
+                            </td>
+                            <td className="px-4 py-3 text-center font-semibold text-orange-600">
+                              {item.faltaCapacidade > 0
+                                ? item.faltaCapacidade
+                                : "—"}
                             </td>
                             <td className="px-4 py-3 text-center font-extrabold text-red-700 text-lg">
                               {item.quantidadeComprar}
@@ -583,7 +591,13 @@ export function ProdutosAComprar() {
                   >
                     Lista de Compra — {loja.nome}
                   </h1>
-                  <p style={{ fontSize: "12px", color: "#555", margin: "2px 0 0" }}>
+                  <p
+                    style={{
+                      fontSize: "12px",
+                      color: "#555",
+                      margin: "2px 0 0",
+                    }}
+                  >
                     {new Date().toLocaleDateString("pt-BR", {
                       day: "2-digit",
                       month: "2-digit",
@@ -644,8 +658,7 @@ export function ProdutosAComprar() {
                           key={item.key}
                           style={{
                             borderBottom: "1px solid #ddd",
-                            backgroundColor:
-                              idx % 2 === 0 ? "#fff" : "#f9f9f9",
+                            backgroundColor: idx % 2 === 0 ? "#fff" : "#f9f9f9",
                           }}
                         >
                           <td style={{ padding: "7px 8px" }}>
@@ -675,7 +688,9 @@ export function ProdutosAComprar() {
                           >
                             {item.quantidadeComprar}
                           </td>
-                          <td style={{ textAlign: "center", padding: "7px 8px" }}>
+                          <td
+                            style={{ textAlign: "center", padding: "7px 8px" }}
+                          >
                             {/* Checkbox físico para o papel */}
                             <span
                               style={{
