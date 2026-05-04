@@ -109,7 +109,7 @@ export function Navbar() {
                       : "text-gray-300 hover:bg-white/10 hover:text-white"
                   }`}
                 >
-                  🛒 Produtos a Comprar
+                  🛒 Carrinho
                 </Link>
                 {usuario?.role === "ADMIN" && (
                   <>

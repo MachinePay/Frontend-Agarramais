@@ -517,6 +517,8 @@ export function Movimentacoes() {
     const loja = lojas.find((l) => l.id === filtroLojaForm);
     const maquina = maquinas.find((m) => m.id === formData.maquina_id);
     const produto = produtos.find((p) => p.id === formData.produto_id);
+    const capacidadeMaquina =
+      maquina?.capacidadePadrao ?? maquina?.capacidade ?? null;
 
     const totalPre = parseInt(formData.quantidadeAtualMaquina) || 0;
     const quantidadeAdicionada = parseInt(formData.quantidadeAdicionada) || 0;
@@ -528,6 +530,7 @@ export function Movimentacoes() {
     mensagem += `->  *Loja:* ${loja?.nome || "Não informada"}\n`;
     mensagem += `->  *Máquina:* ${maquina ? `${maquina.nome} - ${maquina.codigo}` : "Não informada"}\n`;
     mensagem += `->  *Produto:* ${produto ? `${produto.emoji || ""} ${produto.nome}` : "Não informado"}\n`;
+    mensagem += `->  *Capacidade da máquina:* ${capacidadeMaquina ?? "Não informada"}\n`;
 
     if (!formData.ignoreInOut) {
       mensagem += `\n━━━━━━━━━━━━━━━━━━━━\n`;

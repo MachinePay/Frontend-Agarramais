@@ -51,9 +51,11 @@ const isAlertFromStore = (alerta, lojaSelecionada) => {
 
   const lojaIdSelecionada = String(lojaSelecionada.id || "");
   const lojaNomeSelecionada = normalizeText(lojaSelecionada.nome);
+  const lojaNomeSelecionadaCompacto = lojaNomeSelecionada.replace(/\s+/g, " ");
 
   const alertaLojaId = String(
     alerta?.lojaId ??
+      alerta?.loja?.id ??
       alerta?.maquina?.lojaId ??
       alerta?.maquina?.loja?.id ??
       "",
@@ -64,10 +66,24 @@ const isAlertFromStore = (alerta, lojaSelecionada) => {
   }
 
   const alertaLojaNome = normalizeText(
-    alerta?.maquina?.lojaNome ?? alerta?.maquina?.loja ?? alerta?.lojaNome,
+    alerta?.lojaNome ??
+      alerta?.loja?.nome ??
+      alerta?.maquina?.lojaNome ??
+      alerta?.maquina?.loja?.nome ??
+      alerta?.maquina?.loja,
   );
 
-  return !!alertaLojaNome && alertaLojaNome === lojaNomeSelecionada;
+  if (!alertaLojaNome) return false;
+
+  const alertaLojaNomeCompacto = alertaLojaNome.replace(/\s+/g, " ");
+
+  if (alertaLojaNomeCompacto === lojaNomeSelecionadaCompacto) return true;
+
+  // Fallback tolerante para pequenas diferenças no nome da loja.
+  return (
+    alertaLojaNomeCompacto.includes(lojaNomeSelecionadaCompacto) ||
+    lojaNomeSelecionadaCompacto.includes(alertaLojaNomeCompacto)
+  );
 };
 
 const buildMachineCapacityByProduct = (alertasMaquinas, lojaSelecionada) => {
@@ -78,15 +94,49 @@ const buildMachineCapacityByProduct = (alertasMaquinas, lojaSelecionada) => {
   );
 
   alertasDaLoja.forEach((alerta, alertaIndex) => {
-    const capacidadePadrao = toNumber(alerta?.capacidadePadrao);
-    const estoqueAtual = toNumber(alerta?.estoqueAtual);
+    const capacidadePadrao = toNumber(
+      alerta?.capacidadePadrao ??
+        alerta?.padrao ??
+        alerta?.maquina?.capacidadePadrao ??
+        alerta?.maquina?.capacidade,
+    );
+    const estoqueAtual = toNumber(
+      alerta?.estoqueAtual ?? alerta?.maquina?.estoqueAtual,
+    );
     const deficitTotal = Math.max(0, capacidadePadrao - estoqueAtual);
 
     if (deficitTotal <= 0) return;
 
-    const produtosRelacionados = Array.isArray(alerta?.produtos)
+    let produtosRelacionados = Array.isArray(alerta?.produtos)
       ? alerta.produtos.filter(Boolean)
       : [];
+
+    if (produtosRelacionados.length === 0) {
+      const fallbackProduto =
+        alerta?.produto ??
+        alerta?.maquina?.produtoAtual ??
+        alerta?.maquina?.produto ??
+        null;
+
+      if (fallbackProduto) {
+        produtosRelacionados = [fallbackProduto];
+      } else {
+        const nomeTipo =
+          alerta?.maquina?.tipo ??
+          alerta?.tipoProduto ??
+          alerta?.produtoNome ??
+          "Produto da máquina";
+
+        produtosRelacionados = [
+          {
+            id: alerta?.maquina?.produtoId,
+            codigo: alerta?.maquina?.codigo || "",
+            nome: nomeTipo,
+            emoji: "📦",
+          },
+        ];
+      }
+    }
 
     if (produtosRelacionados.length === 0) return;
 
