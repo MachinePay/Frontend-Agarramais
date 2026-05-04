@@ -318,7 +318,45 @@ export function ProdutosAComprar() {
     carregar();
   }, []);
 
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    const printContent = printRef.current?.innerHTML;
+    if (!printContent) return;
+
+    const printWindow = window.open("", "_blank", "noopener,noreferrer");
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html lang="pt-BR">
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Lista de Compra</title>
+          <style>
+            body {
+              margin: 0;
+              padding: 24px;
+              font-family: Arial, sans-serif;
+              color: #111827;
+              background: #ffffff;
+            }
+            .print-store-section {
+              page-break-after: always;
+            }
+            .print-store-section:last-child {
+              page-break-after: avoid;
+            }
+          </style>
+        </head>
+        <body>
+          ${printContent}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  };
 
   if (loadingInicial) return <PageLoader />;
 
