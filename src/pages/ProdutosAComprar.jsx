@@ -400,12 +400,12 @@ export function ProdutosAComprar() {
         </head>
         <body>
           ${lojasSectionsHtml}
+          <script>window.onload = function() { window.print(); };<\/script>
         </body>
       </html>
     `);
     printWindow.document.close();
     printWindow.focus();
-    printWindow.print();
   };
 
   if (loadingInicial) return <PageLoader />;
