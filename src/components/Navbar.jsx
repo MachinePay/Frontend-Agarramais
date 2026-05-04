@@ -101,6 +101,16 @@ export function Navbar() {
                 >
                   🧸 Produtos
                 </Link>
+                <Link
+                  to="/produtos-a-comprar"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    isActive("/produtos-a-comprar")
+                      ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
+                      : "text-gray-300 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  🛒 Produtos a Comprar
+                </Link>
                 {usuario?.role === "ADMIN" && (
                   <>
                     <Link
@@ -287,6 +297,17 @@ export function Navbar() {
               }`}
             >
               🧸 Produtos
+            </Link>
+            <Link
+              to="/produtos-a-comprar"
+              onClick={closeMenu}
+              className={`block px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                isActive("/produtos-a-comprar")
+                  ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg"
+                  : "text-gray-300 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              🛒 Produtos a Comprar
             </Link>
             {usuario?.role === "ADMIN" && (
               <>

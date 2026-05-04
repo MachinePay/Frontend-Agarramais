@@ -1578,9 +1578,19 @@ export function Dashboard() {
         {/* Header com boas-vindas */}
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold mb-2">
-              <span className="text-gradient">Dashboard</span> 🧸
-            </h1>
+            <div className="flex flex-wrap items-center gap-3 mb-2">
+              <h1 className="text-4xl font-bold">
+                <span className="text-gradient">Dashboard</span> 🧸
+              </h1>
+              <button
+                onClick={() => navigate("/produtos-a-comprar")}
+                className="btn-primary flex items-center gap-2"
+                title="Abrir lista de compra"
+              >
+                <span className="text-base">🛒</span>
+                Lista de compra
+              </button>
+            </div>
             <p className="text-gray-600">
               Visão geral do seu sistema de pelúcias
             </p>

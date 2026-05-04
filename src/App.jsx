@@ -15,6 +15,7 @@ import { Maquinas } from "./pages/Maquinas";
 import { MaquinaForm } from "./pages/MaquinaForm";
 import { MaquinaDetalhes } from "./pages/MaquinaDetalhes";
 import { Produtos } from "./pages/Produtos";
+import { ProdutosAComprar } from "./pages/ProdutosAComprar";
 import { ProdutoForm } from "./pages/ProdutoForm";
 import { Movimentacoes } from "./pages/Movimentacoes";
 import ManutencaoPage from "./pages/ManutencaoPage";
@@ -150,6 +151,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Produtos />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/produtos-a-comprar"
+            element={
+              <PrivateRoute>
+                <ProdutosAComprar />
               </PrivateRoute>
             }
           />
