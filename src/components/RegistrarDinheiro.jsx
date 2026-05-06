@@ -1,17 +1,56 @@
 import React, { useState } from "react";
 
 const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
+  const obterMesAnteriorPadrao = () => {
+    const hoje = new Date();
+    const mesAnterior = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+    const ano = mesAnterior.getFullYear();
+    const mes = String(mesAnterior.getMonth() + 1).padStart(2, "0");
+
+    return `${ano}-${mes}`;
+  };
+
   const [lojaSelecionada, setLojaSelecionada] = useState("");
   const [maquinaSelecionada, setMaquinaSelecionada] = useState("");
   const [registrarTotalLoja, setRegistrarTotalLoja] = useState(false);
-  const [inicio, setInicio] = useState("");
-  const [fim, setFim] = useState("");
+  const [mesReferencia, setMesReferencia] = useState(obterMesAnteriorPadrao);
   const [valorDinheiro, setValorDinheiro] = useState("");
   const [valorCartaoPix, setValorCartaoPix] = useState("");
   const [percentualTaxaCartaoMedia, setPercentualTaxaCartaoMedia] =
     useState("");
   const [observacoes, setObservacoes] = useState("");
   const [gastosVariaveis, setGastosVariaveis] = useState([]);
+
+  const obterPeriodoDoMes = (valorMes) => {
+    if (!valorMes) return null;
+
+    const [anoTexto, mesTexto] = valorMes.split("-");
+    const ano = Number(anoTexto);
+    const mes = Number(mesTexto);
+
+    if (
+      !Number.isInteger(ano) ||
+      !Number.isInteger(mes) ||
+      mes < 1 ||
+      mes > 12
+    ) {
+      return null;
+    }
+
+    const inicio = new Date(ano, mes - 1, 1, 0, 0, 0);
+    const fim = new Date(ano, mes, 0, 23, 59, 59);
+
+    const formatarDataHoraLocal = (data) => {
+      const pad = (numero) => String(numero).padStart(2, "0");
+
+      return `${data.getFullYear()}-${pad(data.getMonth() + 1)}-${pad(data.getDate())}T${pad(data.getHours())}:${pad(data.getMinutes())}:${pad(data.getSeconds())}`;
+    };
+
+    return {
+      inicio: formatarDataHoraLocal(inicio),
+      fim: formatarDataHoraLocal(fim),
+    };
+  };
 
   const parseLocaleNumber = (value) => {
     if (value === "" || value === null || value === undefined) return null;
@@ -52,9 +91,11 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const periodoSelecionado = obterPeriodoDoMes(mesReferencia);
+
     // Garantir que campos obrigatórios estejam preenchidos corretamente
-    if (!lojaSelecionada || !inicio || !fim) {
-      alert("Preencha todos os campos obrigatórios: loja, início e fim.");
+    if (!lojaSelecionada || !periodoSelecionado) {
+      alert("Preencha todos os campos obrigatórios: loja e mês de fechamento.");
       return;
     }
 
@@ -93,8 +134,8 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
       loja: lojaSelecionada,
       maquina: registrarTotalLoja ? null : maquinaSelecionada || null,
       registrarTotalLoja,
-      inicio,
-      fim,
+      inicio: periodoSelecionado.inicio,
+      fim: periodoSelecionado.fim,
       valorDinheiro: dinheiroNumero,
       valorCartaoPix: cartaoPixNumero,
       percentualTaxaCartaoMedia: taxaMediaNumero,
@@ -417,56 +458,24 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
       </div>
       <div style={{ marginBottom: 18 }}>
         <label style={{ fontWeight: 600, color: "#a67c52" }}>Fechamento:</label>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 16,
-            marginTop: 6,
-          }}
-          className="@media (min-width: 600px):flex-row"
-        >
-          <div style={{ flex: 1 }}>
-            <label style={{ fontSize: 14, color: "#a67c52" }}>Início</label>
-            <input
-              type="datetime-local"
-              value={inicio}
-              onChange={(e) => setInicio(e.target.value)}
-              required
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                borderRadius: 8,
-                border: "1.5px solid #e2cfa3",
-                background: "#fdf6e9",
-                color: "#a67c52",
-                fontWeight: 500,
-                minWidth: 0,
-              }}
-            />
-          </div>
-          <div
-            style={{ flex: 1, marginTop: 12 }}
-            className="@media (min-width: 600px):mt-0"
-          >
-            <label style={{ fontSize: 14, color: "#a67c52" }}>Fim</label>
-            <input
-              type="datetime-local"
-              value={fim}
-              onChange={(e) => setFim(e.target.value)}
-              required
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                borderRadius: 8,
-                border: "1.5px solid #e2cfa3",
-                background: "#fdf6e9",
-                color: "#a67c52",
-                fontWeight: 500,
-                minWidth: 0,
-              }}
-            />
-          </div>
+        <div style={{ marginTop: 6 }}>
+          <label style={{ fontSize: 14, color: "#a67c52" }}>Mês</label>
+          <input
+            type="month"
+            value={mesReferencia}
+            onChange={(e) => setMesReferencia(e.target.value)}
+            required
+            style={{
+              width: "100%",
+              padding: "10px 12px",
+              borderRadius: 8,
+              border: "1.5px solid #e2cfa3",
+              background: "#fdf6e9",
+              color: "#a67c52",
+              fontWeight: 500,
+              minWidth: 0,
+            }}
+          />
         </div>
       </div>
       <div style={{ marginBottom: 18 }}>
