@@ -4,6 +4,7 @@ import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { PageHeader } from "../components/UIComponents";
 import { PageLoader } from "../components/Loading";
+import { useAuth } from "../contexts/AuthContext";
 
 const toNumber = (value) => Number(value || 0);
 
@@ -25,6 +26,24 @@ const getApiErrorMessage = (err, fallback) => {
 
 const normalizeIdentifier = (value) =>
   normalizeText(value).replace(/\s+/g, " ");
+
+// Converte o shape da API para o shape usado pelo frontend
+const normalizarPendente = (lista) => ({
+  id: lista.id,
+  criadoEm: lista.criadoEm,
+  lojas: (lista.lojas || []).map((l) => ({
+    lojaId: l.lojaId,
+    lojaNome: l.lojaNome,
+    produtos: (l.produtos || []).map((p) => ({
+      key: p.produtoKey,
+      produtoId: p.produtoId ?? null,
+      produtoNome: p.produtoNome,
+      produtoEmoji: p.produtoEmoji || "📦",
+      produtoCodigo: p.produtoCodigo || "",
+      quantidade: p.quantidade,
+    })),
+  })),
+});
 
 const getProductKey = (produto, fallback = "") => {
   const codigoKey = normalizeIdentifier(produto?.codigo);
@@ -61,6 +80,7 @@ const takeCapacityForProduct = (capacidadePorProduto, produto, fallback) => {
 };
 
 export function ProdutosAComprar() {
+  const { usuario } = useAuth();
   const [lojas, setLojas] = useState([]);
   const [lojasSelecionadas, setLojasSelecionadas] = useState(new Set());
   const [estoquePorLoja, setEstoquePorLoja] = useState(new Map());
@@ -71,6 +91,10 @@ export function ProdutosAComprar() {
   const [produtos, setProdutos] = useState([]);
   const [loadingInicial, setLoadingInicial] = useState(true);
   const [erro, setErro] = useState("");
+  const [pendentes, setPendentes] = useState([]);
+  const [carregandoPendentes, setCarregandoPendentes] = useState(true);
+  const [confirmandoPendente, setConfirmandoPendente] = useState(null);
+  const [erroConfirmar, setErroConfirmar] = useState("");
 
   // ── cálculo de produtos por loja ─────────────────────────────────────────
   const listaPorLoja = useMemo(() => {
@@ -295,6 +319,94 @@ export function ProdutosAComprar() {
     [fetchEstoqueLoja],
   );
 
+  // ── sync pendentes to localStorage ──────────────────────────────────────
+  useEffect(() => {
+    const fetchPendentes = async () => {
+      try {
+        setCarregandoPendentes(true);
+        const res = await api.get("/lista-compras-pendentes");
+        // Normaliza para o mesmo formato que o frontend usa
+        const normalizado = (res.data || []).map(normalizarPendente);
+        setPendentes(normalizado);
+      } catch (err) {
+        console.error("Erro ao carregar pendentes:", err);
+      } finally {
+        setCarregandoPendentes(false);
+      }
+    };
+    fetchPendentes();
+  }, []);
+
+  // ── pendentes helpers ────────────────────────────────────────────────────
+  const removerProdutoPendente = useCallback(
+    async (pendingId, lojaId, produtoKey) => {
+      try {
+        const res = await api.delete(
+          `/lista-compras-pendentes/${pendingId}/produto/${encodeURIComponent(produtoKey)}`,
+          { params: { lojaId } },
+        );
+        if (res.status === 204) {
+          // Lista inteiramente removida
+          setPendentes((prev) => prev.filter((p) => p.id !== pendingId));
+        } else {
+          setPendentes((prev) =>
+            prev.map((p) =>
+              p.id === pendingId ? normalizarPendente(res.data) : p,
+            ),
+          );
+        }
+      } catch (err) {
+        console.error("Erro ao remover produto do pendente:", err);
+      }
+    },
+    [],
+  );
+
+  const excluirPendente = useCallback(async (pendingId) => {
+    try {
+      await api.delete(`/lista-compras-pendentes/${pendingId}`);
+      setPendentes((prev) => prev.filter((p) => p.id !== pendingId));
+    } catch (err) {
+      console.error("Erro ao excluir pendente:", err);
+    }
+  }, []);
+
+  const confirmarPendente = useCallback(
+    async (pendingId) => {
+      const pendente = pendentes.find((p) => p.id === pendingId);
+      if (!pendente) return;
+      setConfirmandoPendente(pendingId);
+      setErroConfirmar("");
+      try {
+        await Promise.all(
+          pendente.lojas.map((loja) =>
+            api.post("/movimentacao-estoque-loja", {
+              lojaId: loja.lojaId,
+              produtos: loja.produtos
+                .filter((p) => p.produtoId !== null)
+                .map((p) => ({
+                  produtoId: p.produtoId,
+                  quantidade: p.quantidade,
+                  tipoMovimentacao: "entrada",
+                })),
+              usuarioId: usuario?.id,
+              observacao: "Abastecimento via lista de compras",
+            }),
+          ),
+        );
+        await api.delete(`/lista-compras-pendentes/${pendingId}`);
+        setPendentes((prev) => prev.filter((p) => p.id !== pendingId));
+      } catch (err) {
+        setErroConfirmar(
+          getApiErrorMessage(err, "Erro ao confirmar movimentação."),
+        );
+      } finally {
+        setConfirmandoPendente(null);
+      }
+    },
+    [pendentes, usuario],
+  );
+
   // ── carga inicial ────────────────────────────────────────────────────────
   useEffect(() => {
     const carregar = async () => {
@@ -316,8 +428,39 @@ export function ProdutosAComprar() {
     carregar();
   }, []);
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (listaPorLoja.length === 0) return;
+
+    // Cria pré-movimentação pendente
+    const lojasComProdutos = listaPorLoja
+      .filter(({ produtos: ps }) => ps.some((p) => p.quantidadeLevar > 0))
+      .map(({ loja, produtos: ps }) => ({
+        lojaId: loja.id,
+        lojaNome: loja.nome,
+        produtos: ps
+          .filter((p) => p.quantidadeLevar > 0)
+          .map((p) => ({
+            key: p.key,
+            produtoId: p.produto.id ?? null,
+            produtoNome: p.produto.nome,
+            produtoEmoji: p.produto.emoji || "📦",
+            produtoCodigo: p.produto.codigo || "",
+            quantidade: p.quantidadeLevar,
+          })),
+      }))
+      .filter((l) => l.produtos.length > 0);
+
+    if (lojasComProdutos.length > 0) {
+      try {
+        const res = await api.post("/lista-compras-pendentes", {
+          lojas: lojasComProdutos,
+          usuarioId: usuario?.id ?? null,
+        });
+        setPendentes((prev) => [normalizarPendente(res.data), ...prev]);
+      } catch (err) {
+        console.error("Erro ao salvar pendente:", err);
+      }
+    }
 
     const hoje = new Date().toLocaleDateString("pt-BR", {
       day: "2-digit",
@@ -408,7 +551,7 @@ export function ProdutosAComprar() {
     printWindow.focus();
   };
 
-  if (loadingInicial) return <PageLoader />;
+  if (loadingInicial || carregandoPendentes) return <PageLoader />;
 
   const algumCarregando = carregandoLoja.size > 0;
 
@@ -443,6 +586,155 @@ export function ProdutosAComprar() {
               <div className="mb-6 p-4 rounded-xl border border-red-300 bg-red-50 text-red-800 font-medium">
                 {erro}
               </div>
+            )}
+
+            {/* ── Pendentes ── */}
+            {pendentes.length > 0 && (
+              <section className="mb-6">
+                <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                  ⏳ Pendentes
+                  <span className="bg-orange-100 text-orange-700 border border-orange-300 rounded-full px-2 py-0.5 text-sm font-semibold">
+                    {pendentes.length}
+                  </span>
+                </h2>
+
+                {erroConfirmar && (
+                  <div className="mb-3 p-3 rounded-xl border border-red-300 bg-red-50 text-red-800 text-sm font-medium">
+                    {erroConfirmar}
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-4">
+                  {pendentes.map((pendente) => {
+                    const totalPendente = pendente.lojas.reduce(
+                      (acc, l) =>
+                        acc + l.produtos.reduce((s, p) => s + p.quantidade, 0),
+                      0,
+                    );
+                    const isConfirmando = confirmandoPendente === pendente.id;
+                    return (
+                      <div
+                        key={pendente.id}
+                        className="card border-2 border-orange-200 bg-orange-50/30"
+                      >
+                        {/* Header do pendente */}
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <p className="text-xs text-gray-500">
+                              {new Date(pendente.criadoEm).toLocaleString(
+                                "pt-BR",
+                              )}
+                            </p>
+                            <p className="text-sm font-semibold text-gray-700">
+                              {pendente.lojas.length}{" "}
+                              {pendente.lojas.length === 1 ? "loja" : "lojas"} ·{" "}
+                              {totalPendente} unidades
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => excluirPendente(pendente.id)}
+                            disabled={isConfirmando}
+                            className="text-sm text-gray-400 hover:text-red-600 transition-colors disabled:opacity-50"
+                          >
+                            Descartar
+                          </button>
+                        </div>
+
+                        {/* Lojas e produtos */}
+                        <div className="flex flex-col gap-4">
+                          {pendente.lojas.map((loja) => (
+                            <div key={loja.lojaId}>
+                              <p className="font-semibold text-gray-800 mb-2">
+                                🏪 {loja.lojaNome}
+                              </p>
+                              <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+                                <table className="w-full text-sm">
+                                  <thead className="bg-gray-50 border-b border-gray-200">
+                                    <tr>
+                                      <th className="text-left px-4 py-2 font-semibold text-gray-700">
+                                        Produto
+                                      </th>
+                                      <th className="text-center px-4 py-2 font-semibold text-blue-700">
+                                        Qtd
+                                      </th>
+                                      <th className="px-4 py-2 w-10" />
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {loja.produtos.map((prod, idx) => (
+                                      <tr
+                                        key={prod.key}
+                                        className={
+                                          idx % 2 === 0
+                                            ? "bg-white"
+                                            : "bg-gray-50"
+                                        }
+                                      >
+                                        <td className="px-4 py-2">
+                                          <div className="flex items-center gap-2">
+                                            <span>{prod.produtoEmoji}</span>
+                                            <div>
+                                              <p className="font-medium text-gray-900">
+                                                {prod.produtoNome}
+                                              </p>
+                                              {prod.produtoCodigo && (
+                                                <p className="text-xs text-gray-400">
+                                                  Cód: {prod.produtoCodigo}
+                                                </p>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </td>
+                                        <td className="px-4 py-2 text-center font-bold text-blue-700 text-base">
+                                          {prod.quantidade}
+                                        </td>
+                                        <td className="px-4 py-2 text-center">
+                                          <button
+                                            onClick={() =>
+                                              removerProdutoPendente(
+                                                pendente.id,
+                                                loja.lojaId,
+                                                prod.key,
+                                              )
+                                            }
+                                            disabled={isConfirmando}
+                                            className="text-gray-400 hover:text-red-600 transition-colors disabled:opacity-50"
+                                            title="Remover produto"
+                                          >
+                                            ✕
+                                          </button>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Ações */}
+                        <div className="flex justify-end mt-4">
+                          <button
+                            onClick={() => confirmarPendente(pendente.id)}
+                            disabled={isConfirmando}
+                            className="btn-primary flex items-center gap-2 disabled:opacity-60"
+                          >
+                            {isConfirmando ? (
+                              <>
+                                <span className="animate-spin">⏳</span>
+                                Confirmando...
+                              </>
+                            ) : (
+                              <>✓ Confirmar Movimentação</>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
             )}
 
             {/* ── Seleção de lojas ── */}
