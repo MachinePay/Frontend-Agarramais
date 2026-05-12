@@ -27,7 +27,8 @@ export function Movimentacoes() {
 
   // Filtros Estoque Loja
   const [filtroLojaEstoque, setFiltroLojaEstoque] = useState("");
-  const [filtroDataEstoque, setFiltroDataEstoque] = useState("");
+  const [filtroDataInicioEstoque, setFiltroDataInicioEstoque] = useState("");
+  const [filtroDataFimEstoque, setFiltroDataFimEstoque] = useState("");
   const [filtroResponsavelEstoque, setFiltroResponsavelEstoque] = useState("");
 
   // Ações Estoque Loja
@@ -1439,8 +1440,16 @@ export function Movimentacoes() {
               <input
                 type="date"
                 className="input-field"
-                value={filtroDataEstoque}
-                onChange={(e) => setFiltroDataEstoque(e.target.value)}
+                value={filtroDataInicioEstoque}
+                onChange={(e) => setFiltroDataInicioEstoque(e.target.value)}
+                aria-label="Data início"
+              />
+              <input
+                type="date"
+                className="input-field"
+                value={filtroDataFimEstoque}
+                onChange={(e) => setFiltroDataFimEstoque(e.target.value)}
+                aria-label="Data fim"
               />
               <input
                 type="text"
@@ -1454,7 +1463,8 @@ export function Movimentacoes() {
               movimentacoesEstoqueLoja={movimentacoesEstoqueLoja}
               lojas={lojas}
               filtroLojaEstoque={filtroLojaEstoque}
-              filtroDataEstoque={filtroDataEstoque}
+              filtroDataInicioEstoque={filtroDataInicioEstoque}
+              filtroDataFimEstoque={filtroDataFimEstoque}
               filtroResponsavelEstoque={filtroResponsavelEstoque}
               setEditandoEstoqueLoja={setEditandoEstoqueLoja}
               setExcluindoEstoqueLoja={setExcluindoEstoqueLoja}

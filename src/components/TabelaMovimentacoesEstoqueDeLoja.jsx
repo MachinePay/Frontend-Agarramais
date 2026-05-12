@@ -6,7 +6,8 @@ export default function TabelaMovimentacoesEstoqueDeLoja({
   movimentacoesEstoqueLoja = [],
   lojas = [],
   filtroLojaEstoque = "",
-  filtroDataEstoque = "",
+  filtroDataInicioEstoque = "",
+  filtroDataFimEstoque = "",
   filtroResponsavelEstoque = "",
   setEditandoEstoqueLoja,
   setExcluindoEstoqueLoja,
@@ -41,18 +42,30 @@ export default function TabelaMovimentacoesEstoqueDeLoja({
         </thead>
         <tbody>
           {movimentacoesEstoqueLoja
-            .filter(
-              (mov) =>
+            .filter((mov) => {
+              const dataMovimentacao = mov.dataMovimentacao?.slice(0, 10);
+              const hoje = new Date().toISOString().slice(0, 10);
+              const semFiltroDeData =
+                !filtroDataInicioEstoque && !filtroDataFimEstoque;
+              const dentroDoPeriodo = semFiltroDeData
+                ? dataMovimentacao === hoje
+                : (!filtroDataInicioEstoque ||
+                    (dataMovimentacao &&
+                      dataMovimentacao >= filtroDataInicioEstoque)) &&
+                  (!filtroDataFimEstoque ||
+                    (dataMovimentacao &&
+                      dataMovimentacao <= filtroDataFimEstoque));
+
+              return (
                 (!filtroLojaEstoque || mov.loja?.id === filtroLojaEstoque) &&
                 (!filtroResponsavelEstoque ||
                   (mov.usuario?.nome &&
                     mov.usuario.nome
                       .toLowerCase()
                       .includes(filtroResponsavelEstoque.toLowerCase()))) &&
-                (!filtroDataEstoque ||
-                  (mov.dataMovimentacao &&
-                    mov.dataMovimentacao.startsWith(filtroDataEstoque)))
-            )
+                dentroDoPeriodo
+              );
+            })
             .map((mov) => (
               <tr key={mov.id} className="border-b">
                 <td className="px-4 py-2">
