@@ -248,7 +248,7 @@ export function Movimentacoes() {
     if (!lojaId || !produtoId) return 0;
 
     try {
-      const response = await api.get(`/estoque-loja/${lojaId}`);
+      const response = await api.get(`/estoque-lojas/${lojaId}`);
       const itensEstoque = response.data || [];
       const estoqueProduto = itensEstoque.find(
         (item) =>
