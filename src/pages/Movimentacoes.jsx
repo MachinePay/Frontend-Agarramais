@@ -244,17 +244,54 @@ export function Movimentacoes() {
     if (success) setSuccess("");
   };
 
+  const obterEstoqueDisponivelProdutoLoja = async (lojaId, produtoId) => {
+    if (!lojaId || !produtoId) return 0;
+
+    try {
+      const response = await api.get(`/estoque-loja/${lojaId}`);
+      const itensEstoque = response.data || [];
+      const estoqueProduto = itensEstoque.find(
+        (item) =>
+          item.produtoId === produtoId || item.produto?.id === produtoId,
+      );
+
+      return Number(estoqueProduto?.quantidade || 0);
+    } catch (err) {
+      console.error("Erro ao consultar estoque da loja:", err);
+      throw new Error("Não foi possível validar o estoque da loja.");
+    }
+  };
+
   // --- CORREÇÃO AQUI: Função handleSubmit recriada com o TRY ---
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSalvandoMovimentacao(true);
     setError("");
     setSuccess("");
 
     try {
+      const quantidadeAdicionada = parseInt(formData.quantidadeAdicionada) || 0;
+
+      if (quantidadeAdicionada > 0) {
+        const estoqueDisponivel = await obterEstoqueDisponivelProdutoLoja(
+          filtroLojaForm,
+          formData.produto_id,
+        );
+
+        if (quantidadeAdicionada > estoqueDisponivel) {
+          const produtoSelecionado = produtos.find(
+            (p) => p.id === formData.produto_id,
+          );
+          setError(
+            `Não há estoque suficiente na loja para abastecer ${produtoSelecionado?.nome || "este produto"}. Disponível: ${estoqueDisponivel}, solicitado: ${quantidadeAdicionada}.`,
+          );
+          return;
+        }
+      }
+
+      setSalvandoMovimentacao(true);
+
       // Converter valores do formulário
       const totalPre = parseInt(formData.quantidadeAtualMaquina) || 0; // valor digitado pelo usuário
-      const quantidadeAdicionada = parseInt(formData.quantidadeAdicionada) || 0;
       const fichas = parseInt(formData.fichas) || 0;
 
       // totalPos = totalPre + abastecidas - retiradaProduto
