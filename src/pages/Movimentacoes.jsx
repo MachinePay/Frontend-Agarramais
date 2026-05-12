@@ -1513,6 +1513,7 @@ export function Movimentacoes() {
             <TabelaMovimentacoesEstoqueDeLoja
               movimentacoesEstoqueLoja={movimentacoesEstoqueLoja}
               lojas={lojas}
+              produtos={produtos}
               filtroLojaEstoque={filtroLojaEstoque}
               filtroDataInicioEstoque={filtroDataInicioEstoque}
               filtroDataFimEstoque={filtroDataFimEstoque}
