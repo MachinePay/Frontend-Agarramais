@@ -1424,40 +1424,91 @@ export function Movimentacoes() {
               Movimentações de Estoque de Loja
             </h2>
             {/* Filtros */}
-            <div className="mb-4 flex flex-wrap gap-4">
-              <select
-                className="input-field"
-                value={filtroLojaEstoque}
-                onChange={(e) => setFiltroLojaEstoque(e.target.value)}
-              >
-                <option value="">Todas as lojas</option>
-                {lojas.map((loja) => (
-                  <option key={loja.id} value={loja.id}>
-                    {loja.nome}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="date"
-                className="input-field"
-                value={filtroDataInicioEstoque}
-                onChange={(e) => setFiltroDataInicioEstoque(e.target.value)}
-                aria-label="Data início"
-              />
-              <input
-                type="date"
-                className="input-field"
-                value={filtroDataFimEstoque}
-                onChange={(e) => setFiltroDataFimEstoque(e.target.value)}
-                aria-label="Data fim"
-              />
-              <input
-                type="text"
-                className="input-field"
-                placeholder="Responsável"
-                value={filtroResponsavelEstoque}
-                onChange={(e) => setFiltroResponsavelEstoque(e.target.value)}
-              />
+            <div className="mb-5 rounded-2xl border border-gray-200 bg-white/80 backdrop-blur-sm shadow-sm p-4 md:p-5">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h3 className="text-sm md:text-base font-bold text-gray-800 flex items-center gap-2">
+                  <span>🔎</span>
+                  Filtros
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFiltroLojaEstoque("");
+                    setFiltroDataInicioEstoque("");
+                    setFiltroDataFimEstoque("");
+                    setFiltroResponsavelEstoque("");
+                  }}
+                  className="text-xs md:text-sm font-semibold text-blue-700 hover:text-blue-800 transition-colors"
+                >
+                  Limpar filtros
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Loja
+                  </label>
+                  <select
+                    className="input-field"
+                    value={filtroLojaEstoque}
+                    onChange={(e) => setFiltroLojaEstoque(e.target.value)}
+                  >
+                    <option value="">Todas as lojas</option>
+                    {lojas.map((loja) => (
+                      <option key={loja.id} value={loja.id}>
+                        {loja.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Data início
+                  </label>
+                  <input
+                    type="date"
+                    className="input-field"
+                    value={filtroDataInicioEstoque}
+                    onChange={(e) => setFiltroDataInicioEstoque(e.target.value)}
+                    aria-label="Data início"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Data fim
+                  </label>
+                  <input
+                    type="date"
+                    className="input-field"
+                    value={filtroDataFimEstoque}
+                    onChange={(e) => setFiltroDataFimEstoque(e.target.value)}
+                    aria-label="Data fim"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Responsável
+                  </label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="Digite o nome"
+                    value={filtroResponsavelEstoque}
+                    onChange={(e) =>
+                      setFiltroResponsavelEstoque(e.target.value)
+                    }
+                  />
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-500 mt-3">
+                Sem selecionar datas, a tabela mostra automaticamente apenas os
+                registros de hoje.
+              </p>
             </div>
             <TabelaMovimentacoesEstoqueDeLoja
               movimentacoesEstoqueLoja={movimentacoesEstoqueLoja}
