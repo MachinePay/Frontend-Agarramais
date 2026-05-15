@@ -820,6 +820,15 @@ export default function AlertAdmin() {
 
                       <div className="grid gap-3 md:grid-cols-2">
                         <div className="space-y-3">
+                            {renderizarInfoMovimentacao(
+                            {
+                              dataMovimentacao: dataAtual,
+                              usuario: usuarioAtual,
+                              usuarioNome: usuarioAtual,
+                            },
+                            "",
+                            "Movimentação Atual (Usuário)",
+                          )}
                           {renderizarInfoMovimentacao(
                             {
                               dataMovimentacao: dataAnterior,
@@ -828,15 +837,6 @@ export default function AlertAdmin() {
                             },
                             "",
                             "Movimentação Anterior",
-                          )}
-                          {renderizarInfoMovimentacao(
-                            {
-                              dataMovimentacao: dataAtual,
-                              usuario: usuarioAtual,
-                              usuarioNome: usuarioAtual,
-                            },
-                            "",
-                            "Movimentação Atual (Usuário)",
                           )}
                         </div>
 
