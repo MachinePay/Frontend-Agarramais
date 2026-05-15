@@ -308,8 +308,8 @@ export default function AlertAdmin() {
     setLoadingUsuarios(true);
     try {
       const [lojasRes, usuariosRes] = await Promise.all([
-        api.get("/lojas").catch((e) => ({ data: [] })),
-        api.get("/usuarios").catch((e) => ({ data: [] })),
+        api.get("/lojas").catch(() => ({ data: [] })),
+        api.get("/usuarios").catch(() => ({ data: [] })),
       ]);
       setLojas(lojasRes.data || []);
       setUsuarios(usuariosRes.data || []);
@@ -486,7 +486,7 @@ export default function AlertAdmin() {
     const movimentacoesRecentes = movimentacoesMaquina.slice(0, 2);
 
     return (
-      <div className="space-y-5 rounded-2xl border border-yellow-200 bg-linear-to-br from-yellow-50 to-amber-50 p-4 shadow-sm lg:sticky lg:top-6">
+      <div className="space-y-5 rounded-2xl border border-yellow-200 bg-linear-to-br from-yellow-50 to-amber-50 p-4 shadow-sm lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:pr-2">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-yellow-700">
             Detalhes da Máquina
@@ -820,7 +820,7 @@ export default function AlertAdmin() {
 
                       <div className="grid gap-3 md:grid-cols-2">
                         <div className="space-y-3">
-                            {renderizarInfoMovimentacao(
+                          {renderizarInfoMovimentacao(
                             {
                               dataMovimentacao: dataAtual,
                               usuario: usuarioAtual,
