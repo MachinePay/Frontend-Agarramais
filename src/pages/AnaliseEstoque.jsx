@@ -97,6 +97,50 @@ const normalizeArrayPayload = (data) => {
   return [];
 };
 
+const normalizeAnaliseEvento = (evento) => {
+  const quantidadeAnterior = getQuantidadeAnterior(evento);
+  const quantidadeNova = getQuantidadeNova(evento);
+  const maquina = evento.maquina || {};
+  const usuario = evento.usuario || evento.user || {};
+  const impactoLoja = toNumber(evento.impactoLoja ?? evento.impacto_loja);
+  const quantidade = toNumber(evento.quantidade);
+
+  return {
+    ...evento,
+    id: evento.id || `${evento.origem || "evento"}-${evento.produtoId}-${evento.data}`,
+    origem: evento.origem || "backend",
+    origemLabel: evento.origemLabel || evento.origem_label || evento.origem || "-",
+    tipo: evento.tipo || (impactoLoja >= 0 ? "entrada" : "saida"),
+    impactoLoja,
+    produtoId: getProdutoId(evento),
+    produtoNome:
+      evento.produtoNome ||
+      evento.produto_nome ||
+      evento.produto?.nome ||
+      `Produto ${getProdutoId(evento) || "-"}`,
+    produtoEmoji: evento.produtoEmoji || evento.produto_emoji || evento.produto?.emoji || "",
+    quantidade,
+    quantidadeAnterior,
+    quantidadeNova,
+    data: getDateValue(evento),
+    usuarioNome:
+      evento.usuarioNome ||
+      evento.usuario_nome ||
+      usuario.nome ||
+      usuario.email ||
+      evento.responsavel ||
+      "-",
+    maquinaNome: evento.maquinaNome || evento.maquina_nome || maquina.nome || "-",
+    maquinaCodigo: evento.maquinaCodigo || evento.maquina_codigo || maquina.codigo || "-",
+    observacao: evento.observacao || evento.observacoes || "",
+    detalhes:
+      evento.detalhes ||
+      (quantidadeAnterior !== undefined && quantidadeNova !== undefined
+        ? `Alteracao manual: ${quantidadeAnterior} -> ${quantidadeNova} (${impactoLoja > 0 ? "+" : ""}${impactoLoja}).`
+        : evento.origemLabel || evento.origem || "-"),
+  };
+};
+
 export function AnaliseEstoque() {
   const [lojas, setLojas] = useState([]);
   const [produtos, setProdutos] = useState([]);
@@ -106,6 +150,7 @@ export function AnaliseEstoque() {
   const [movimentacoesMaquinas, setMovimentacoesMaquinas] = useState([]);
   const [logsAtividade, setLogsAtividade] = useState([]);
   const [logsDisponiveis, setLogsDisponiveis] = useState(false);
+  const [analiseBackend, setAnaliseBackend] = useState(null);
 
   const [lojaSelecionada, setLojaSelecionada] = useState("");
   const [produtoSelecionado, setProdutoSelecionado] = useState("");
@@ -128,11 +173,21 @@ export function AnaliseEstoque() {
       setMovimentacoesMaquinas([]);
       setLogsAtividade([]);
       setLogsDisponiveis(false);
+      setAnaliseBackend(null);
       return;
     }
 
     carregarDadosDaLoja(lojaSelecionada);
   }, [lojaSelecionada]);
+
+  useEffect(() => {
+    if (!lojaSelecionada || !dataInicio) {
+      setAnaliseBackend(null);
+      return;
+    }
+
+    carregarAnaliseBackend(lojaSelecionada);
+  }, [lojaSelecionada, dataInicio, dataFim]);
 
   const carregarDadosIniciais = async () => {
     try {
@@ -207,6 +262,28 @@ export function AnaliseEstoque() {
       setMovimentacoesMaquinas([]);
       setLogsAtividade([]);
       setLogsDisponiveis(false);
+    } finally {
+      setLoadingDetalhes(false);
+    }
+  };
+
+  const carregarAnaliseBackend = async (lojaId) => {
+    try {
+      setLoadingDetalhes(true);
+      const response = await api.get(`/estoque-lojas/${lojaId}/analise`, {
+        params: {
+          dataInicio,
+          dataFim: dataFim || hojeISO(),
+        },
+      });
+
+      setAnaliseBackend(response.data || null);
+      setLogsAtividade(response.data?.logsDetalhados || []);
+      setLogsDisponiveis(true);
+      setError("");
+    } catch (err) {
+      console.warn("Endpoint consolidado de analise indisponivel, usando fallback:", err);
+      setAnaliseBackend(null);
     } finally {
       setLoadingDetalhes(false);
     }
@@ -477,12 +554,17 @@ export function AnaliseEstoque() {
     });
   }, [lojaSelecionada, logsAtividade, produtosPorId]);
 
+  const eventosBackend = useMemo(
+    () => normalizeArrayPayload(analiseBackend?.eventos).map(normalizeAnaliseEvento),
+    [analiseBackend],
+  );
+
   const eventos = useMemo(
     () =>
-      [...eventosOperacionais, ...eventosManuais].sort(
+      (analiseBackend ? eventosBackend : [...eventosOperacionais, ...eventosManuais]).sort(
         (a, b) => new Date(b.data || 0) - new Date(a.data || 0),
       ),
-    [eventosManuais, eventosOperacionais],
+    [analiseBackend, eventosBackend, eventosManuais, eventosOperacionais],
   );
 
   const dataFimEfetiva = dataFim || hojeISO();
@@ -545,6 +627,53 @@ export function AnaliseEstoque() {
 
       return resumo.get(key);
     };
+
+    if (analiseBackend) {
+      normalizeArrayPayload(analiseBackend.produtos).forEach((item) => {
+        const produtoId = getProdutoId(item);
+        const resumoItem = garantirProduto(produtoId, {
+          produto: item.produto,
+          produtoNome: item.produtoNome || item.produto_nome,
+          produtoEmoji: item.produtoEmoji || item.produto_emoji,
+        });
+
+        if (resumoItem) {
+          resumoItem.estoqueAtual = toNumber(item.estoqueAtual);
+          resumoItem.estoqueMinimo = toNumber(item.estoqueMinimo);
+          resumoItem.estoqueInicio = toNumber(item.estoqueInicial ?? item.estoqueInicio);
+          resumoItem.estoqueFim = toNumber(item.estoqueFinal ?? item.estoqueFim);
+        }
+      });
+
+      eventos.forEach((evento) => garantirProduto(evento.produtoId, evento));
+
+      resumo.forEach((item) => {
+        eventosFiltrados
+          .filter((evento) => sameId(evento.produtoId, item.produtoId))
+          .forEach((evento) => {
+            if (evento.origem === "manual") {
+              item.ajustesManuais += evento.impactoLoja;
+            } else if (
+              evento.origem === "maquina" &&
+              evento.origemLabel === "Abastecimento de maquina"
+            ) {
+              item.abastecidoMaquinas += evento.quantidade;
+            } else if (evento.origem === "maquina" && evento.tipo === "saida-maquina") {
+              item.saidasMaquinas += evento.quantidade;
+            } else if (evento.tipo === "entrada") {
+              item.entradasLoja += evento.quantidade;
+            } else if (evento.tipo === "saida") {
+              item.saidasLoja += evento.quantidade;
+            }
+
+            item.saldoPeriodo += evento.impactoLoja;
+          });
+      });
+
+      return Array.from(resumo.values()).sort((a, b) =>
+        a.produtoNome.localeCompare(b.produtoNome),
+      );
+    }
 
     estoqueLoja.forEach((item) => {
       const produtoId = getProdutoId(item);
@@ -615,7 +744,15 @@ export function AnaliseEstoque() {
     return Array.from(resumo.values()).sort((a, b) =>
       a.produtoNome.localeCompare(b.produtoNome),
     );
-  }, [dataFimEfetiva, dataInicio, estoqueLoja, eventos, eventosFiltrados, produtosPorId]);
+  }, [
+    analiseBackend,
+    dataFimEfetiva,
+    dataInicio,
+    estoqueLoja,
+    eventos,
+    eventosFiltrados,
+    produtosPorId,
+  ]);
 
   const resumoFiltrado = useMemo(
     () =>
