@@ -114,6 +114,16 @@ export function Navbar() {
                 {usuario?.role === "ADMIN" && (
                   <>
                     <Link
+                      to="/analise-estoque"
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        isActive("/analise-estoque")
+                          ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
+                          : "text-gray-300 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      Estoque Detalhado
+                    </Link>
+                    <Link
                       to="/graficos"
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                         isActive("/graficos")
@@ -311,6 +321,17 @@ export function Navbar() {
             </Link>
             {usuario?.role === "ADMIN" && (
               <>
+                <Link
+                  to="/analise-estoque"
+                  onClick={closeMenu}
+                  className={`block px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                    isActive("/analise-estoque")
+                      ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg"
+                      : "text-gray-300 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  Estoque Detalhado
+                </Link>
                 <Link
                   to="/graficos"
                   onClick={closeMenu}
