@@ -141,6 +141,31 @@ const normalizeAnaliseEvento = (evento) => {
   };
 };
 
+const getEventoDedupKey = (evento) =>
+  [
+    evento.origem,
+    evento.origemLabel,
+    evento.tipo,
+    evento.produtoId,
+    evento.quantidade,
+    evento.impactoLoja,
+    getDateValue(evento) || evento.data,
+  ].join("|");
+
+const mergeEventosSemDuplicar = (...listas) => {
+  const eventosPorChave = new Map();
+
+  listas.flat().forEach((evento) => {
+    if (!evento) return;
+    const chave = getEventoDedupKey(evento);
+    if (!eventosPorChave.has(chave)) {
+      eventosPorChave.set(chave, evento);
+    }
+  });
+
+  return Array.from(eventosPorChave.values());
+};
+
 export function AnaliseEstoque() {
   const [lojas, setLojas] = useState([]);
   const [produtos, setProdutos] = useState([]);
@@ -559,13 +584,16 @@ export function AnaliseEstoque() {
     [analiseBackend],
   );
 
-  const eventos = useMemo(
-    () =>
-      (analiseBackend ? eventosBackend : [...eventosOperacionais, ...eventosManuais]).sort(
-        (a, b) => new Date(b.data || 0) - new Date(a.data || 0),
-      ),
-    [analiseBackend, eventosBackend, eventosManuais, eventosOperacionais],
-  );
+  const eventos = useMemo(() => {
+    const eventosEstoqueLojaFallback = eventosOperacionais.filter(
+      (evento) => evento.origem === "estoque-loja",
+    );
+    const eventosBase = analiseBackend
+      ? mergeEventosSemDuplicar(eventosBackend, eventosEstoqueLojaFallback)
+      : [...eventosOperacionais, ...eventosManuais];
+
+    return eventosBase.sort((a, b) => new Date(b.data || 0) - new Date(a.data || 0));
+  }, [analiseBackend, eventosBackend, eventosManuais, eventosOperacionais]);
 
   const dataFimEfetiva = dataFim || hojeISO();
 
