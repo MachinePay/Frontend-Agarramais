@@ -295,7 +295,7 @@ export function Dashboard() {
   const recognitionRef = useRef(null);
   const [assistenteStatus, setAssistenteStatus] = useState("idle");
   const [assistenteMensagem, setAssistenteMensagem] = useState(
-    "Clique no microfone e fale um comando.",
+    "Clique na IAgarra e fale um comando.",
   );
   const [assistenteTranscricao, setAssistenteTranscricao] = useState("");
   const [assistenteResultado, setAssistenteResultado] = useState(null);
@@ -421,7 +421,7 @@ export function Dashboard() {
       const textoLimpo = textoTranscrito.trim();
       if (!textoLimpo) {
         setAssistenteStatus("erro");
-        setAssistenteMensagem("Nao consegui identificar sua fala.");
+        setAssistenteMensagem("IAgarra nao conseguiu entender.");
         return;
       }
 
@@ -430,14 +430,18 @@ export function Dashboard() {
         : textoLimpo;
 
       setAssistenteStatus("processando");
-      setAssistenteMensagem("Processando comando...");
+      setAssistenteMensagem("IAgarra pensando...");
       setAssistenteResultado(null);
 
       try {
         const response = await api.post("/assistente-ia/comando", {
           texto: textoParaEnviar,
         });
-        const resultado = response.data?.resultado || response.data;
+        const resultadoBase = response.data?.resultado || response.data;
+        const resultado = {
+          ...resultadoBase,
+          assistente: response.data?.assistente || resultadoBase?.assistente,
+        };
 
         if (resultado?.status === "precisa_confirmacao") {
           setAssistenteResultado(resultado);
@@ -471,7 +475,7 @@ export function Dashboard() {
 
           setAssistenteResultado(resultado);
           setAssistenteStatus("processando");
-          setAssistenteMensagem("Abrindo relatorio...");
+          setAssistenteMensagem("IAgarra esta abrindo o relatorio...");
 
           const rotaRelatorio = resultado?.acao?.rota || "/relatorios";
           const queryString = params.toString();
@@ -483,7 +487,7 @@ export function Dashboard() {
           ) {
             setAssistenteStatus("erro");
             setAssistenteMensagem(
-              "Nao consegui identificar loja e periodo para abrir o relatorio.",
+              "IAgarra nao conseguiu entender loja e periodo para abrir o relatorio.",
             );
             return;
           }
@@ -496,7 +500,7 @@ export function Dashboard() {
                 dataInicio: filtrosRelatorio.dataInicio,
                 dataFim: filtrosRelatorio.dataFim,
                 autoGerar: true,
-                origem: "assistente-ia",
+                origem: "IAgarra",
               },
             },
           );
@@ -514,7 +518,7 @@ export function Dashboard() {
         setAssistenteMensagem(
           error.response?.data?.message ||
             error.response?.data?.error ||
-            "Erro ao processar o comando de voz.",
+            "IAgarra nao conseguiu entender.",
         );
       }
     },
@@ -528,7 +532,7 @@ export function Dashboard() {
     if (!SpeechRecognition) {
       setAssistenteStatus("erro");
       setAssistenteMensagem(
-        "Seu navegador nao oferece suporte a reconhecimento de voz.",
+        "IAgarra nao conseguiu acessar o reconhecimento de voz neste navegador.",
       );
       return;
     }
@@ -547,7 +551,7 @@ export function Dashboard() {
 
     recognition.onstart = () => {
       setAssistenteStatus("ouvindo");
-      setAssistenteMensagem("Ouvindo...");
+      setAssistenteMensagem("IAgarra ouvindo...");
       setAssistenteTranscricao("");
       setAssistenteResultado(null);
     };
@@ -568,8 +572,8 @@ export function Dashboard() {
       setAssistenteStatus("erro");
       setAssistenteMensagem(
         event.error === "not-allowed"
-          ? "Permita o uso do microfone para falar com o assistente."
-          : "Nao consegui capturar sua fala. Tente novamente.",
+          ? "Permita o uso do microfone para falar com a IAgarra."
+          : "IAgarra nao conseguiu entender. Tente novamente.",
       );
     };
 
@@ -577,7 +581,7 @@ export function Dashboard() {
       recognitionRef.current = null;
       if (!capturouResultado) {
         setAssistenteStatus("idle");
-        setAssistenteMensagem("Clique no microfone e fale um comando.");
+        setAssistenteMensagem("Clique na IAgarra e fale um comando.");
       }
     };
 
@@ -1949,12 +1953,22 @@ export function Dashboard() {
         ? "text-red-700"
         : "text-slate-700";
 
+  const assistenteNome = assistenteResultado?.assistente?.nome || "IAgarra";
+
   const assistenteStatusLabel = {
-    idle: "Pronto",
-    ouvindo: "Ouvindo",
-    processando: "Processando",
-    erro: "Erro",
-    resposta: "Resposta",
+    idle: assistenteNome,
+    ouvindo: `${assistenteNome} ouvindo...`,
+    processando: `${assistenteNome} pensando...`,
+    erro: `${assistenteNome} nao conseguiu entender`,
+    resposta: `${assistenteNome} respondeu`,
+  }[assistenteStatus];
+
+  const assistenteBotaoTexto = {
+    idle: assistenteNome,
+    ouvindo: `${assistenteNome} ouvindo...`,
+    processando: `${assistenteNome} pensando...`,
+    erro: `${assistenteNome} nao conseguiu entender`,
+    resposta: assistenteContextoPendente ? `${assistenteNome} complementar` : assistenteNome,
   }[assistenteStatus];
 
   const assistenteStatusClass =
@@ -2024,9 +2038,26 @@ export function Dashboard() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-3">
-                <h2 className="text-xl font-bold text-gray-900">
-                  Assistente de IA
-                </h2>
+                <div className="flex items-center gap-2">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-linear-to-br from-yellow-400 to-orange-500 text-white shadow-sm">
+                    <svg
+                      className="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 3l1.7 5.1L19 10l-5.3 1.9L12 17l-1.7-5.1L5 10l5.3-1.9L12 3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"
+                      />
+                    </svg>
+                  </span>
+                  <h2 className="text-xl font-bold text-gray-900">
+                    {assistenteNome}
+                  </h2>
+                </div>
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-bold ${assistenteStatusClass}`}
                 >
@@ -2058,7 +2089,7 @@ export function Dashboard() {
                     ? "bg-yellow-500"
                     : "bg-slate-900 hover:bg-slate-800"
               } disabled:cursor-not-allowed disabled:opacity-80`}
-              title="Falar com o assistente"
+              title="Falar com a IAgarra"
             >
               <svg
                 className="h-5 w-5"
@@ -2073,20 +2104,14 @@ export function Dashboard() {
                   d="M12 18.5a6.5 6.5 0 006.5-6.5M5.5 12a6.5 6.5 0 006.5 6.5m0 0V22m0 0h4m-4 0H8m4-7a3 3 0 003-3V5a3 3 0 10-6 0v7a3 3 0 003 3z"
                 />
               </svg>
-              {assistenteStatus === "ouvindo"
-                ? "Ouvindo..."
-                : assistenteStatus === "processando"
-                  ? "Processando..."
-                  : assistenteContextoPendente
-                    ? "Complementar"
-                    : "Falar"}
+              {assistenteBotaoTexto}
             </button>
           </div>
 
           {assistenteResultado?.status === "precisa_confirmacao" && (
             <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-900">
               {assistenteResultado.mensagem ||
-                "Preciso de mais uma informacao. Clique no microfone e complemente o comando."}
+                "IAgarra precisa de mais uma informacao. Clique no botao e complemente o comando."}
             </div>
           )}
 
