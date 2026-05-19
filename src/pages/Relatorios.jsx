@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import api from "../services/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
@@ -10,6 +11,7 @@ import Swal from "sweetalert2";
 const TODAS_LOJAS_VALUE = "__TODAS_AS_LOJAS__";
 
 export function Relatorios() {
+  const location = useLocation();
   const [dashboard, setDashboard] = useState(null);
   const [lojas, setLojas] = useState([]);
   const [usuariosMap, setUsuariosMap] = useState({});
@@ -24,6 +26,8 @@ export function Relatorios() {
   const [gastosFixosLoja, setGastosFixosLoja] = useState([]);
   const [comparativoMensal, setComparativoMensal] = useState(null);
   const [salvandoFechamento, setSalvandoFechamento] = useState(false);
+  const [relatorioAssistentePendente, setRelatorioAssistentePendente] =
+    useState(null);
 
   // Buscar dados do dashboard para fichas corretas
   const carregarDashboard = async (lojaId, dataInicio, dataFim) => {
@@ -47,6 +51,67 @@ export function Relatorios() {
     carregarUsuarios();
     definirDatasDefault();
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const state = location.state || {};
+    const filtrosAssistente = {
+      lojaId:
+        state.lojaId ||
+        state.assistenteRelatorio?.lojaId ||
+        state.assistenteRelatorio?.loja_id ||
+        state.assistenteRelatorio?.loja ||
+        params.get("lojaId") ||
+        params.get("loja_id") ||
+        params.get("loja"),
+      dataInicio:
+        state.dataInicio ||
+        state.assistenteRelatorio?.dataInicio ||
+        state.assistenteRelatorio?.data_inicio ||
+        params.get("dataInicio") ||
+        params.get("data_inicio"),
+      dataFim:
+        state.dataFim ||
+        state.assistenteRelatorio?.dataFim ||
+        state.assistenteRelatorio?.data_fim ||
+        params.get("dataFim") ||
+        params.get("data_fim"),
+    };
+
+    if (
+      !state.autoGerar &&
+      !state.gerarAutomaticamente &&
+      !params.has("lojaId") &&
+      !params.has("loja_id")
+    ) {
+      return;
+    }
+
+    if (
+      !filtrosAssistente.lojaId ||
+      !filtrosAssistente.dataInicio ||
+      !filtrosAssistente.dataFim
+    ) {
+      return;
+    }
+
+    queueMicrotask(() => {
+      setLojaSelecionada(String(filtrosAssistente.lojaId));
+      setDataInicio(filtrosAssistente.dataInicio);
+      setDataFim(filtrosAssistente.dataFim);
+      setMesReferencia(
+        obterMesCompletoDoPeriodo(
+          filtrosAssistente.dataInicio,
+          filtrosAssistente.dataFim,
+        ),
+      );
+      setRelatorioAssistentePendente({
+        lojaId: String(filtrosAssistente.lojaId),
+        dataInicio: filtrosAssistente.dataInicio,
+        dataFim: filtrosAssistente.dataFim,
+      });
+    });
+  }, [location.search, location.state]);
 
   const definirDatasDefault = () => {
     const mesAtual = formatarMesInput(new Date());
@@ -905,6 +970,33 @@ export function Relatorios() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!relatorioAssistentePendente || loadingLojas || loading) {
+      return;
+    }
+
+    const filtrosAplicados =
+      String(lojaSelecionada) === String(relatorioAssistentePendente.lojaId) &&
+      dataInicio === relatorioAssistentePendente.dataInicio &&
+      dataFim === relatorioAssistentePendente.dataFim;
+
+    if (!filtrosAplicados) {
+      return;
+    }
+
+    queueMicrotask(() => {
+      setRelatorioAssistentePendente(null);
+      gerarRelatorio();
+    });
+  }, [
+    relatorioAssistentePendente,
+    loadingLojas,
+    loading,
+    lojaSelecionada,
+    dataInicio,
+    dataFim,
+  ]);
 
   const handleImprimir = () => {
     window.print();

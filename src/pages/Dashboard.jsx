@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import api from "../services/api";
@@ -292,6 +292,306 @@ export function Dashboard() {
   const [movimentacaoEditandoId, setMovimentacaoEditandoId] = useState(null);
   const [movimentacaoForm, setMovimentacaoForm] = useState(null);
   const [salvandoMovimentacaoId, setSalvandoMovimentacaoId] = useState(null);
+  const recognitionRef = useRef(null);
+  const [assistenteStatus, setAssistenteStatus] = useState("idle");
+  const [assistenteMensagem, setAssistenteMensagem] = useState(
+    "Clique no microfone e fale um comando.",
+  );
+  const [assistenteTranscricao, setAssistenteTranscricao] = useState("");
+  const [assistenteResultado, setAssistenteResultado] = useState(null);
+  const [assistenteContextoPendente, setAssistenteContextoPendente] =
+    useState("");
+
+  const normalizarTextoAssistente = useCallback((valor) =>
+    String(valor || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim(), []);
+
+  const formatarDataAssistente = (dia, mes, ano) =>
+    `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+
+  const extrairDatasDaFalaAssistente = useCallback((texto) => {
+    const meses = {
+      janeiro: 1,
+      fevereiro: 2,
+      marco: 3,
+      abril: 4,
+      maio: 5,
+      junho: 6,
+      julho: 7,
+      agosto: 8,
+      setembro: 9,
+      outubro: 10,
+      novembro: 11,
+      dezembro: 12,
+    };
+    const textoNormalizado = normalizarTextoAssistente(texto);
+    const datas = [...textoNormalizado.matchAll(/(\d{1,2})\s+de\s+([a-z]+)(?:\s+de\s+(\d{4}))?/g)];
+    const anoAtual = new Date().getFullYear();
+
+    if (datas.length < 2) return {};
+
+    const [inicio, fim] = datas.map((match) => ({
+      dia: Number(match[1]),
+      mes: meses[match[2]],
+      ano: Number(match[3]) || anoAtual,
+    }));
+
+    if (!inicio.mes || !fim.mes) return {};
+
+    return {
+      dataInicio: formatarDataAssistente(inicio.dia, inicio.mes, inicio.ano),
+      dataFim: formatarDataAssistente(fim.dia, fim.mes, fim.ano),
+    };
+  }, [normalizarTextoAssistente]);
+
+  const encontrarLojaAssistente = useCallback((texto, resultado) => {
+    const idsPossiveis = [
+      resultado?.acao?.query?.lojaId,
+      resultado?.acao?.query?.loja_id,
+      resultado?.dados?.lojaId,
+      resultado?.dados?.loja_id,
+      resultado?.dados?.loja?.id,
+      resultado?.lojaId,
+      resultado?.loja_id,
+    ].filter(Boolean);
+
+    if (idsPossiveis.length > 0) {
+      return String(idsPossiveis[0]);
+    }
+
+    const nomesPossiveis = [
+      resultado?.acao?.query?.loja,
+      resultado?.acao?.query?.lojaNome,
+      resultado?.dados?.lojaNome,
+      resultado?.dados?.loja?.nome,
+      resultado?.lojaNome,
+      texto,
+    ]
+      .filter(Boolean)
+      .map(normalizarTextoAssistente);
+
+    const textoNormalizado = normalizarTextoAssistente(texto);
+
+    const lojaEncontrada = lojas.find((loja) => {
+      const nomeLoja = normalizarTextoAssistente(loja.nome);
+      const partesNome = nomeLoja
+        .split(/\s+/)
+        .filter((parte) => parte.length >= 4);
+
+      return (
+        nomesPossiveis.some(
+          (nome) => nome.includes(nomeLoja) || nomeLoja.includes(nome),
+        ) ||
+        partesNome.some((parte) => textoNormalizado.includes(parte))
+      );
+    });
+
+    return lojaEncontrada?.id ? String(lojaEncontrada.id) : "";
+  }, [lojas, normalizarTextoAssistente]);
+
+  const montarFiltrosRelatorioAssistente = useCallback((resultado, texto) => {
+    const query = resultado?.acao?.query || {};
+    const datasDaFala = extrairDatasDaFalaAssistente(texto);
+
+    return {
+      lojaId:
+        query.lojaId ||
+        query.loja_id ||
+        encontrarLojaAssistente(texto, resultado),
+      dataInicio:
+        query.dataInicio ||
+        query.data_inicio ||
+        resultado?.dados?.dataInicio ||
+        resultado?.dados?.data_inicio ||
+        datasDaFala.dataInicio,
+      dataFim:
+        query.dataFim ||
+        query.data_fim ||
+        resultado?.dados?.dataFim ||
+        resultado?.dados?.data_fim ||
+        datasDaFala.dataFim,
+    };
+  }, [encontrarLojaAssistente, extrairDatasDaFalaAssistente]);
+
+  const enviarComandoAssistente = useCallback(
+    async (textoTranscrito) => {
+      const textoLimpo = textoTranscrito.trim();
+      if (!textoLimpo) {
+        setAssistenteStatus("erro");
+        setAssistenteMensagem("Nao consegui identificar sua fala.");
+        return;
+      }
+
+      const textoParaEnviar = assistenteContextoPendente
+        ? `${assistenteContextoPendente} ${textoLimpo}`.trim()
+        : textoLimpo;
+
+      setAssistenteStatus("processando");
+      setAssistenteMensagem("Processando comando...");
+      setAssistenteResultado(null);
+
+      try {
+        const response = await api.post("/assistente-ia/comando", {
+          texto: textoParaEnviar,
+        });
+        const resultado = response.data?.resultado || response.data;
+
+        if (resultado?.status === "precisa_confirmacao") {
+          setAssistenteResultado(resultado);
+          setAssistenteStatus("resposta");
+          setAssistenteMensagem(
+            resultado?.mensagem || "Comando processado com sucesso.",
+          );
+          setAssistenteContextoPendente(textoParaEnviar);
+          return;
+        }
+
+        setAssistenteContextoPendente("");
+
+        if (resultado?.tipo === "navegacao" && resultado?.acao?.rota) {
+          navigate(resultado.acao.rota);
+          return;
+        }
+
+        if (resultado?.tipo === "relatorio-loja") {
+          const filtrosRelatorio = montarFiltrosRelatorioAssistente(
+            resultado,
+            textoParaEnviar,
+          );
+          const params = new URLSearchParams();
+
+          Object.entries(filtrosRelatorio).forEach(([chave, valor]) => {
+            if (valor) {
+              params.set(chave, valor);
+            }
+          });
+
+          setAssistenteResultado(resultado);
+          setAssistenteStatus("processando");
+          setAssistenteMensagem("Abrindo relatorio...");
+
+          const rotaRelatorio = resultado?.acao?.rota || "/relatorios";
+          const queryString = params.toString();
+
+          if (
+            !filtrosRelatorio.lojaId ||
+            !filtrosRelatorio.dataInicio ||
+            !filtrosRelatorio.dataFim
+          ) {
+            setAssistenteStatus("erro");
+            setAssistenteMensagem(
+              "Nao consegui identificar loja e periodo para abrir o relatorio.",
+            );
+            return;
+          }
+
+          navigate(
+            queryString ? `${rotaRelatorio}?${queryString}` : rotaRelatorio,
+            {
+              state: {
+                lojaId: filtrosRelatorio.lojaId,
+                dataInicio: filtrosRelatorio.dataInicio,
+                dataFim: filtrosRelatorio.dataFim,
+                autoGerar: true,
+                origem: "assistente-ia",
+              },
+            },
+          );
+          return;
+        }
+
+        setAssistenteResultado(resultado);
+        setAssistenteStatus("resposta");
+        setAssistenteMensagem(
+          resultado?.mensagem || "Comando processado com sucesso.",
+        );
+      } catch (error) {
+        console.error("Erro ao enviar comando para o assistente:", error);
+        setAssistenteStatus("erro");
+        setAssistenteMensagem(
+          error.response?.data?.message ||
+            error.response?.data?.error ||
+            "Erro ao processar o comando de voz.",
+        );
+      }
+    },
+    [assistenteContextoPendente, montarFiltrosRelatorioAssistente, navigate],
+  );
+
+  const iniciarEscutaAssistente = useCallback(() => {
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setAssistenteStatus("erro");
+      setAssistenteMensagem(
+        "Seu navegador nao oferece suporte a reconhecimento de voz.",
+      );
+      return;
+    }
+
+    if (recognitionRef.current) {
+      recognitionRef.current.abort();
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "pt-BR";
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    recognition.maxAlternatives = 1;
+
+    let capturouResultado = false;
+
+    recognition.onstart = () => {
+      setAssistenteStatus("ouvindo");
+      setAssistenteMensagem("Ouvindo...");
+      setAssistenteTranscricao("");
+      setAssistenteResultado(null);
+    };
+
+    recognition.onresult = (event) => {
+      capturouResultado = true;
+      const texto = Array.from(event.results)
+        .map((result) => result[0]?.transcript || "")
+        .join(" ")
+        .trim();
+
+      setAssistenteTranscricao(texto);
+      enviarComandoAssistente(texto);
+    };
+
+    recognition.onerror = (event) => {
+      capturouResultado = true;
+      setAssistenteStatus("erro");
+      setAssistenteMensagem(
+        event.error === "not-allowed"
+          ? "Permita o uso do microfone para falar com o assistente."
+          : "Nao consegui capturar sua fala. Tente novamente.",
+      );
+    };
+
+    recognition.onend = () => {
+      recognitionRef.current = null;
+      if (!capturouResultado) {
+        setAssistenteStatus("idle");
+        setAssistenteMensagem("Clique no microfone e fale um comando.");
+      }
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  }, [enviarComandoAssistente]);
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+    };
+  }, []);
 
   // Função para remover produto do estoque da loja (usando o id do registro)
 
@@ -1649,6 +1949,30 @@ export function Dashboard() {
         ? "text-red-700"
         : "text-slate-700";
 
+  const assistenteStatusLabel = {
+    idle: "Pronto",
+    ouvindo: "Ouvindo",
+    processando: "Processando",
+    erro: "Erro",
+    resposta: "Resposta",
+  }[assistenteStatus];
+
+  const assistenteStatusClass =
+    assistenteStatus === "ouvindo"
+      ? "bg-red-100 text-red-700"
+      : assistenteStatus === "processando"
+        ? "bg-yellow-100 text-yellow-800"
+        : assistenteStatus === "erro"
+          ? "bg-red-100 text-red-700"
+          : assistenteStatus === "resposta"
+            ? "bg-emerald-100 text-emerald-700"
+            : "bg-slate-100 text-slate-700";
+
+  const lojasAssistente =
+    assistenteResultado?.tipo === "estoque"
+      ? assistenteResultado?.dados?.lojas || []
+      : [];
+
   return (
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
       <Navbar />
@@ -1694,6 +2018,127 @@ export function Dashboard() {
             </svg>
             Atualizar
           </button>
+        </div>
+
+        <div className="mb-8 rounded-xl border border-slate-200 bg-white p-4 sm:p-6 shadow-md">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 className="text-xl font-bold text-gray-900">
+                  Assistente de IA
+                </h2>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-bold ${assistenteStatusClass}`}
+                >
+                  {assistenteStatusLabel}
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-gray-600">
+                {assistenteMensagem}
+              </p>
+              {assistenteTranscricao && (
+                <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
+                  <span className="font-semibold">Voce disse: </span>
+                  {assistenteTranscricao}
+                </p>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={iniciarEscutaAssistente}
+              disabled={
+                assistenteStatus === "ouvindo" ||
+                assistenteStatus === "processando"
+              }
+              className={`flex w-full items-center justify-center gap-2 rounded-lg px-5 py-3 font-bold text-white shadow-md transition-all sm:w-auto ${
+                assistenteStatus === "ouvindo"
+                  ? "bg-red-600"
+                  : assistenteStatus === "processando"
+                    ? "bg-yellow-500"
+                    : "bg-slate-900 hover:bg-slate-800"
+              } disabled:cursor-not-allowed disabled:opacity-80`}
+              title="Falar com o assistente"
+            >
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 18.5a6.5 6.5 0 006.5-6.5M5.5 12a6.5 6.5 0 006.5 6.5m0 0V22m0 0h4m-4 0H8m4-7a3 3 0 003-3V5a3 3 0 10-6 0v7a3 3 0 003 3z"
+                />
+              </svg>
+              {assistenteStatus === "ouvindo"
+                ? "Ouvindo..."
+                : assistenteStatus === "processando"
+                  ? "Processando..."
+                  : assistenteContextoPendente
+                    ? "Complementar"
+                    : "Falar"}
+            </button>
+          </div>
+
+          {assistenteResultado?.status === "precisa_confirmacao" && (
+            <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-900">
+              {assistenteResultado.mensagem ||
+                "Preciso de mais uma informacao. Clique no microfone e complemente o comando."}
+            </div>
+          )}
+
+          {lojasAssistente.length > 0 && (
+            <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {lojasAssistente.map((loja, index) => (
+                <div
+                  key={loja.id || loja.nome || index}
+                  className="rounded-lg border border-slate-200 bg-slate-50 p-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h3 className="font-bold text-gray-900">
+                        {loja.nome || "Loja"}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {loja.totalItens ?? 0} itens no estoque
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700">
+                      {loja.produtosBaixoEstoque ?? 0} baixo estoque
+                    </span>
+                  </div>
+
+                  {Array.isArray(loja.produtos) && loja.produtos.length > 0 && (
+                    <div className="mt-4 max-h-56 overflow-auto rounded-lg bg-white">
+                      {loja.produtos.map((produto, produtoIndex) => (
+                        <div
+                          key={produto.id || produto.nome || produtoIndex}
+                          className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2 last:border-b-0"
+                        >
+                          <span className="min-w-0 truncate text-sm font-medium text-slate-800">
+                            {produto.nome ||
+                              produto.produtoNome ||
+                              produto.produto?.nome ||
+                              "Produto"}
+                          </span>
+                          <span className="shrink-0 text-sm font-bold text-slate-700">
+                            {produto.quantidade ??
+                              produto.estoque ??
+                              produto.total ??
+                              0}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
         </div>
 
         {/* Cards de Resumo com design moderno - Apenas para ADMIN */}
