@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
@@ -18,6 +18,7 @@ import TabelaMovimentacoesEstoqueDeLoja from "../components/TabelaMovimentacoesE
 
 export function Movimentacoes() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [modalRegistrarDinheiro, setModalRegistrarDinheiro] = useState(false);
   const { usuario } = useAuth();
 
@@ -46,6 +47,8 @@ export function Movimentacoes() {
   const [success, setSuccess] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [salvandoMovimentacao, setSalvandoMovimentacao] = useState(false);
+  const [movimentacaoAssistentePendente, setMovimentacaoAssistentePendente] =
+    useState(null);
 
   // Filtros Movimentações
   const [filtroLojaForm, setFiltroLojaForm] = useState("");
@@ -87,10 +90,73 @@ export function Movimentacoes() {
     carregarMovimentacoesEstoqueLoja();
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const state = location.state || {};
+    const deveAbrirFormulario =
+      state.abrirFormulario === true ||
+      state.autoAbrirMovimentacao === true ||
+      params.get("abrirFormulario") === "true";
+    const modo = state.modo || params.get("modo");
+
+    if (!deveAbrirFormulario || modo !== "nova_movimentacao") {
+      return;
+    }
+
+    setMovimentacaoAssistentePendente({
+      lojaId: state.lojaId ?? params.get("lojaId") ?? "",
+      maquinaId: state.maquinaId ?? params.get("maquinaId") ?? "",
+      contadorIn: state.contadorIn ?? params.get("contadorIn") ?? "",
+      contadorOut: state.contadorOut ?? params.get("contadorOut") ?? "",
+    });
+  }, [location.search, location.state]);
+
+  useEffect(() => {
+    if (!movimentacaoAssistentePendente || loading) {
+      return;
+    }
+
+    const lojaId = movimentacaoAssistentePendente.lojaId
+      ? String(movimentacaoAssistentePendente.lojaId)
+      : "";
+    const maquinaId = movimentacaoAssistentePendente.maquinaId
+      ? String(movimentacaoAssistentePendente.maquinaId)
+      : "";
+    const contadorIn =
+      movimentacaoAssistentePendente.contadorIn !== undefined &&
+      movimentacaoAssistentePendente.contadorIn !== null
+        ? String(movimentacaoAssistentePendente.contadorIn)
+        : "";
+    const contadorOut =
+      movimentacaoAssistentePendente.contadorOut !== undefined &&
+      movimentacaoAssistentePendente.contadorOut !== null
+        ? String(movimentacaoAssistentePendente.contadorOut)
+        : "";
+
+    setShowForm(true);
+    setFiltroLojaForm(lojaId);
+    setFormData((prev) => ({
+      ...prev,
+      maquina_id: maquinaId,
+      produto_id: "",
+      contadorIn,
+      contadorOut,
+    }));
+    setMovimentacaoAssistentePendente(null);
+
+    queueMicrotask(() => {
+      document
+        .getElementById("form-nova-movimentacao")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [movimentacaoAssistentePendente, loading]);
+
   // Atualizar estoque anterior quando seleciona máquina
   useEffect(() => {
     if (formData.maquina_id) {
-      const maquina = maquinas.find((m) => m.id === formData.maquina_id);
+      const maquina = maquinas.find(
+        (m) => String(m.id) === String(formData.maquina_id),
+      );
       if (maquina) {
         setEstoqueAnterior(maquina.estoqueAtual || 0);
       }
@@ -190,7 +256,7 @@ export function Movimentacoes() {
             produto_id: res.data.produtoSugerido.id,
           }));
         }
-      } catch (err) {
+      } catch {
         // Silencia erro, não sugere nada
       }
     };
@@ -925,7 +991,7 @@ export function Movimentacoes() {
         )}
 
         {showForm && (
-          <div className="card-gradient mb-6">
+          <div id="form-nova-movimentacao" className="card-gradient mb-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
               <span className="text-2xl">📝</span>
               Registrar Movimentação
@@ -1237,7 +1303,9 @@ export function Movimentacoes() {
                     </option>
                     {maquinas
                       .filter(
-                        (m) => !filtroLojaForm || m.lojaId === filtroLojaForm,
+                        (m) =>
+                          !filtroLojaForm ||
+                          String(m.lojaId) === String(filtroLojaForm),
                       )
                       .map((maquina) => (
                         <option key={maquina.id} value={maquina.id}>

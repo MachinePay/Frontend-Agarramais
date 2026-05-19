@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Navbar } from "../components/Navbar";
+import { IAgarraAssistente } from "../components/IAgarraAssistente";
 import api from "../services/api";
 
 export function Usuarios() {
@@ -72,6 +73,8 @@ export function Usuarios() {
             ➕ Novo Usuário
           </Link>
         </div>
+
+        <IAgarraAssistente />
 
         {/* Filtros */}
         <div className="card mb-6">

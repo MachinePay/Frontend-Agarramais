@@ -1,8 +1,11 @@
+import { IAgarraAssistente } from "./IAgarraAssistente";
+
 /**
  * PageHeader - Componente de cabeçalho de página padronizado
  */
 export function PageHeader({ title, subtitle, icon, action }) {
   return (
+    <>
     <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
       <div>
         <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
@@ -23,6 +26,8 @@ export function PageHeader({ title, subtitle, icon, action }) {
         </div>
       )}
     </div>
+    <IAgarraAssistente />
+    </>
   );
 }
 

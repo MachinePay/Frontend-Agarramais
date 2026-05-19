@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
+import { IAgarraAssistente } from "../components/IAgarraAssistente";
 import { PageLoader } from "../components/Loading";
 import { Badge } from "../components/UIComponents";
 import AlertAdmin from "../components/AlertAdmin";
@@ -416,6 +417,71 @@ export function Dashboard() {
     };
   }, [encontrarLojaAssistente, extrairDatasDaFalaAssistente]);
 
+  const extrairNumeroMaquinaAssistente = useCallback((texto) => {
+    const textoNormalizado = normalizarTextoAssistente(texto);
+    const match = textoNormalizado.match(/maquina\s*(?:numero|n|no|#)?\s*(\d+)/);
+    return match?.[1] || "";
+  }, [normalizarTextoAssistente]);
+
+  const encontrarMaquinaAssistente = useCallback(
+    (texto, resultado, lojaId) => {
+      const query = resultado?.acao?.query || {};
+      const idsPossiveis = [
+        query.maquinaId,
+        query.maquina_id,
+        resultado?.dados?.maquinaId,
+        resultado?.dados?.maquina_id,
+        resultado?.dados?.maquina?.id,
+        resultado?.maquinaId,
+        resultado?.maquina_id,
+      ].filter((valor) => valor !== undefined && valor !== null && valor !== "");
+
+      if (idsPossiveis.length > 0) {
+        return String(idsPossiveis[0]);
+      }
+
+      const numeroMaquina = extrairNumeroMaquinaAssistente(texto);
+      if (!numeroMaquina) return "";
+
+      const maquinasDaLoja = maquinas.filter(
+        (maquina) => !lojaId || String(maquina.lojaId) === String(lojaId),
+      );
+
+      const maquinaEncontrada = maquinasDaLoja.find((maquina) => {
+        const codigo = normalizarTextoAssistente(maquina.codigo);
+        const nome = normalizarTextoAssistente(maquina.nome);
+
+        return (
+          String(maquina.id) === numeroMaquina ||
+          codigo === numeroMaquina ||
+          Number(codigo) === Number(numeroMaquina) ||
+          nome === `maquina ${numeroMaquina}` ||
+          nome.endsWith(` ${numeroMaquina}`) ||
+          nome.includes(`maquina ${numeroMaquina}`)
+        );
+      });
+
+      return maquinaEncontrada?.id ? String(maquinaEncontrada.id) : "";
+    },
+    [extrairNumeroMaquinaAssistente, maquinas, normalizarTextoAssistente],
+  );
+
+  const montarFiltrosMovimentacaoAssistente = useCallback(
+    (resultado, texto) => {
+      const query = resultado?.acao?.query || {};
+      const lojaId =
+        query.lojaId ||
+        query.loja_id ||
+        encontrarLojaAssistente(texto, resultado);
+
+      return {
+        lojaId,
+        maquinaId: encontrarMaquinaAssistente(texto, resultado, lojaId),
+      };
+    },
+    [encontrarLojaAssistente, encontrarMaquinaAssistente],
+  );
+
   const enviarComandoAssistente = useCallback(
     async (textoTranscrito) => {
       const textoLimpo = textoTranscrito.trim();
@@ -454,6 +520,49 @@ export function Dashboard() {
         }
 
         setAssistenteContextoPendente("");
+
+        const deveAbrirMovimentacao =
+          (resultado?.acao?.tipo === "abrir_movimentacao" &&
+            resultado?.acao?.abrirFormulario === true &&
+            resultado?.acao?.modo === "nova_movimentacao") ||
+          (resultado?.acao?.rota === "/movimentacoes" &&
+            normalizarTextoAssistente(textoParaEnviar).includes(
+              "movimentacao",
+            ));
+
+        if (deveAbrirMovimentacao) {
+          const filtrosMovimentacao = montarFiltrosMovimentacaoAssistente(
+            resultado,
+            textoParaEnviar,
+          );
+          const params = new URLSearchParams({
+            abrirFormulario: "true",
+            modo: "nova_movimentacao",
+          });
+
+          if (filtrosMovimentacao.lojaId) {
+            params.set("lojaId", filtrosMovimentacao.lojaId);
+          }
+
+          if (filtrosMovimentacao.maquinaId) {
+            params.set("maquinaId", filtrosMovimentacao.maquinaId);
+          }
+
+          setAssistenteResultado(resultado);
+          setAssistenteStatus("processando");
+          setAssistenteMensagem("IAgarra esta abrindo a nova movimentacao...");
+
+          navigate(`${resultado?.acao?.rota || "/movimentacoes"}?${params}`, {
+            state: {
+              lojaId: filtrosMovimentacao.lojaId,
+              maquinaId: filtrosMovimentacao.maquinaId,
+              abrirFormulario: true,
+              modo: "nova_movimentacao",
+              origem: "IAgarra",
+            },
+          });
+          return;
+        }
 
         if (resultado?.tipo === "navegacao" && resultado?.acao?.rota) {
           navigate(resultado.acao.rota);
@@ -522,7 +631,13 @@ export function Dashboard() {
         );
       }
     },
-    [assistenteContextoPendente, montarFiltrosRelatorioAssistente, navigate],
+    [
+      assistenteContextoPendente,
+      montarFiltrosMovimentacaoAssistente,
+      montarFiltrosRelatorioAssistente,
+      navigate,
+      normalizarTextoAssistente,
+    ],
   );
 
   const iniciarEscutaAssistente = useCallback(() => {
@@ -1987,6 +2102,14 @@ export function Dashboard() {
       ? assistenteResultado?.dados?.lojas || []
       : [];
 
+  void assistenteMensagem;
+  void assistenteTranscricao;
+  void iniciarEscutaAssistente;
+  void assistenteStatusLabel;
+  void assistenteBotaoTexto;
+  void assistenteStatusClass;
+  void lojasAssistente;
+
   return (
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
       <Navbar />
@@ -2034,137 +2157,7 @@ export function Dashboard() {
           </button>
         </div>
 
-        <div className="mb-8 rounded-xl border border-slate-200 bg-white p-4 sm:p-6 shadow-md">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-linear-to-br from-yellow-400 to-orange-500 text-white shadow-sm">
-                    <svg
-                      className="h-5 w-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 3l1.7 5.1L19 10l-5.3 1.9L12 17l-1.7-5.1L5 10l5.3-1.9L12 3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"
-                      />
-                    </svg>
-                  </span>
-                  <h2 className="text-xl font-bold text-gray-900">
-                    {assistenteNome}
-                  </h2>
-                </div>
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-bold ${assistenteStatusClass}`}
-                >
-                  {assistenteStatusLabel}
-                </span>
-              </div>
-              <p className="mt-2 text-sm text-gray-600">
-                {assistenteMensagem}
-              </p>
-              {assistenteTranscricao && (
-                <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
-                  <span className="font-semibold">Voce disse: </span>
-                  {assistenteTranscricao}
-                </p>
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={iniciarEscutaAssistente}
-              disabled={
-                assistenteStatus === "ouvindo" ||
-                assistenteStatus === "processando"
-              }
-              className={`flex w-full items-center justify-center gap-2 rounded-lg px-5 py-3 font-bold text-white shadow-md transition-all sm:w-auto ${
-                assistenteStatus === "ouvindo"
-                  ? "bg-red-600"
-                  : assistenteStatus === "processando"
-                    ? "bg-yellow-500"
-                    : "bg-slate-900 hover:bg-slate-800"
-              } disabled:cursor-not-allowed disabled:opacity-80`}
-              title="Falar com a IAgarra"
-            >
-              <svg
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 18.5a6.5 6.5 0 006.5-6.5M5.5 12a6.5 6.5 0 006.5 6.5m0 0V22m0 0h4m-4 0H8m4-7a3 3 0 003-3V5a3 3 0 10-6 0v7a3 3 0 003 3z"
-                />
-              </svg>
-              {assistenteBotaoTexto}
-            </button>
-          </div>
-
-          {assistenteResultado?.status === "precisa_confirmacao" && (
-            <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-900">
-              {assistenteResultado.mensagem ||
-                "IAgarra precisa de mais uma informacao. Clique no botao e complemente o comando."}
-            </div>
-          )}
-
-          {lojasAssistente.length > 0 && (
-            <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
-              {lojasAssistente.map((loja, index) => (
-                <div
-                  key={loja.id || loja.nome || index}
-                  className="rounded-lg border border-slate-200 bg-slate-50 p-4"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <h3 className="font-bold text-gray-900">
-                        {loja.nome || "Loja"}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        {loja.totalItens ?? 0} itens no estoque
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700">
-                      {loja.produtosBaixoEstoque ?? 0} baixo estoque
-                    </span>
-                  </div>
-
-                  {Array.isArray(loja.produtos) && loja.produtos.length > 0 && (
-                    <div className="mt-4 max-h-56 overflow-auto rounded-lg bg-white">
-                      {loja.produtos.map((produto, produtoIndex) => (
-                        <div
-                          key={produto.id || produto.nome || produtoIndex}
-                          className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2 last:border-b-0"
-                        >
-                          <span className="min-w-0 truncate text-sm font-medium text-slate-800">
-                            {produto.nome ||
-                              produto.produtoNome ||
-                              produto.produto?.nome ||
-                              "Produto"}
-                          </span>
-                          <span className="shrink-0 text-sm font-bold text-slate-700">
-                            {produto.quantidade ??
-                              produto.estoque ??
-                              produto.total ??
-                              0}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-        </div>
+        <IAgarraAssistente />
 
         {/* Cards de Resumo com design moderno - Apenas para ADMIN */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6 mb-8">
