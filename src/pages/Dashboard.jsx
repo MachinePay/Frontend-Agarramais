@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import api from "../services/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
+import { IAgarraAssistente } from "../components/IAgarraAssistente";
 import { PageLoader } from "../components/Loading";
 import { Badge } from "../components/UIComponents";
 import AlertAdmin from "../components/AlertAdmin";
@@ -292,6 +293,424 @@ export function Dashboard() {
   const [movimentacaoEditandoId, setMovimentacaoEditandoId] = useState(null);
   const [movimentacaoForm, setMovimentacaoForm] = useState(null);
   const [salvandoMovimentacaoId, setSalvandoMovimentacaoId] = useState(null);
+  const recognitionRef = useRef(null);
+  const [assistenteStatus, setAssistenteStatus] = useState("idle");
+  const [assistenteMensagem, setAssistenteMensagem] = useState(
+    "Clique na IAgarra e fale um comando.",
+  );
+  const [assistenteTranscricao, setAssistenteTranscricao] = useState("");
+  const [assistenteResultado, setAssistenteResultado] = useState(null);
+  const [assistenteContextoPendente, setAssistenteContextoPendente] =
+    useState("");
+
+  const normalizarTextoAssistente = useCallback((valor) =>
+    String(valor || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim(), []);
+
+  const formatarDataAssistente = (dia, mes, ano) =>
+    `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+
+  const extrairDatasDaFalaAssistente = useCallback((texto) => {
+    const meses = {
+      janeiro: 1,
+      fevereiro: 2,
+      marco: 3,
+      abril: 4,
+      maio: 5,
+      junho: 6,
+      julho: 7,
+      agosto: 8,
+      setembro: 9,
+      outubro: 10,
+      novembro: 11,
+      dezembro: 12,
+    };
+    const textoNormalizado = normalizarTextoAssistente(texto);
+    const datas = [...textoNormalizado.matchAll(/(\d{1,2})\s+de\s+([a-z]+)(?:\s+de\s+(\d{4}))?/g)];
+    const anoAtual = new Date().getFullYear();
+
+    if (datas.length < 2) return {};
+
+    const [inicio, fim] = datas.map((match) => ({
+      dia: Number(match[1]),
+      mes: meses[match[2]],
+      ano: Number(match[3]) || anoAtual,
+    }));
+
+    if (!inicio.mes || !fim.mes) return {};
+
+    return {
+      dataInicio: formatarDataAssistente(inicio.dia, inicio.mes, inicio.ano),
+      dataFim: formatarDataAssistente(fim.dia, fim.mes, fim.ano),
+    };
+  }, [normalizarTextoAssistente]);
+
+  const encontrarLojaAssistente = useCallback((texto, resultado) => {
+    const idsPossiveis = [
+      resultado?.acao?.query?.lojaId,
+      resultado?.acao?.query?.loja_id,
+      resultado?.dados?.lojaId,
+      resultado?.dados?.loja_id,
+      resultado?.dados?.loja?.id,
+      resultado?.lojaId,
+      resultado?.loja_id,
+    ].filter(Boolean);
+
+    if (idsPossiveis.length > 0) {
+      return String(idsPossiveis[0]);
+    }
+
+    const nomesPossiveis = [
+      resultado?.acao?.query?.loja,
+      resultado?.acao?.query?.lojaNome,
+      resultado?.dados?.lojaNome,
+      resultado?.dados?.loja?.nome,
+      resultado?.lojaNome,
+      texto,
+    ]
+      .filter(Boolean)
+      .map(normalizarTextoAssistente);
+
+    const textoNormalizado = normalizarTextoAssistente(texto);
+
+    const lojaEncontrada = lojas.find((loja) => {
+      const nomeLoja = normalizarTextoAssistente(loja.nome);
+      const partesNome = nomeLoja
+        .split(/\s+/)
+        .filter((parte) => parte.length >= 4);
+
+      return (
+        nomesPossiveis.some(
+          (nome) => nome.includes(nomeLoja) || nomeLoja.includes(nome),
+        ) ||
+        partesNome.some((parte) => textoNormalizado.includes(parte))
+      );
+    });
+
+    return lojaEncontrada?.id ? String(lojaEncontrada.id) : "";
+  }, [lojas, normalizarTextoAssistente]);
+
+  const montarFiltrosRelatorioAssistente = useCallback((resultado, texto) => {
+    const query = resultado?.acao?.query || {};
+    const datasDaFala = extrairDatasDaFalaAssistente(texto);
+
+    return {
+      lojaId:
+        query.lojaId ||
+        query.loja_id ||
+        encontrarLojaAssistente(texto, resultado),
+      dataInicio:
+        query.dataInicio ||
+        query.data_inicio ||
+        resultado?.dados?.dataInicio ||
+        resultado?.dados?.data_inicio ||
+        datasDaFala.dataInicio,
+      dataFim:
+        query.dataFim ||
+        query.data_fim ||
+        resultado?.dados?.dataFim ||
+        resultado?.dados?.data_fim ||
+        datasDaFala.dataFim,
+    };
+  }, [encontrarLojaAssistente, extrairDatasDaFalaAssistente]);
+
+  const extrairNumeroMaquinaAssistente = useCallback((texto) => {
+    const textoNormalizado = normalizarTextoAssistente(texto);
+    const match = textoNormalizado.match(/maquina\s*(?:numero|n|no|#)?\s*(\d+)/);
+    return match?.[1] || "";
+  }, [normalizarTextoAssistente]);
+
+  const encontrarMaquinaAssistente = useCallback(
+    (texto, resultado, lojaId) => {
+      const query = resultado?.acao?.query || {};
+      const idsPossiveis = [
+        query.maquinaId,
+        query.maquina_id,
+        resultado?.dados?.maquinaId,
+        resultado?.dados?.maquina_id,
+        resultado?.dados?.maquina?.id,
+        resultado?.maquinaId,
+        resultado?.maquina_id,
+      ].filter((valor) => valor !== undefined && valor !== null && valor !== "");
+
+      if (idsPossiveis.length > 0) {
+        return String(idsPossiveis[0]);
+      }
+
+      const numeroMaquina = extrairNumeroMaquinaAssistente(texto);
+      if (!numeroMaquina) return "";
+
+      const maquinasDaLoja = maquinas.filter(
+        (maquina) => !lojaId || String(maquina.lojaId) === String(lojaId),
+      );
+
+      const maquinaEncontrada = maquinasDaLoja.find((maquina) => {
+        const codigo = normalizarTextoAssistente(maquina.codigo);
+        const nome = normalizarTextoAssistente(maquina.nome);
+
+        return (
+          String(maquina.id) === numeroMaquina ||
+          codigo === numeroMaquina ||
+          Number(codigo) === Number(numeroMaquina) ||
+          nome === `maquina ${numeroMaquina}` ||
+          nome.endsWith(` ${numeroMaquina}`) ||
+          nome.includes(`maquina ${numeroMaquina}`)
+        );
+      });
+
+      return maquinaEncontrada?.id ? String(maquinaEncontrada.id) : "";
+    },
+    [extrairNumeroMaquinaAssistente, maquinas, normalizarTextoAssistente],
+  );
+
+  const montarFiltrosMovimentacaoAssistente = useCallback(
+    (resultado, texto) => {
+      const query = resultado?.acao?.query || {};
+      const lojaId =
+        query.lojaId ||
+        query.loja_id ||
+        encontrarLojaAssistente(texto, resultado);
+
+      return {
+        lojaId,
+        maquinaId: encontrarMaquinaAssistente(texto, resultado, lojaId),
+      };
+    },
+    [encontrarLojaAssistente, encontrarMaquinaAssistente],
+  );
+
+  const enviarComandoAssistente = useCallback(
+    async (textoTranscrito) => {
+      const textoLimpo = textoTranscrito.trim();
+      if (!textoLimpo) {
+        setAssistenteStatus("erro");
+        setAssistenteMensagem("IAgarra nao conseguiu entender.");
+        return;
+      }
+
+      const textoParaEnviar = assistenteContextoPendente
+        ? `${assistenteContextoPendente} ${textoLimpo}`.trim()
+        : textoLimpo;
+
+      setAssistenteStatus("processando");
+      setAssistenteMensagem("IAgarra pensando...");
+      setAssistenteResultado(null);
+
+      try {
+        const response = await api.post("/assistente-ia/comando", {
+          texto: textoParaEnviar,
+        });
+        const resultadoBase = response.data?.resultado || response.data;
+        const resultado = {
+          ...resultadoBase,
+          assistente: response.data?.assistente || resultadoBase?.assistente,
+        };
+
+        if (resultado?.status === "precisa_confirmacao") {
+          setAssistenteResultado(resultado);
+          setAssistenteStatus("resposta");
+          setAssistenteMensagem(
+            resultado?.mensagem || "Comando processado com sucesso.",
+          );
+          setAssistenteContextoPendente(textoParaEnviar);
+          return;
+        }
+
+        setAssistenteContextoPendente("");
+
+        const deveAbrirMovimentacao =
+          (resultado?.acao?.tipo === "abrir_movimentacao" &&
+            resultado?.acao?.abrirFormulario === true &&
+            resultado?.acao?.modo === "nova_movimentacao") ||
+          (resultado?.acao?.rota === "/movimentacoes" &&
+            normalizarTextoAssistente(textoParaEnviar).includes(
+              "movimentacao",
+            ));
+
+        if (deveAbrirMovimentacao) {
+          const filtrosMovimentacao = montarFiltrosMovimentacaoAssistente(
+            resultado,
+            textoParaEnviar,
+          );
+          const params = new URLSearchParams({
+            abrirFormulario: "true",
+            modo: "nova_movimentacao",
+          });
+
+          if (filtrosMovimentacao.lojaId) {
+            params.set("lojaId", filtrosMovimentacao.lojaId);
+          }
+
+          if (filtrosMovimentacao.maquinaId) {
+            params.set("maquinaId", filtrosMovimentacao.maquinaId);
+          }
+
+          setAssistenteResultado(resultado);
+          setAssistenteStatus("processando");
+          setAssistenteMensagem("IAgarra esta abrindo a nova movimentacao...");
+
+          navigate(`${resultado?.acao?.rota || "/movimentacoes"}?${params}`, {
+            state: {
+              lojaId: filtrosMovimentacao.lojaId,
+              maquinaId: filtrosMovimentacao.maquinaId,
+              abrirFormulario: true,
+              modo: "nova_movimentacao",
+              origem: "IAgarra",
+            },
+          });
+          return;
+        }
+
+        if (resultado?.tipo === "navegacao" && resultado?.acao?.rota) {
+          navigate(resultado.acao.rota);
+          return;
+        }
+
+        if (resultado?.tipo === "relatorio-loja") {
+          const filtrosRelatorio = montarFiltrosRelatorioAssistente(
+            resultado,
+            textoParaEnviar,
+          );
+          const params = new URLSearchParams();
+
+          Object.entries(filtrosRelatorio).forEach(([chave, valor]) => {
+            if (valor) {
+              params.set(chave, valor);
+            }
+          });
+
+          setAssistenteResultado(resultado);
+          setAssistenteStatus("processando");
+          setAssistenteMensagem("IAgarra esta abrindo o relatorio...");
+
+          const rotaRelatorio = resultado?.acao?.rota || "/relatorios";
+          const queryString = params.toString();
+
+          if (
+            !filtrosRelatorio.lojaId ||
+            !filtrosRelatorio.dataInicio ||
+            !filtrosRelatorio.dataFim
+          ) {
+            setAssistenteStatus("erro");
+            setAssistenteMensagem(
+              "IAgarra nao conseguiu entender loja e periodo para abrir o relatorio.",
+            );
+            return;
+          }
+
+          navigate(
+            queryString ? `${rotaRelatorio}?${queryString}` : rotaRelatorio,
+            {
+              state: {
+                lojaId: filtrosRelatorio.lojaId,
+                dataInicio: filtrosRelatorio.dataInicio,
+                dataFim: filtrosRelatorio.dataFim,
+                autoGerar: true,
+                origem: "IAgarra",
+              },
+            },
+          );
+          return;
+        }
+
+        setAssistenteResultado(resultado);
+        setAssistenteStatus("resposta");
+        setAssistenteMensagem(
+          resultado?.mensagem || "Comando processado com sucesso.",
+        );
+      } catch (error) {
+        console.error("Erro ao enviar comando para o assistente:", error);
+        setAssistenteStatus("erro");
+        setAssistenteMensagem(
+          error.response?.data?.message ||
+            error.response?.data?.error ||
+            "IAgarra nao conseguiu entender.",
+        );
+      }
+    },
+    [
+      assistenteContextoPendente,
+      montarFiltrosMovimentacaoAssistente,
+      montarFiltrosRelatorioAssistente,
+      navigate,
+      normalizarTextoAssistente,
+    ],
+  );
+
+  const iniciarEscutaAssistente = useCallback(() => {
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setAssistenteStatus("erro");
+      setAssistenteMensagem(
+        "IAgarra nao conseguiu acessar o reconhecimento de voz neste navegador.",
+      );
+      return;
+    }
+
+    if (recognitionRef.current) {
+      recognitionRef.current.abort();
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "pt-BR";
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    recognition.maxAlternatives = 1;
+
+    let capturouResultado = false;
+
+    recognition.onstart = () => {
+      setAssistenteStatus("ouvindo");
+      setAssistenteMensagem("IAgarra ouvindo...");
+      setAssistenteTranscricao("");
+      setAssistenteResultado(null);
+    };
+
+    recognition.onresult = (event) => {
+      capturouResultado = true;
+      const texto = Array.from(event.results)
+        .map((result) => result[0]?.transcript || "")
+        .join(" ")
+        .trim();
+
+      setAssistenteTranscricao(texto);
+      enviarComandoAssistente(texto);
+    };
+
+    recognition.onerror = (event) => {
+      capturouResultado = true;
+      setAssistenteStatus("erro");
+      setAssistenteMensagem(
+        event.error === "not-allowed"
+          ? "Permita o uso do microfone para falar com a IAgarra."
+          : "IAgarra nao conseguiu entender. Tente novamente.",
+      );
+    };
+
+    recognition.onend = () => {
+      recognitionRef.current = null;
+      if (!capturouResultado) {
+        setAssistenteStatus("idle");
+        setAssistenteMensagem("Clique na IAgarra e fale um comando.");
+      }
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  }, [enviarComandoAssistente]);
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+    };
+  }, []);
 
   // Função para remover produto do estoque da loja (usando o id do registro)
 
@@ -1649,6 +2068,48 @@ export function Dashboard() {
         ? "text-red-700"
         : "text-slate-700";
 
+  const assistenteNome = assistenteResultado?.assistente?.nome || "IAgarra";
+
+  const assistenteStatusLabel = {
+    idle: assistenteNome,
+    ouvindo: `${assistenteNome} ouvindo...`,
+    processando: `${assistenteNome} pensando...`,
+    erro: `${assistenteNome} nao conseguiu entender`,
+    resposta: `${assistenteNome} respondeu`,
+  }[assistenteStatus];
+
+  const assistenteBotaoTexto = {
+    idle: assistenteNome,
+    ouvindo: `${assistenteNome} ouvindo...`,
+    processando: `${assistenteNome} pensando...`,
+    erro: `${assistenteNome} nao conseguiu entender`,
+    resposta: assistenteContextoPendente ? `${assistenteNome} complementar` : assistenteNome,
+  }[assistenteStatus];
+
+  const assistenteStatusClass =
+    assistenteStatus === "ouvindo"
+      ? "bg-red-100 text-red-700"
+      : assistenteStatus === "processando"
+        ? "bg-yellow-100 text-yellow-800"
+        : assistenteStatus === "erro"
+          ? "bg-red-100 text-red-700"
+          : assistenteStatus === "resposta"
+            ? "bg-emerald-100 text-emerald-700"
+            : "bg-slate-100 text-slate-700";
+
+  const lojasAssistente =
+    assistenteResultado?.tipo === "estoque"
+      ? assistenteResultado?.dados?.lojas || []
+      : [];
+
+  void assistenteMensagem;
+  void assistenteTranscricao;
+  void iniciarEscutaAssistente;
+  void assistenteStatusLabel;
+  void assistenteBotaoTexto;
+  void assistenteStatusClass;
+  void lojasAssistente;
+
   return (
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
       <Navbar />
@@ -1695,6 +2156,8 @@ export function Dashboard() {
             Atualizar
           </button>
         </div>
+
+        <IAgarraAssistente />
 
         {/* Cards de Resumo com design moderno - Apenas para ADMIN */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6 mb-8">
