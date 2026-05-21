@@ -302,6 +302,115 @@ export function Relatorios() {
     return toNumber(dadosRelatorio?.totais?.gastoProdutosTotalPeriodo);
   };
 
+  const normalizarTextoBusca = (valor) =>
+    String(valor || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+
+  const criarIndiceProdutosPorPreco = (produtos = []) => {
+    const indice = {};
+
+    produtos.forEach((produto) => {
+      [
+        produto?.id,
+        produto?.produtoId,
+        produto?.produto_id,
+        produto?.codigo,
+        produto?.nome,
+      ].forEach((chave) => {
+        const chaveNormalizada = normalizarTextoBusca(chave);
+        if (chaveNormalizada) indice[chaveNormalizada] = produto;
+      });
+    });
+
+    return indice;
+  };
+
+  const buscarProdutoCadastrado = (produtoRelatorio, indiceProdutos) => {
+    const chaves = [
+      produtoRelatorio?.id,
+      produtoRelatorio?.produtoId,
+      produtoRelatorio?.produto_id,
+      produtoRelatorio?.idProduto,
+      produtoRelatorio?.codigo,
+      produtoRelatorio?.nome,
+    ];
+
+    for (const chave of chaves) {
+      const produto = indiceProdutos[normalizarTextoBusca(chave)];
+      if (produto) return produto;
+    }
+
+    return null;
+  };
+
+  const completarPrecoProdutosRelatorio = (dadosRelatorio, produtos = []) => {
+    const indiceProdutos = criarIndiceProdutosPorPreco(produtos);
+
+    if (!Array.isArray(dadosRelatorio?.maquinas)) {
+      return dadosRelatorio;
+    }
+
+    const maquinas = dadosRelatorio.maquinas.map((maquina) => {
+      if (!Array.isArray(maquina?.produtosSairam)) return maquina;
+
+      const produtosSairam = maquina.produtosSairam.map((produto) => {
+        const produtoCadastrado = buscarProdutoCadastrado(
+          produto,
+          indiceProdutos,
+        );
+        const precoCadastrado = toNumber(produtoCadastrado?.preco);
+        const custoUnitarioRelatorio = toNumber(produto.custoUnitario);
+        const custoUnitario =
+          custoUnitarioRelatorio > 0
+            ? custoUnitarioRelatorio
+            : precoCadastrado;
+        const quantidade = toNumber(produto.quantidade);
+        const custoTotalRelatorio = toNumber(produto.custoTotal);
+        const custoTotal =
+          custoTotalRelatorio > 0
+            ? custoTotalRelatorio
+            : custoUnitario * quantidade;
+
+        return {
+          ...produto,
+          custoUnitario,
+          custoTotal,
+        };
+      });
+
+      return {
+        ...maquina,
+        produtosSairam,
+        totais: {
+          ...(maquina?.totais || {}),
+          custoProdutosSairam: produtosSairam.reduce(
+            (acc, produto) => acc + toNumber(produto.custoTotal),
+            0,
+          ),
+        },
+      };
+    });
+
+    const custoProdutosTotal = maquinas.reduce(
+      (acc, maquina) => acc + toNumber(maquina?.totais?.custoProdutosSairam),
+      0,
+    );
+
+    return {
+      ...dadosRelatorio,
+      maquinas,
+      totais: {
+        ...(dadosRelatorio?.totais || {}),
+        custoProdutosTotal,
+        gastoProdutosTotalPeriodo: custoProdutosTotal,
+      },
+    };
+  };
+
   const montarIndicadorComparacao = (
     valorAtual,
     valorAnterior,
@@ -662,6 +771,19 @@ export function Relatorios() {
         },
       });
 
+      let produtosCadastrados = [];
+      try {
+        const produtosResponse = await api.get("/produtos?incluirInativos=true");
+        produtosCadastrados = Array.isArray(produtosResponse.data)
+          ? produtosResponse.data
+          : [];
+      } catch (erroProdutos) {
+        console.warn(
+          "NÃ£o foi possÃ­vel buscar produtos cadastrados para completar preÃ§os no relatÃ³rio:",
+          erroProdutos,
+        );
+      }
+
       let gastoTotalDoRegistrar = null;
       let observacaoDoRegistrar = "";
       try {
@@ -741,14 +863,17 @@ export function Relatorios() {
         gastoTotalDoRegistrar ??
         Number(response.data?.totais?.gastoTotalPeriodo || 0);
 
-      const relatorioAtualNormalizado = {
-        ...response.data,
-        observacaoRegistrar: observacaoDoRegistrar,
-        totais: {
-          ...(response.data?.totais || {}),
-          gastoTotalPeriodo: gastoTotalFinal,
+      const relatorioAtualNormalizado = completarPrecoProdutosRelatorio(
+        {
+          ...response.data,
+          observacaoRegistrar: observacaoDoRegistrar,
+          totais: {
+            ...(response.data?.totais || {}),
+            gastoTotalPeriodo: gastoTotalFinal,
+          },
         },
-      };
+        produtosCadastrados,
+      );
 
       let comparativoCalculado = null;
       try {
@@ -763,7 +888,10 @@ export function Relatorios() {
           },
         });
 
-        const relatorioMesAnterior = responseMesAnterior.data;
+        const relatorioMesAnterior = completarPrecoProdutosRelatorio(
+          responseMesAnterior.data,
+          produtosCadastrados,
+        );
 
         if (relatorioMesAnterior) {
           const lucroLiquidoAtual = calcularLucroLiquidoRelatorio(
