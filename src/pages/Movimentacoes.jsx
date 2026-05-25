@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { Navbar } from "../components/Navbar";
@@ -47,6 +47,7 @@ export function Movimentacoes() {
   const [success, setSuccess] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [salvandoMovimentacao, setSalvandoMovimentacao] = useState(false);
+  const movimentacaoEmEnvioRef = useRef(false);
   const [movimentacaoAssistentePendente, setMovimentacaoAssistentePendente] =
     useState(null);
 
@@ -332,6 +333,13 @@ export function Movimentacoes() {
   // --- CORREÇÃO AQUI: Função handleSubmit recriada com o TRY ---
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (movimentacaoEmEnvioRef.current) {
+      return;
+    }
+
+    movimentacaoEmEnvioRef.current = true;
+    setSalvandoMovimentacao(true);
     setError("");
     setSuccess("");
 
@@ -528,6 +536,7 @@ export function Movimentacoes() {
           "Erro ao registrar movimentação",
       );
     } finally {
+      movimentacaoEmEnvioRef.current = false;
       setSalvandoMovimentacao(false);
     }
   };
