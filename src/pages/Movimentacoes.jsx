@@ -334,31 +334,53 @@ export function Movimentacoes() {
     setResultadoFotoContadores("");
   };
 
-  const prepararImagemParaOcr = (file) =>
+  const prepararImagemParaOcr = (file, options = {}) =>
     new Promise((resolve, reject) => {
       const image = new Image();
       const objectUrl = URL.createObjectURL(file);
+      const {
+        crop = { x: 0, y: 0, width: 1, height: 1 },
+        mode = "threshold",
+        targetWidth = 2200,
+      } = options;
 
       image.onload = () => {
-        const escala = Math.min(
-          2.5,
-          Math.max(1, 1600 / Math.max(image.width, image.height)),
+        const sx = Math.max(0, Math.round(image.width * crop.x));
+        const sy = Math.max(0, Math.round(image.height * crop.y));
+        const sw = Math.min(
+          image.width - sx,
+          Math.round(image.width * crop.width),
         );
+        const sh = Math.min(
+          image.height - sy,
+          Math.round(image.height * crop.height),
+        );
+        const escala = Math.min(4, Math.max(1.4, targetWidth / sw));
         const canvas = document.createElement("canvas");
-        canvas.width = Math.round(image.width * escala);
-        canvas.height = Math.round(image.height * escala);
+        canvas.width = Math.round(sw * escala);
+        canvas.height = Math.round(sh * escala);
 
         const ctx = canvas.getContext("2d");
-        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(image, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
 
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageData.data;
         for (let i = 0; i < data.length; i += 4) {
           const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-          const contrast = gray > 125 ? 255 : 0;
-          data[i] = contrast;
-          data[i + 1] = contrast;
-          data[i + 2] = contrast;
+          let value = gray;
+
+          if (mode === "threshold") {
+            value = gray > 105 ? 255 : 0;
+          } else if (mode === "invert") {
+            value = gray > 105 ? 0 : 255;
+          } else if (mode === "contrast") {
+            value = Math.max(0, Math.min(255, (gray - 95) * 2.3 + 95));
+          }
+
+          data[i] = value;
+          data[i + 1] = value;
+          data[i + 2] = value;
         }
         ctx.putImageData(imageData, 0, 0);
 
@@ -374,28 +396,57 @@ export function Movimentacoes() {
       image.src = objectUrl;
     });
 
-  const extrairContadoresDaFoto = (texto) => {
+  const extrairNumerosDaFoto = (texto) => {
     const normalizado = texto
       .toUpperCase()
       .replace(/[OQD]/g, "0")
-      .replace(/[IL|]/g, "1")
+      .replace(/[IL|!]/g, "1")
       .replace(/[S]/g, "5")
       .replace(/[B]/g, "8");
 
-    const candidatos = (normalizado.match(/[0-9][0-9\s.,-]{2,}[0-9]/g) || [])
+    return (normalizado.match(/[0-9][0-9\s.,:-]{2,}[0-9]/g) || [])
       .map((valor) => valor.replace(/\D/g, ""))
       .filter((valor) => valor.length >= 3)
       .map((valor) => Number(valor))
-      .filter((valor) => Number.isFinite(valor));
+      .filter((valor) => Number.isFinite(valor) && valor > 0);
+  };
 
-    const unicos = [...new Set(candidatos)].sort((a, b) => b - a);
-    if (unicos.length < 2) {
+  const escolherNumeroMaisProvavel = (leituras) => {
+    const contagem = new Map();
+
+    leituras.forEach((numero) => {
+      contagem.set(numero, (contagem.get(numero) || 0) + 1);
+    });
+
+    return [...contagem.entries()]
+      .sort((a, b) => b[1] - a[1] || String(b[0]).length - String(a[0]).length)
+      .map(([numero]) => numero)[0];
+  };
+
+  const montarContadoresPorLeituras = (leituras) => {
+    const porRegiao = (nome) =>
+      leituras
+        .filter((leitura) => leitura.regiao === nome)
+        .flatMap((leitura) => leitura.numeros);
+
+    const esquerda = escolherNumeroMaisProvavel(porRegiao("esquerdo"));
+    const direita = escolherNumeroMaisProvavel(porRegiao("direito"));
+
+    if (esquerda && direita && esquerda !== direita) {
+      const [contadorIn, contadorOut] = [esquerda, direita].sort((a, b) => b - a);
+      return { contadorIn: String(contadorIn), contadorOut: String(contadorOut) };
+    }
+
+    const todos = [...new Set(leituras.flatMap((leitura) => leitura.numeros))]
+      .sort((a, b) => b - a);
+
+    if (todos.length < 2) {
       return null;
     }
 
     return {
-      contadorIn: String(unicos[0]),
-      contadorOut: String(unicos[1]),
+      contadorIn: String(todos[0]),
+      contadorOut: String(todos[1]),
     };
   };
 
@@ -421,7 +472,6 @@ export function Movimentacoes() {
 
     let worker;
     try {
-      const imagemPreparada = await prepararImagemParaOcr(file);
       worker = await createWorker("eng", 1, {
         logger: (m) => {
           if (m.status === "recognizing text" && m.progress) {
@@ -433,16 +483,42 @@ export function Movimentacoes() {
       });
       await worker.setParameters({
         tessedit_char_whitelist: "0123456789",
+        tessedit_pageseg_mode: "7",
+        preserve_interword_spaces: "1",
       });
 
-      const {
-        data: { text },
-      } = await worker.recognize(imagemPreparada);
-      const contadores = extrairContadoresDaFoto(text);
+      const regioes = [
+        { nome: "esquerdo", crop: { x: 0.02, y: 0.22, width: 0.5, height: 0.34 } },
+        { nome: "direito", crop: { x: 0.42, y: 0.22, width: 0.56, height: 0.34 } },
+        { nome: "topo", crop: { x: 0, y: 0.16, width: 1, height: 0.46 } },
+        { nome: "geral", crop: { x: 0, y: 0, width: 1, height: 0.72 } },
+      ];
+      const modos = ["threshold", "contrast", "invert"];
+      const leituras = [];
+
+      for (const regiao of regioes) {
+        for (const mode of modos) {
+          setResultadoFotoContadores(`Lendo ${regiao.nome} dos contadores...`);
+          const imagemPreparada = await prepararImagemParaOcr(file, {
+            crop: regiao.crop,
+            mode,
+            targetWidth: regiao.nome === "geral" ? 2600 : 2200,
+          });
+          const {
+            data: { text },
+          } = await worker.recognize(imagemPreparada);
+          const numeros = extrairNumerosDaFoto(text);
+          if (numeros.length) {
+            leituras.push({ regiao: regiao.nome, numeros });
+          }
+        }
+      }
+
+      const contadores = montarContadoresPorLeituras(leituras);
 
       if (!contadores) {
         setResultadoFotoContadores(
-          "Nao consegui identificar dois contadores. Preencha ou ajuste manualmente.",
+          "Nao consegui identificar os dois contadores. Tente uma foto mais perto, reta e com os numeros ocupando a parte de cima da imagem.",
         );
         return;
       }
@@ -459,7 +535,7 @@ export function Movimentacoes() {
     } catch (err) {
       console.error("Erro ao ler foto dos contadores:", err);
       setResultadoFotoContadores(
-        "Nao foi possivel ler a foto. Preencha os contadores manualmente.",
+        "Nao foi possivel ler a foto. Tente novamente mais perto dos contadores ou preencha manualmente.",
       );
     } finally {
       if (worker) {
