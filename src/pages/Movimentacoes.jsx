@@ -339,7 +339,7 @@ export function Movimentacoes() {
       const objectUrl = URL.createObjectURL(file);
 
       image.onload = () => {
-        const maxSize = 1400;
+        const maxSize = 900;
         const escala = Math.min(1, maxSize / Math.max(image.width, image.height));
         const canvas = document.createElement("canvas");
         canvas.width = Math.max(1, Math.round(image.width * escala));
@@ -349,7 +349,7 @@ export function Movimentacoes() {
         ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
         URL.revokeObjectURL(objectUrl);
-        resolve(canvas.toDataURL("image/jpeg", 0.82));
+        resolve(canvas.toDataURL("image/jpeg", 0.62));
       };
 
       image.onerror = () => {
@@ -384,6 +384,14 @@ export function Movimentacoes() {
       const dataUrl = await prepararImagemParaEnvioIa(file);
       const [meta, imagemBase64] = dataUrl.split(",");
       const mimeType = meta.match(/^data:(.*);base64$/)?.[1] || "image/jpeg";
+      const tamanhoEstimadoBytes = Math.ceil((imagemBase64.length * 3) / 4);
+
+      if (tamanhoEstimadoBytes > 2 * 1024 * 1024) {
+        setResultadoFotoContadores(
+          "A foto ficou grande demais para enviar. Tente tirar mais perto dos contadores ou com menos area ao redor.",
+        );
+        return;
+      }
 
       const response = await api.post("/assistente-ia/ler-contadores", {
         imagemBase64,
@@ -410,11 +418,14 @@ export function Movimentacoes() {
       );
     } catch (err) {
       console.error("Erro ao ler foto dos contadores com IA:", err);
-      setResultadoFotoContadores(
-        err.response?.data?.message ||
-          err.response?.data?.error ||
-          "Nao foi possivel ler a foto com IA. Preencha manualmente ou tente novamente.",
-      );
+      const erroApi = err.response?.data?.message || err.response?.data?.error;
+      const mensagemErro =
+        typeof erroApi === "string"
+          ? erroApi
+          : erroApi
+            ? JSON.stringify(erroApi)
+            : "Nao foi possivel ler a foto com IA. Preencha manualmente ou tente novamente.";
+      setResultadoFotoContadores(mensagemErro);
     } finally {
       setLendoFotoContadores(false);
       e.target.value = "";
