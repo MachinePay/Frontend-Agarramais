@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { createWorker } from "tesseract.js";
 import api from "../services/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
@@ -47,6 +48,10 @@ export function Movimentacoes() {
   const [success, setSuccess] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [salvandoMovimentacao, setSalvandoMovimentacao] = useState(false);
+  const [fotoContadores, setFotoContadores] = useState(null);
+  const [fotoContadoresPreview, setFotoContadoresPreview] = useState("");
+  const [lendoFotoContadores, setLendoFotoContadores] = useState(false);
+  const [resultadoFotoContadores, setResultadoFotoContadores] = useState("");
   const movimentacaoEmEnvioRef = useRef(false);
   const [movimentacaoAssistentePendente, setMovimentacaoAssistentePendente] =
     useState(null);
@@ -90,6 +95,14 @@ export function Movimentacoes() {
     carregarDados();
     carregarMovimentacoesEstoqueLoja();
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (fotoContadoresPreview) {
+        URL.revokeObjectURL(fotoContadoresPreview);
+      }
+    };
+  }, [fotoContadoresPreview]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -312,6 +325,150 @@ export function Movimentacoes() {
     if (success) setSuccess("");
   };
 
+  const limparFotoContadores = () => {
+    if (fotoContadoresPreview) {
+      URL.revokeObjectURL(fotoContadoresPreview);
+    }
+    setFotoContadores(null);
+    setFotoContadoresPreview("");
+    setResultadoFotoContadores("");
+  };
+
+  const prepararImagemParaOcr = (file) =>
+    new Promise((resolve, reject) => {
+      const image = new Image();
+      const objectUrl = URL.createObjectURL(file);
+
+      image.onload = () => {
+        const escala = Math.min(
+          2.5,
+          Math.max(1, 1600 / Math.max(image.width, image.height)),
+        );
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(image.width * escala);
+        canvas.height = Math.round(image.height * escala);
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+          const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+          const contrast = gray > 125 ? 255 : 0;
+          data[i] = contrast;
+          data[i + 1] = contrast;
+          data[i + 2] = contrast;
+        }
+        ctx.putImageData(imageData, 0, 0);
+
+        URL.revokeObjectURL(objectUrl);
+        resolve(canvas.toDataURL("image/png"));
+      };
+
+      image.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("Nao foi possivel ler a imagem."));
+      };
+
+      image.src = objectUrl;
+    });
+
+  const extrairContadoresDaFoto = (texto) => {
+    const normalizado = texto
+      .toUpperCase()
+      .replace(/[OQD]/g, "0")
+      .replace(/[IL|]/g, "1")
+      .replace(/[S]/g, "5")
+      .replace(/[B]/g, "8");
+
+    const candidatos = (normalizado.match(/[0-9][0-9\s.,-]{2,}[0-9]/g) || [])
+      .map((valor) => valor.replace(/\D/g, ""))
+      .filter((valor) => valor.length >= 3)
+      .map((valor) => Number(valor))
+      .filter((valor) => Number.isFinite(valor));
+
+    const unicos = [...new Set(candidatos)].sort((a, b) => b - a);
+    if (unicos.length < 2) {
+      return null;
+    }
+
+    return {
+      contadorIn: String(unicos[0]),
+      contadorOut: String(unicos[1]),
+    };
+  };
+
+  const handleFotoContadores = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setResultadoFotoContadores("Selecione uma imagem valida.");
+      return;
+    }
+
+    if (fotoContadoresPreview) {
+      URL.revokeObjectURL(fotoContadoresPreview);
+    }
+
+    setFotoContadores(file);
+    setFotoContadoresPreview(URL.createObjectURL(file));
+    setLendoFotoContadores(true);
+    setResultadoFotoContadores("Lendo a foto dos contadores...");
+    setError("");
+    setSuccess("");
+
+    let worker;
+    try {
+      const imagemPreparada = await prepararImagemParaOcr(file);
+      worker = await createWorker("eng", 1, {
+        logger: (m) => {
+          if (m.status === "recognizing text" && m.progress) {
+            setResultadoFotoContadores(
+              `Lendo a foto... ${Math.round(m.progress * 100)}%`,
+            );
+          }
+        },
+      });
+      await worker.setParameters({
+        tessedit_char_whitelist: "0123456789",
+      });
+
+      const {
+        data: { text },
+      } = await worker.recognize(imagemPreparada);
+      const contadores = extrairContadoresDaFoto(text);
+
+      if (!contadores) {
+        setResultadoFotoContadores(
+          "Nao consegui identificar dois contadores. Preencha ou ajuste manualmente.",
+        );
+        return;
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        contadorIn: contadores.contadorIn,
+        contadorOut: contadores.contadorOut,
+        ignoreInOut: false,
+      }));
+      setResultadoFotoContadores(
+        `Foto lida: IN ${contadores.contadorIn} e OUT ${contadores.contadorOut}. Confira antes de salvar.`,
+      );
+    } catch (err) {
+      console.error("Erro ao ler foto dos contadores:", err);
+      setResultadoFotoContadores(
+        "Nao foi possivel ler a foto. Preencha os contadores manualmente.",
+      );
+    } finally {
+      if (worker) {
+        await worker.terminate();
+      }
+      setLendoFotoContadores(false);
+    }
+  };
+
   const obterEstoqueDisponivelProdutoLoja = async (lojaId, produtoId) => {
     if (!lojaId || !produtoId) return 0;
 
@@ -521,7 +678,10 @@ export function Movimentacoes() {
         valor_entrada_maquininha_pix: "",
         observacao: "",
         retiradaEstoque: false,
+        retiradaProduto: 0,
+        ignoreInOut: false,
       });
+      limparFotoContadores();
       setEstoqueAnterior(0);
       setFiltroLojaForm("");
       setShowForm(false);
@@ -626,7 +786,7 @@ export function Movimentacoes() {
   };
 
   // --- WHATSAPP ---
-  const enviarParaWhatsapp = () => {
+  const enviarParaWhatsapp = async () => {
     const loja = lojas.find((l) => l.id === filtroLojaForm);
     const maquina = maquinas.find((m) => m.id === formData.maquina_id);
     const produto = produtos.find((p) => p.id === formData.produto_id);
@@ -671,6 +831,37 @@ export function Movimentacoes() {
     if (formData.observacao?.trim()) {
       mensagem += `\n━━━━━━━━━━━━━━━━━━━━\n`;
       mensagem += `->  *Observação:* ${formData.observacao.trim()}\n`;
+    }
+
+    if (fotoContadores) {
+      mensagem += `\n->  *Foto dos contadores:* anexada nesta mensagem\n`;
+    }
+
+    if (
+      fotoContadores &&
+      navigator.canShare &&
+      navigator.share &&
+      navigator.canShare({ files: [fotoContadores] })
+    ) {
+      try {
+        await navigator.share({
+          title: "Movimentacao de Maquina",
+          text: mensagem,
+          files: [fotoContadores],
+        });
+        return;
+      } catch (err) {
+        if (err?.name === "AbortError") {
+          return;
+        }
+        console.error("Erro ao compartilhar foto no WhatsApp:", err);
+      }
+    }
+
+    if (fotoContadores) {
+      setError(
+        "Este navegador nao permite anexar a foto automaticamente pelo WhatsApp. O texto foi aberto; anexe a foto manualmente na conversa.",
+      );
     }
 
     const url = `https://wa.me/?text=${encodeURIComponent(mensagem)}`;
@@ -1026,6 +1217,57 @@ export function Movimentacoes() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="p-4 bg-white border border-blue-100 rounded-lg">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Foto dos contadores
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleFotoContadores}
+                  className="input-field"
+                  disabled={lendoFotoContadores}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Tire uma foto dos dois contadores. O maior numero sera usado
+                  como IN e o menor como OUT. Confira e ajuste se precisar.
+                </p>
+
+                {fotoContadoresPreview && (
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-[160px_1fr] gap-3 items-start">
+                    <img
+                      src={fotoContadoresPreview}
+                      alt="Foto dos contadores"
+                      className="w-full max-w-40 rounded-lg border border-gray-200 object-cover"
+                    />
+                    <div className="text-sm">
+                      {resultadoFotoContadores && (
+                        <p
+                          className={`font-medium ${
+                            lendoFotoContadores
+                              ? "text-blue-700"
+                              : "text-gray-700"
+                          }`}
+                        >
+                          {resultadoFotoContadores}
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-500 mt-1">
+                        A foto nao sera salva no sistema. Ela fica somente para
+                        anexar na mensagem do WhatsApp.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={limparFotoContadores}
+                        className="mt-2 text-xs font-semibold text-red-600 hover:text-red-700"
+                      >
+                        Remover foto
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
               {/* Contadores da Máquina */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -1382,6 +1624,7 @@ export function Movimentacoes() {
                   onClick={() => {
                     setShowForm(false);
                     setFiltroLojaForm("");
+                    limparFotoContadores();
                   }}
                   className="btn-secondary w-full sm:w-auto"
                   disabled={salvandoMovimentacao}
