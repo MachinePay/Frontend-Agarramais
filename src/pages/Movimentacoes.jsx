@@ -1222,16 +1222,29 @@ export function Movimentacoes() {
                   Foto dos contadores
                 </label>
                 <input
+                  id="foto-contadores-camera"
                   type="file"
                   accept="image/*"
                   capture="environment"
                   onChange={handleFotoContadores}
-                  className="input-field"
+                  className="sr-only"
                   disabled={lendoFotoContadores}
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Tire uma foto dos dois contadores. O maior numero sera usado
-                  como IN e o menor como OUT. Confira e ajuste se precisar.
+                <label
+                  htmlFor="foto-contadores-camera"
+                  className={`inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg px-4 py-2 font-semibold text-white shadow transition-colors ${
+                    lendoFotoContadores
+                      ? "cursor-not-allowed bg-gray-400"
+                      : "cursor-pointer bg-blue-600 hover:bg-blue-700"
+                  }`}
+                >
+                  <span aria-hidden="true">📷</span>
+                  {lendoFotoContadores ? "Lendo foto..." : "Tirar foto dos contadores"}
+                </label>
+                <p className="text-xs text-gray-500 mt-2">
+                  No celular, o botao abre a camera para fotografar os dois
+                  contadores. O maior numero sera usado como IN e o menor como
+                  OUT. Confira e ajuste se precisar.
                 </p>
 
                 {fotoContadoresPreview && (
