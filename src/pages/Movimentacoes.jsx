@@ -372,10 +372,14 @@ export function Movimentacoes() {
 
           if (mode === "threshold") {
             value = gray > 105 ? 255 : 0;
+          } else if (mode === "thresholdDark") {
+            value = gray > 75 ? 255 : 0;
           } else if (mode === "invert") {
             value = gray > 105 ? 0 : 255;
           } else if (mode === "contrast") {
             value = Math.max(0, Math.min(255, (gray - 95) * 2.3 + 95));
+          } else if (mode === "bright") {
+            value = Math.max(0, Math.min(255, (gray - 60) * 3.2 + 80));
           }
 
           data[i] = value;
@@ -424,13 +428,17 @@ export function Movimentacoes() {
   };
 
   const montarContadoresPorLeituras = (leituras) => {
-    const porRegiao = (nome) =>
+    const porRegioes = (nomes) =>
       leituras
-        .filter((leitura) => leitura.regiao === nome)
+        .filter((leitura) => nomes.includes(leitura.regiao))
         .flatMap((leitura) => leitura.numeros);
 
-    const esquerda = escolherNumeroMaisProvavel(porRegiao("esquerdo"));
-    const direita = escolherNumeroMaisProvavel(porRegiao("direito"));
+    const esquerda = escolherNumeroMaisProvavel(
+      porRegioes(["esquerdo", "esquerdo_baixo", "esquerdo_meio", "esquerdo_janela"]),
+    );
+    const direita = escolherNumeroMaisProvavel(
+      porRegioes(["direito", "direito_baixo", "direito_meio", "direito_janela"]),
+    );
 
     if (esquerda && direita && esquerda !== direita) {
       const [contadorIn, contadorOut] = [esquerda, direita].sort((a, b) => b - a);
@@ -490,10 +498,17 @@ export function Movimentacoes() {
       const regioes = [
         { nome: "esquerdo", crop: { x: 0.02, y: 0.22, width: 0.5, height: 0.34 } },
         { nome: "direito", crop: { x: 0.42, y: 0.22, width: 0.56, height: 0.34 } },
+        { nome: "esquerdo_meio", crop: { x: 0, y: 0.28, width: 0.42, height: 0.34 } },
+        { nome: "direito_meio", crop: { x: 0.36, y: 0.26, width: 0.44, height: 0.34 } },
+        { nome: "esquerdo_baixo", crop: { x: 0, y: 0.36, width: 0.38, height: 0.28 } },
+        { nome: "direito_baixo", crop: { x: 0.36, y: 0.34, width: 0.44, height: 0.28 } },
+        { nome: "esquerdo_janela", crop: { x: 0.05, y: 0.40, width: 0.28, height: 0.15 } },
+        { nome: "direito_janela", crop: { x: 0.48, y: 0.38, width: 0.28, height: 0.15 } },
+        { nome: "faixa_contadores", crop: { x: 0, y: 0.30, width: 0.85, height: 0.36 } },
         { nome: "topo", crop: { x: 0, y: 0.16, width: 1, height: 0.46 } },
         { nome: "geral", crop: { x: 0, y: 0, width: 1, height: 0.72 } },
       ];
-      const modos = ["threshold", "contrast", "invert"];
+      const modos = ["gray", "bright", "contrast", "thresholdDark", "threshold", "invert"];
       const leituras = [];
 
       for (const regiao of regioes) {
@@ -502,7 +517,7 @@ export function Movimentacoes() {
           const imagemPreparada = await prepararImagemParaOcr(file, {
             crop: regiao.crop,
             mode,
-            targetWidth: regiao.nome === "geral" ? 2600 : 2200,
+            targetWidth: regiao.nome.includes("janela") ? 2800 : regiao.nome === "geral" ? 2600 : 2200,
           });
           const {
             data: { text },
@@ -514,6 +529,7 @@ export function Movimentacoes() {
         }
       }
 
+      console.log("[OCR contadores] leituras", leituras);
       const contadores = montarContadoresPorLeituras(leituras);
 
       if (!contadores) {
