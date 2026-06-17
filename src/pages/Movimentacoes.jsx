@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { createWorker } from "tesseract.js";
 import api from "../services/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
@@ -334,62 +333,23 @@ export function Movimentacoes() {
     setResultadoFotoContadores("");
   };
 
-  const prepararImagemParaOcr = (file, options = {}) =>
+  const prepararImagemParaEnvioIa = (file) =>
     new Promise((resolve, reject) => {
       const image = new Image();
       const objectUrl = URL.createObjectURL(file);
-      const {
-        crop = { x: 0, y: 0, width: 1, height: 1 },
-        mode = "threshold",
-        targetWidth = 2200,
-      } = options;
 
       image.onload = () => {
-        const sx = Math.max(0, Math.round(image.width * crop.x));
-        const sy = Math.max(0, Math.round(image.height * crop.y));
-        const sw = Math.min(
-          image.width - sx,
-          Math.round(image.width * crop.width),
-        );
-        const sh = Math.min(
-          image.height - sy,
-          Math.round(image.height * crop.height),
-        );
-        const escala = Math.min(4, Math.max(1.4, targetWidth / sw));
+        const maxSize = 1400;
+        const escala = Math.min(1, maxSize / Math.max(image.width, image.height));
         const canvas = document.createElement("canvas");
-        canvas.width = Math.round(sw * escala);
-        canvas.height = Math.round(sh * escala);
+        canvas.width = Math.max(1, Math.round(image.width * escala));
+        canvas.height = Math.max(1, Math.round(image.height * escala));
 
         const ctx = canvas.getContext("2d");
-        ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(image, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
-
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-        for (let i = 0; i < data.length; i += 4) {
-          const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-          let value = gray;
-
-          if (mode === "threshold") {
-            value = gray > 105 ? 255 : 0;
-          } else if (mode === "thresholdDark") {
-            value = gray > 75 ? 255 : 0;
-          } else if (mode === "invert") {
-            value = gray > 105 ? 0 : 255;
-          } else if (mode === "contrast") {
-            value = Math.max(0, Math.min(255, (gray - 95) * 2.3 + 95));
-          } else if (mode === "bright") {
-            value = Math.max(0, Math.min(255, (gray - 60) * 3.2 + 80));
-          }
-
-          data[i] = value;
-          data[i + 1] = value;
-          data[i + 2] = value;
-        }
-        ctx.putImageData(imageData, 0, 0);
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
         URL.revokeObjectURL(objectUrl);
-        resolve(canvas.toDataURL("image/png"));
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
       };
 
       image.onerror = () => {
@@ -399,64 +359,6 @@ export function Movimentacoes() {
 
       image.src = objectUrl;
     });
-
-  const extrairNumerosDaFoto = (texto) => {
-    const normalizado = texto
-      .toUpperCase()
-      .replace(/[OQD]/g, "0")
-      .replace(/[IL|!]/g, "1")
-      .replace(/[S]/g, "5")
-      .replace(/[B]/g, "8");
-
-    return (normalizado.match(/[0-9][0-9\s.,:-]{2,}[0-9]/g) || [])
-      .map((valor) => valor.replace(/\D/g, ""))
-      .filter((valor) => valor.length >= 3)
-      .map((valor) => Number(valor))
-      .filter((valor) => Number.isFinite(valor) && valor > 0);
-  };
-
-  const escolherNumeroMaisProvavel = (leituras) => {
-    const contagem = new Map();
-
-    leituras.forEach((numero) => {
-      contagem.set(numero, (contagem.get(numero) || 0) + 1);
-    });
-
-    return [...contagem.entries()]
-      .sort((a, b) => b[1] - a[1] || String(b[0]).length - String(a[0]).length)
-      .map(([numero]) => numero)[0];
-  };
-
-  const montarContadoresPorLeituras = (leituras) => {
-    const porRegioes = (nomes) =>
-      leituras
-        .filter((leitura) => nomes.includes(leitura.regiao))
-        .flatMap((leitura) => leitura.numeros);
-
-    const esquerda = escolherNumeroMaisProvavel(
-      porRegioes(["esquerdo", "esquerdo_baixo", "esquerdo_meio", "esquerdo_janela"]),
-    );
-    const direita = escolherNumeroMaisProvavel(
-      porRegioes(["direito", "direito_baixo", "direito_meio", "direito_janela"]),
-    );
-
-    if (esquerda && direita && esquerda !== direita) {
-      const [contadorIn, contadorOut] = [esquerda, direita].sort((a, b) => b - a);
-      return { contadorIn: String(contadorIn), contadorOut: String(contadorOut) };
-    }
-
-    const todos = [...new Set(leituras.flatMap((leitura) => leitura.numeros))]
-      .sort((a, b) => b - a);
-
-    if (todos.length < 2) {
-      return null;
-    }
-
-    return {
-      contadorIn: String(todos[0]),
-      contadorOut: String(todos[1]),
-    };
-  };
 
   const handleFotoContadores = async (e) => {
     const file = e.target.files?.[0];
@@ -474,90 +376,48 @@ export function Movimentacoes() {
     setFotoContadores(file);
     setFotoContadoresPreview(URL.createObjectURL(file));
     setLendoFotoContadores(true);
-    setResultadoFotoContadores("Lendo a foto dos contadores...");
+    setResultadoFotoContadores("IAgarra lendo os contadores...");
     setError("");
     setSuccess("");
 
-    let worker;
     try {
-      worker = await createWorker("eng", 1, {
-        logger: (m) => {
-          if (m.status === "recognizing text" && m.progress) {
-            setResultadoFotoContadores(
-              `Lendo a foto... ${Math.round(m.progress * 100)}%`,
-            );
-          }
-        },
+      const dataUrl = await prepararImagemParaEnvioIa(file);
+      const [meta, imagemBase64] = dataUrl.split(",");
+      const mimeType = meta.match(/^data:(.*);base64$/)?.[1] || "image/jpeg";
+
+      const response = await api.post("/assistente-ia/ler-contadores", {
+        imagemBase64,
+        mimeType,
       });
-      await worker.setParameters({
-        tessedit_char_whitelist: "0123456789",
-        tessedit_pageseg_mode: "7",
-        preserve_interword_spaces: "1",
-      });
+      const { contadorIn, contadorOut, confianca, observacao } = response.data || {};
 
-      const regioes = [
-        { nome: "esquerdo", crop: { x: 0.02, y: 0.22, width: 0.5, height: 0.34 } },
-        { nome: "direito", crop: { x: 0.42, y: 0.22, width: 0.56, height: 0.34 } },
-        { nome: "esquerdo_meio", crop: { x: 0, y: 0.28, width: 0.42, height: 0.34 } },
-        { nome: "direito_meio", crop: { x: 0.36, y: 0.26, width: 0.44, height: 0.34 } },
-        { nome: "esquerdo_baixo", crop: { x: 0, y: 0.36, width: 0.38, height: 0.28 } },
-        { nome: "direito_baixo", crop: { x: 0.36, y: 0.34, width: 0.44, height: 0.28 } },
-        { nome: "esquerdo_janela", crop: { x: 0.05, y: 0.40, width: 0.28, height: 0.15 } },
-        { nome: "direito_janela", crop: { x: 0.48, y: 0.38, width: 0.28, height: 0.15 } },
-        { nome: "faixa_contadores", crop: { x: 0, y: 0.30, width: 0.85, height: 0.36 } },
-        { nome: "topo", crop: { x: 0, y: 0.16, width: 1, height: 0.46 } },
-        { nome: "geral", crop: { x: 0, y: 0, width: 1, height: 0.72 } },
-      ];
-      const modos = ["gray", "bright", "contrast", "thresholdDark", "threshold", "invert"];
-      const leituras = [];
-
-      for (const regiao of regioes) {
-        for (const mode of modos) {
-          setResultadoFotoContadores(`Lendo ${regiao.nome} dos contadores...`);
-          const imagemPreparada = await prepararImagemParaOcr(file, {
-            crop: regiao.crop,
-            mode,
-            targetWidth: regiao.nome.includes("janela") ? 2800 : regiao.nome === "geral" ? 2600 : 2200,
-          });
-          const {
-            data: { text },
-          } = await worker.recognize(imagemPreparada);
-          const numeros = extrairNumerosDaFoto(text);
-          if (numeros.length) {
-            leituras.push({ regiao: regiao.nome, numeros });
-          }
-        }
-      }
-
-      console.log("[OCR contadores] leituras", leituras);
-      const contadores = montarContadoresPorLeituras(leituras);
-
-      if (!contadores) {
+      if (!contadorIn || !contadorOut || confianca === "baixa") {
         setResultadoFotoContadores(
-          "Nao consegui identificar os dois contadores. Tente uma foto mais perto, reta e com os numeros ocupando a parte de cima da imagem.",
+          observacao ||
+            "A IAgarra nao teve certeza dos dois contadores. Preencha manualmente ou tire outra foto mais perto e reta.",
         );
         return;
       }
 
       setFormData((prev) => ({
         ...prev,
-        contadorIn: contadores.contadorIn,
-        contadorOut: contadores.contadorOut,
+        contadorIn: String(contadorIn),
+        contadorOut: String(contadorOut),
         ignoreInOut: false,
       }));
       setResultadoFotoContadores(
-        `Foto lida: IN ${contadores.contadorIn} e OUT ${contadores.contadorOut}. Confira antes de salvar.`,
+        `IAgarra leu: IN ${contadorIn} e OUT ${contadorOut}. Confira antes de salvar.`,
       );
     } catch (err) {
-      console.error("Erro ao ler foto dos contadores:", err);
+      console.error("Erro ao ler foto dos contadores com IA:", err);
       setResultadoFotoContadores(
-        "Nao foi possivel ler a foto. Tente novamente mais perto dos contadores ou preencha manualmente.",
+        err.response?.data?.message ||
+          err.response?.data?.error ||
+          "Nao foi possivel ler a foto com IA. Preencha manualmente ou tente novamente.",
       );
     } finally {
-      if (worker) {
-        await worker.terminate();
-      }
       setLendoFotoContadores(false);
+      e.target.value = "";
     }
   };
 
