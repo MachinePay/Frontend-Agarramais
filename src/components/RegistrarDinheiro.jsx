@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import api from "../services/api";
 
 const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
   const obterMesAnteriorPadrao = () => {
@@ -20,6 +21,9 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
     useState("");
   const [observacoes, setObservacoes] = useState("");
   const [gastosVariaveis, setGastosVariaveis] = useState([]);
+  const [consultandoMachinePay, setConsultandoMachinePay] = useState(false);
+  const [erroMachinePay, setErroMachinePay] = useState("");
+  const [resumoMachinePay, setResumoMachinePay] = useState(null);
 
   const obterPeriodoDoMes = (valorMes) => {
     if (!valorMes) return null;
@@ -88,6 +92,54 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
     setLojaSelecionada(e.target.value);
     setMaquinaSelecionada("");
   };
+
+  const consultarMachinePay = async () => {
+    const periodoSelecionado = obterPeriodoDoMes(mesReferencia);
+    if (
+      registrarTotalLoja ||
+      !maquinaSelecionada ||
+      !periodoSelecionado
+    ) {
+      setResumoMachinePay(null);
+      setErroMachinePay("");
+      return;
+    }
+
+    try {
+      setConsultandoMachinePay(true);
+      setErroMachinePay("");
+      const response = await api.get("/registro-dinheiro/machine-pay", {
+        params: {
+          maquinaId: maquinaSelecionada,
+          inicio: periodoSelecionado.inicio,
+          fim: periodoSelecionado.fim,
+        },
+      });
+
+      setValorCartaoPix(response.data.cartaoPix.toFixed(2).replace(".", ","));
+      setPercentualTaxaCartaoMedia(
+        response.data.percentualTaxaMedia.toFixed(4).replace(".", ","),
+      );
+      setResumoMachinePay(response.data);
+    } catch (error) {
+      setResumoMachinePay(null);
+      setErroMachinePay(
+        error.response?.data?.error ||
+          "Não foi possível buscar os valores na Machine Pay.",
+      );
+    } finally {
+      setConsultandoMachinePay(false);
+    }
+  };
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      consultarMachinePay();
+    }, 350);
+
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maquinaSelecionada, mesReferencia, registrarTotalLoja]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -477,6 +529,49 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
             }}
           />
         </div>
+        {!registrarTotalLoja && maquinaSelecionada && (
+          <div
+            style={{
+              marginTop: 10,
+              padding: "10px 12px",
+              borderRadius: 8,
+              background: erroMachinePay ? "#fff0f0" : "#fffbe6",
+              border: "1px solid #e2cfa3",
+              color: "#a67c52",
+              fontSize: 14,
+            }}
+          >
+            {consultandoMachinePay && "Buscando valores na Machine Pay..."}
+            {!consultandoMachinePay && erroMachinePay && (
+              <>
+                <div>{erroMachinePay}</div>
+                <button
+                  type="button"
+                  onClick={consultarMachinePay}
+                  style={{
+                    marginTop: 8,
+                    border: "none",
+                    borderRadius: 6,
+                    padding: "6px 10px",
+                    background: "#e2cfa3",
+                    color: "#a67c52",
+                    cursor: "pointer",
+                    fontWeight: 600,
+                  }}
+                >
+                  Tentar novamente
+                </button>
+              </>
+            )}
+            {!consultandoMachinePay && resumoMachinePay && (
+              <div>
+                Machine Pay: Pix R$ {resumoMachinePay.pix.toFixed(2)} · Cartão
+                R$ {resumoMachinePay.cartao.toFixed(2)} · Taxas R${" "}
+                {resumoMachinePay.taxas.toFixed(2)}
+              </div>
+            )}
+          </div>
+        )}
       </div>
       <div style={{ marginBottom: 18 }}>
         <label style={{ fontWeight: 600, color: "#a67c52" }}>

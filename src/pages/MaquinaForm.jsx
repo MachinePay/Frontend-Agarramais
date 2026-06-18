@@ -14,6 +14,7 @@ export function MaquinaForm() {
   const [formData, setFormData] = useState({
     codigo: "",
     nome: "",
+    machinePayPosId: "",
     loja_id: "",
     tipo: "",
     capacidadePadrao: "",
@@ -63,6 +64,7 @@ export function MaquinaForm() {
       setFormData({
         codigo: response.data.codigo || "",
         nome: response.data.nome || "",
+        machinePayPosId: response.data.machinePayPosId || "",
         loja_id: response.data.lojaId ? String(response.data.lojaId) : "",
         tipo: response.data.tipo || "",
         capacidadePadrao: response.data.capacidadePadrao || "",
@@ -125,6 +127,7 @@ export function MaquinaForm() {
       const data = {
         codigo: formData.codigo.trim(),
         nome: formData.nome.trim(),
+        machinePayPosId: formData.machinePayPosId?.trim() || null,
         lojaId: formData.loja_id,
         tipo: formData.tipo?.trim() || null,
         capacidadePadrao: parseInt(formData.capacidadePadrao, 10) || 0,
@@ -228,6 +231,24 @@ export function MaquinaForm() {
                     placeholder="Ex: Máquina Principal"
                     required
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    ID da Machine Pay
+                  </label>
+                  <input
+                    type="text"
+                    name="machinePayPosId"
+                    value={formData.machinePayPosId}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="Ex: 102246469"
+                    inputMode="numeric"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    POS ID usado para buscar Pix e cartão automaticamente.
+                  </p>
                 </div>
 
                 <div>
