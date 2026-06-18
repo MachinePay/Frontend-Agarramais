@@ -565,9 +565,10 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
             )}
             {!consultandoMachinePay && resumoMachinePay && (
               <div>
-                Machine Pay: Pix R$ {resumoMachinePay.pix.toFixed(2)} · Cartão
-                R$ {resumoMachinePay.cartao.toFixed(2)} · Taxas R${" "}
-                {resumoMachinePay.taxas.toFixed(2)}
+                Machine Pay: Bruto com Taxas MP R${" "}
+                {resumoMachinePay.brutoComTaxasMp.toFixed(2)} · Pix R${" "}
+                {resumoMachinePay.pix.toFixed(2)} · Cartão R${" "}
+                {resumoMachinePay.cartao.toFixed(2)}
               </div>
             )}
           </div>
