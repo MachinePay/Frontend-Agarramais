@@ -798,7 +798,8 @@ export function Dashboard() {
         periodoComparacaoMensal = {
           diaComparacao,
           inicioMesAtual: formatarDataParametro(inicioMesAtual),
-          fimMesAtual: formatarDataParametro(fimMesAtual),
+          fimMesAtual: formatarDataParametro(hoje),
+          fimMesMachinePay: formatarDataParametro(fimMesAtual),
           inicioMesAnterior: formatarDataParametro(inicioMesAnterior),
           fimMesAnterior: formatarDataParametro(fimMesAnterior),
           nomeMesAnterior: inicioMesAnterior.toLocaleDateString("pt-BR", {
@@ -854,7 +855,7 @@ export function Dashboard() {
             .get("/registro-dinheiro/machine-pay-total", {
               params: {
                 inicio: periodoComparacaoMensal.inicioMesAtual,
-                fim: periodoComparacaoMensal.fimMesAtual,
+                fim: `${periodoComparacaoMensal.fimMesMachinePay}T23:59`,
               },
             })
             .catch((err) => {
