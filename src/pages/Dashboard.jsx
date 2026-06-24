@@ -769,6 +769,15 @@ export function Dashboard() {
       if (isAdmin) {
         const hoje = new Date();
         const inicioMesAtual = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+        const fimMesAtual = new Date(
+          hoje.getFullYear(),
+          hoje.getMonth() + 1,
+          0,
+          23,
+          59,
+          59,
+          999,
+        );
         const ultimoDiaMesAnterior = new Date(
           hoje.getFullYear(),
           hoje.getMonth(),
@@ -789,7 +798,7 @@ export function Dashboard() {
         periodoComparacaoMensal = {
           diaComparacao,
           inicioMesAtual: formatarDataParametro(inicioMesAtual),
-          fimMesAtual: formatarDataParametro(hoje),
+          fimMesAtual: formatarDataParametro(fimMesAtual),
           inicioMesAnterior: formatarDataParametro(inicioMesAnterior),
           fimMesAnterior: formatarDataParametro(fimMesAnterior),
           nomeMesAnterior: inicioMesAnterior.toLocaleDateString("pt-BR", {
@@ -981,6 +990,12 @@ export function Dashboard() {
 
   useEffect(() => {
     carregarDados();
+    const intervaloMachinePay = setInterval(
+      carregarDados,
+      30 * 60 * 1000,
+    );
+
+    return () => clearInterval(intervaloMachinePay);
   }, [carregarDados]);
 
   const carregarManutencoesPendentes = useCallback(async () => {
@@ -2361,7 +2376,7 @@ export function Dashboard() {
                 </div>
               </div>
               {/* Machine Pay do Mês */}
-              <div className="stat-card bg-linear-to-br from-purple-500 to-indigo-600 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30">
+              <div className="stat-card bg-linear-to-br from-purple-500 to-indigo-600 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 lg:col-start-1 lg:row-start-2">
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-medium opacity-90">
