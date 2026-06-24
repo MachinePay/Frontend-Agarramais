@@ -1094,8 +1094,22 @@ export function Movimentacoes() {
                   try {
                     setError("");
                     setSuccess("");
-                    await api.post("/registro-dinheiro", data);
-                    setSuccess("Registro de dinheiro salvo com sucesso!");
+                    const response = await api.post("/registro-dinheiro", data);
+                    const fechamentoMachinePay =
+                      response.data?.fechamentoMachinePay;
+                    if (fechamentoMachinePay?.executado) {
+                      setSuccess(
+                        fechamentoMachinePay.concluido
+                          ? "Registro salvo e fechamento concluído na Machine Pay!"
+                          : `Registro salvo no sistema, mas a Machine Pay não confirmou o fechamento${
+                              fechamentoMachinePay.erro
+                                ? `: ${fechamentoMachinePay.erro}`
+                                : "."
+                            }`,
+                      );
+                    } else {
+                      setSuccess("Registro de dinheiro salvo com sucesso!");
+                    }
                     setModalRegistrarDinheiro(false);
                   } catch (err) {
                     setError(
