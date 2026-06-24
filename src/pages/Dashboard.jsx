@@ -25,6 +25,7 @@ export function Dashboard() {
   const [maquinas, setMaquinas] = useState([]);
   const [produtos, setProdutos] = useState([]);
   const [alertasBomDesempenho, setAlertasBomDesempenho] = useState([]);
+  const [machinePayTotal, setMachinePayTotal] = useState(null);
   // Estado para modal de movimentação de estoque de loja
   const [movimentacaoLojaId, setMovimentacaoLojaId] = useState("");
   const [movimentacaoEnviando, setMovimentacaoEnviando] = useState(false);
@@ -304,125 +305,145 @@ export function Dashboard() {
   const [assistenteContextoPendente, setAssistenteContextoPendente] =
     useState("");
 
-  const normalizarTextoAssistente = useCallback((valor) =>
-    String(valor || "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .trim(), []);
+  const normalizarTextoAssistente = useCallback(
+    (valor) =>
+      String(valor || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim(),
+    [],
+  );
 
   const formatarDataAssistente = (dia, mes, ano) =>
     `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
 
-  const extrairDatasDaFalaAssistente = useCallback((texto) => {
-    const meses = {
-      janeiro: 1,
-      fevereiro: 2,
-      marco: 3,
-      abril: 4,
-      maio: 5,
-      junho: 6,
-      julho: 7,
-      agosto: 8,
-      setembro: 9,
-      outubro: 10,
-      novembro: 11,
-      dezembro: 12,
-    };
-    const textoNormalizado = normalizarTextoAssistente(texto);
-    const datas = [...textoNormalizado.matchAll(/(\d{1,2})\s+de\s+([a-z]+)(?:\s+de\s+(\d{4}))?/g)];
-    const anoAtual = new Date().getFullYear();
+  const extrairDatasDaFalaAssistente = useCallback(
+    (texto) => {
+      const meses = {
+        janeiro: 1,
+        fevereiro: 2,
+        marco: 3,
+        abril: 4,
+        maio: 5,
+        junho: 6,
+        julho: 7,
+        agosto: 8,
+        setembro: 9,
+        outubro: 10,
+        novembro: 11,
+        dezembro: 12,
+      };
+      const textoNormalizado = normalizarTextoAssistente(texto);
+      const datas = [
+        ...textoNormalizado.matchAll(
+          /(\d{1,2})\s+de\s+([a-z]+)(?:\s+de\s+(\d{4}))?/g,
+        ),
+      ];
+      const anoAtual = new Date().getFullYear();
 
-    if (datas.length < 2) return {};
+      if (datas.length < 2) return {};
 
-    const [inicio, fim] = datas.map((match) => ({
-      dia: Number(match[1]),
-      mes: meses[match[2]],
-      ano: Number(match[3]) || anoAtual,
-    }));
+      const [inicio, fim] = datas.map((match) => ({
+        dia: Number(match[1]),
+        mes: meses[match[2]],
+        ano: Number(match[3]) || anoAtual,
+      }));
 
-    if (!inicio.mes || !fim.mes) return {};
+      if (!inicio.mes || !fim.mes) return {};
 
-    return {
-      dataInicio: formatarDataAssistente(inicio.dia, inicio.mes, inicio.ano),
-      dataFim: formatarDataAssistente(fim.dia, fim.mes, fim.ano),
-    };
-  }, [normalizarTextoAssistente]);
+      return {
+        dataInicio: formatarDataAssistente(inicio.dia, inicio.mes, inicio.ano),
+        dataFim: formatarDataAssistente(fim.dia, fim.mes, fim.ano),
+      };
+    },
+    [normalizarTextoAssistente],
+  );
 
-  const encontrarLojaAssistente = useCallback((texto, resultado) => {
-    const idsPossiveis = [
-      resultado?.acao?.query?.lojaId,
-      resultado?.acao?.query?.loja_id,
-      resultado?.dados?.lojaId,
-      resultado?.dados?.loja_id,
-      resultado?.dados?.loja?.id,
-      resultado?.lojaId,
-      resultado?.loja_id,
-    ].filter(Boolean);
+  const encontrarLojaAssistente = useCallback(
+    (texto, resultado) => {
+      const idsPossiveis = [
+        resultado?.acao?.query?.lojaId,
+        resultado?.acao?.query?.loja_id,
+        resultado?.dados?.lojaId,
+        resultado?.dados?.loja_id,
+        resultado?.dados?.loja?.id,
+        resultado?.lojaId,
+        resultado?.loja_id,
+      ].filter(Boolean);
 
-    if (idsPossiveis.length > 0) {
-      return String(idsPossiveis[0]);
-    }
+      if (idsPossiveis.length > 0) {
+        return String(idsPossiveis[0]);
+      }
 
-    const nomesPossiveis = [
-      resultado?.acao?.query?.loja,
-      resultado?.acao?.query?.lojaNome,
-      resultado?.dados?.lojaNome,
-      resultado?.dados?.loja?.nome,
-      resultado?.lojaNome,
-      texto,
-    ]
-      .filter(Boolean)
-      .map(normalizarTextoAssistente);
+      const nomesPossiveis = [
+        resultado?.acao?.query?.loja,
+        resultado?.acao?.query?.lojaNome,
+        resultado?.dados?.lojaNome,
+        resultado?.dados?.loja?.nome,
+        resultado?.lojaNome,
+        texto,
+      ]
+        .filter(Boolean)
+        .map(normalizarTextoAssistente);
 
-    const textoNormalizado = normalizarTextoAssistente(texto);
+      const textoNormalizado = normalizarTextoAssistente(texto);
 
-    const lojaEncontrada = lojas.find((loja) => {
-      const nomeLoja = normalizarTextoAssistente(loja.nome);
-      const partesNome = nomeLoja
-        .split(/\s+/)
-        .filter((parte) => parte.length >= 4);
+      const lojaEncontrada = lojas.find((loja) => {
+        const nomeLoja = normalizarTextoAssistente(loja.nome);
+        const partesNome = nomeLoja
+          .split(/\s+/)
+          .filter((parte) => parte.length >= 4);
 
-      return (
-        nomesPossiveis.some(
-          (nome) => nome.includes(nomeLoja) || nomeLoja.includes(nome),
-        ) ||
-        partesNome.some((parte) => textoNormalizado.includes(parte))
+        return (
+          nomesPossiveis.some(
+            (nome) => nome.includes(nomeLoja) || nomeLoja.includes(nome),
+          ) || partesNome.some((parte) => textoNormalizado.includes(parte))
+        );
+      });
+
+      return lojaEncontrada?.id ? String(lojaEncontrada.id) : "";
+    },
+    [lojas, normalizarTextoAssistente],
+  );
+
+  const montarFiltrosRelatorioAssistente = useCallback(
+    (resultado, texto) => {
+      const query = resultado?.acao?.query || {};
+      const datasDaFala = extrairDatasDaFalaAssistente(texto);
+
+      return {
+        lojaId:
+          query.lojaId ||
+          query.loja_id ||
+          encontrarLojaAssistente(texto, resultado),
+        dataInicio:
+          query.dataInicio ||
+          query.data_inicio ||
+          resultado?.dados?.dataInicio ||
+          resultado?.dados?.data_inicio ||
+          datasDaFala.dataInicio,
+        dataFim:
+          query.dataFim ||
+          query.data_fim ||
+          resultado?.dados?.dataFim ||
+          resultado?.dados?.data_fim ||
+          datasDaFala.dataFim,
+      };
+    },
+    [encontrarLojaAssistente, extrairDatasDaFalaAssistente],
+  );
+
+  const extrairNumeroMaquinaAssistente = useCallback(
+    (texto) => {
+      const textoNormalizado = normalizarTextoAssistente(texto);
+      const match = textoNormalizado.match(
+        /maquina\s*(?:numero|n|no|#)?\s*(\d+)/,
       );
-    });
-
-    return lojaEncontrada?.id ? String(lojaEncontrada.id) : "";
-  }, [lojas, normalizarTextoAssistente]);
-
-  const montarFiltrosRelatorioAssistente = useCallback((resultado, texto) => {
-    const query = resultado?.acao?.query || {};
-    const datasDaFala = extrairDatasDaFalaAssistente(texto);
-
-    return {
-      lojaId:
-        query.lojaId ||
-        query.loja_id ||
-        encontrarLojaAssistente(texto, resultado),
-      dataInicio:
-        query.dataInicio ||
-        query.data_inicio ||
-        resultado?.dados?.dataInicio ||
-        resultado?.dados?.data_inicio ||
-        datasDaFala.dataInicio,
-      dataFim:
-        query.dataFim ||
-        query.data_fim ||
-        resultado?.dados?.dataFim ||
-        resultado?.dados?.data_fim ||
-        datasDaFala.dataFim,
-    };
-  }, [encontrarLojaAssistente, extrairDatasDaFalaAssistente]);
-
-  const extrairNumeroMaquinaAssistente = useCallback((texto) => {
-    const textoNormalizado = normalizarTextoAssistente(texto);
-    const match = textoNormalizado.match(/maquina\s*(?:numero|n|no|#)?\s*(\d+)/);
-    return match?.[1] || "";
-  }, [normalizarTextoAssistente]);
+      return match?.[1] || "";
+    },
+    [normalizarTextoAssistente],
+  );
 
   const encontrarMaquinaAssistente = useCallback(
     (texto, resultado, lojaId) => {
@@ -435,7 +456,9 @@ export function Dashboard() {
         resultado?.dados?.maquina?.id,
         resultado?.maquinaId,
         resultado?.maquina_id,
-      ].filter((valor) => valor !== undefined && valor !== null && valor !== "");
+      ].filter(
+        (valor) => valor !== undefined && valor !== null && valor !== "",
+      );
 
       if (idsPossiveis.length > 0) {
         return String(idsPossiveis[0]);
@@ -818,6 +841,28 @@ export function Dashboard() {
             console.error("Erro ao carregar balanço:", err.message);
             return { data: null };
           }),
+          api
+            .get("/registro-dinheiro/machine-pay-total", {
+              params: {
+                inicio: periodoComparacaoMensal.inicioMesAtual,
+                fim: periodoComparacaoMensal.fimMesAtual,
+              },
+            })
+            .catch((err) => {
+              console.error(
+                "Erro ao carregar total Machine Pay do mês atual:",
+                err.message,
+              );
+              return {
+                data: {
+                  totalBrutoComTaxasMp: 0,
+                  totalPix: 0,
+                  totalCartao: 0,
+                  totalLiquido: 0,
+                  maquinaCount: 0,
+                },
+              };
+            }),
         );
       }
 
@@ -828,6 +873,7 @@ export function Dashboard() {
         alertasRes,
         alertasBomDesempenhoRes,
         balancoRes,
+        machinePayTotalRes,
         lojasRes,
         maquinasRes,
         produtosRes;
@@ -841,6 +887,7 @@ export function Dashboard() {
           alertasRes,
           alertasBomDesempenhoRes,
           balancoRes,
+          machinePayTotalRes,
           lojasRes,
           maquinasRes,
           produtosRes,
@@ -897,6 +944,15 @@ export function Dashboard() {
       setMaquinas(maquinasRes.data || []);
       setProdutos(produtosRes.data || []);
       setAlertasBomDesempenho(alertasBomDesempenhoRes.data?.alertas || []);
+      setMachinePayTotal(
+        machinePayTotalRes?.data || {
+          totalBrutoComTaxasMp: 0,
+          totalPix: 0,
+          totalCartao: 0,
+          totalLiquido: 0,
+          maquinaCount: 0,
+        },
+      );
 
       // Carregar alertas de estoque de lojas (para todos os usuários)
       if (lojasRes.data && lojasRes.data.length > 0) {
@@ -913,6 +969,13 @@ export function Dashboard() {
       setLojas([]);
       setMaquinas([]);
       setAlertasBomDesempenho([]);
+      setMachinePayTotal({
+        totalBrutoComTaxasMp: 0,
+        totalPix: 0,
+        totalCartao: 0,
+        totalLiquido: 0,
+        maquinaCount: 0,
+      });
     }
   }, [usuario]);
 
@@ -2096,7 +2159,9 @@ export function Dashboard() {
     ouvindo: `${assistenteNome} ouvindo...`,
     processando: `${assistenteNome} pensando...`,
     erro: `${assistenteNome} nao conseguiu entender`,
-    resposta: assistenteContextoPendente ? `${assistenteNome} complementar` : assistenteNome,
+    resposta: assistenteContextoPendente
+      ? `${assistenteNome} complementar`
+      : assistenteNome,
   }[assistenteStatus];
 
   const assistenteStatusClass =
@@ -2173,7 +2238,7 @@ export function Dashboard() {
         <IAgarraAssistente />
 
         {/* Cards de Resumo com design moderno - Apenas para ADMIN */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 md:gap-6 mb-8">
           {/* Faturamento Mensal, Fichas Inseridas, Prêmios Saídos, Alertas de Estoque: só para ADMIN */}
           {usuario?.role === "ADMIN" && (
             <>
@@ -2292,6 +2357,40 @@ export function Dashboard() {
                   </p>
                   <p className="text-xs opacity-75 mt-1">
                     🎁 Pelúcias entregues
+                  </p>
+                </div>
+              </div>
+              {/* Machine Pay do Mês */}
+              <div className="stat-card bg-linear-to-br from-purple-500 to-indigo-600 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30">
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-medium opacity-90">
+                      Machine Pay do Mês
+                    </h3>
+                    <svg
+                      className="w-8 h-8 opacity-80"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </div>
+                  <p className="text-3xl font-bold">
+                    R${" "}
+                    {machinePayTotal
+                      ? formatarMoeda(machinePayTotal.totalBrutoComTaxasMp)
+                      : "..."}
+                  </p>
+                  <p className="text-xs opacity-75 mt-1">
+                    {machinePayTotal
+                      ? `${machinePayTotal.maquinaCount || 0} máquinas com ID MP`
+                      : "Carregando valores reais..."}
                   </p>
                 </div>
               </div>
@@ -3958,8 +4057,8 @@ export function Dashboard() {
                         </div>
                         <p className="text-sm text-gray-700">
                           Saíram <strong>{alerta.sairam}</strong> pelúcia(s). O
-                          contador IN subiu <strong>{alerta.diffIn}</strong>{" "}
-                          no período, equivalente a{" "}
+                          contador IN subiu <strong>{alerta.diffIn}</strong> no
+                          período, equivalente a{" "}
                           <strong>{alerta.jogadasPeriodo}</strong> jogada(s).
                         </p>
                         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -3972,9 +4071,7 @@ export function Dashboard() {
                                 acimaDaMeta ? "text-amber-700" : "text-red-700"
                               }`}
                             >
-                              {Number(alerta.jogadasPorPelucia || 0).toFixed(
-                                2,
-                              )}
+                              {Number(alerta.jogadasPorPelucia || 0).toFixed(2)}
                             </p>
                             <p className="text-xs text-gray-500">
                               jogadas por pelúcia
@@ -3998,8 +4095,7 @@ export function Dashboard() {
                               Valor por jogada
                             </p>
                             <p className="text-2xl font-black text-gray-900">
-                              R${" "}
-                              {Number(alerta.valorPorJogada || 0).toFixed(2)}
+                              R$ {Number(alerta.valorPorJogada || 0).toFixed(2)}
                             </p>
                             <p className="text-xs text-gray-500">
                               ficha × fichas para jogar
