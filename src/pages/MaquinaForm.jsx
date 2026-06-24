@@ -20,6 +20,7 @@ export function MaquinaForm() {
     capacidadePadrao: "",
     valorFicha: "",
     fichasNecessarias: "",
+    jogadasBoasPorPelucia: "",
     forcaForte: "",
     forcaFraca: "",
     forcaPremium: "",
@@ -70,6 +71,7 @@ export function MaquinaForm() {
         capacidadePadrao: response.data.capacidadePadrao || "",
         valorFicha: response.data.valorFicha || "",
         fichasNecessarias: response.data.fichasNecessarias || "",
+        jogadasBoasPorPelucia: response.data.jogadasBoasPorPelucia || "",
         forcaForte: response.data.forcaForte || "",
         forcaFraca: response.data.forcaFraca || "",
         forcaPremium: response.data.forcaPremium || "",
@@ -133,6 +135,10 @@ export function MaquinaForm() {
         capacidadePadrao: parseInt(formData.capacidadePadrao, 10) || 0,
         valorFicha: parseFloat(formData.valorFicha) || 0,
         fichasNecessarias: parseInt(formData.fichasNecessarias, 10) || null,
+        jogadasBoasPorPelucia:
+          formData.jogadasBoasPorPelucia !== ""
+            ? parseFloat(formData.jogadasBoasPorPelucia)
+            : null,
         forcaForte: parseInt(formData.forcaForte, 10) || null,
         forcaFraca: parseInt(formData.forcaFraca, 10) || null,
         forcaPremium: parseInt(formData.forcaPremium, 10) || null,
@@ -219,7 +225,10 @@ export function MaquinaForm() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <p className="block text-sm font-semibold text-gray-700 mb-2">
+                    Jogadas boas por pelucia
+                  </p>
+                  <label className="sr-only">
                     Nome *
                   </label>
                   <input
@@ -378,6 +387,25 @@ export function MaquinaForm() {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     💪 Força Forte (%)
+                  </label>
+                  <input
+                    type="number"
+                    name="jogadasBoasPorPelucia"
+                    value={formData.jogadasBoasPorPelucia}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="Ex: 10"
+                    min="0"
+                    step="0.01"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Quantas jogadas e esperado para sair uma pelucia.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Forca Forte (%)
                   </label>
                   <input
                     type="number"

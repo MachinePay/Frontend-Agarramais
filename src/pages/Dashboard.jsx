@@ -24,6 +24,7 @@ export function Dashboard() {
   const [lojas, setLojas] = useState([]);
   const [maquinas, setMaquinas] = useState([]);
   const [produtos, setProdutos] = useState([]);
+  const [alertasBomDesempenho, setAlertasBomDesempenho] = useState([]);
   // Estado para modal de movimentação de estoque de loja
   const [movimentacaoLojaId, setMovimentacaoLojaId] = useState("");
   const [movimentacaoEnviando, setMovimentacaoEnviando] = useState(false);
@@ -806,6 +807,13 @@ export function Dashboard() {
             console.error("Erro ao carregar alertas de máquinas:", err.message);
             return { data: { alertas: [] } };
           }),
+          api.get("/relatorios/alertas-bom-desempenho").catch((err) => {
+            console.error(
+              "Erro ao carregar alertas de jogadas fora da meta:",
+              err.message,
+            );
+            return { data: { alertas: [] } };
+          }),
           api.get("/relatorios/balanco-semanal").catch((err) => {
             console.error("Erro ao carregar balanço:", err.message);
             return { data: null };
@@ -818,6 +826,7 @@ export function Dashboard() {
       let faturamentoMesAtualRes,
         faturamentoMesAnteriorRes,
         alertasRes,
+        alertasBomDesempenhoRes,
         balancoRes,
         lojasRes,
         maquinasRes,
@@ -830,6 +839,7 @@ export function Dashboard() {
           faturamentoMesAtualRes,
           faturamentoMesAnteriorRes,
           alertasRes,
+          alertasBomDesempenhoRes,
           balancoRes,
           lojasRes,
           maquinasRes,
@@ -860,6 +870,7 @@ export function Dashboard() {
       } else {
         [lojasRes, maquinasRes, produtosRes] = resultados;
         alertasRes = { data: { alertas: [] } };
+        alertasBomDesempenhoRes = { data: { alertas: [] } };
         balancoRes = { data: null };
       }
 
@@ -885,6 +896,7 @@ export function Dashboard() {
       setLojas(lojasRes.data || []);
       setMaquinas(maquinasRes.data || []);
       setProdutos(produtosRes.data || []);
+      setAlertasBomDesempenho(alertasBomDesempenhoRes.data?.alertas || []);
 
       // Carregar alertas de estoque de lojas (para todos os usuários)
       if (lojasRes.data && lojasRes.data.length > 0) {
@@ -900,6 +912,7 @@ export function Dashboard() {
       });
       setLojas([]);
       setMaquinas([]);
+      setAlertasBomDesempenho([]);
     }
   }, [usuario]);
 
@@ -2319,6 +2332,45 @@ export function Dashboard() {
                   <p className="text-xs opacity-75 mt-1">
                     ⚠️ {stats.alertas.length} máquinas · 🏪{" "}
                     {alertasEstoqueLoja.length} lojas
+                  </p>
+                </div>
+              </div>
+              {/* Jogadas fora da meta */}
+              <div
+                className="stat-card bg-linear-to-br from-red-500 to-orange-600 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 cursor-pointer"
+                onClick={() => {
+                  const alertSection = document.getElementById(
+                    "alertas-bom-desempenho",
+                  );
+                  if (alertSection) {
+                    alertSection.scrollIntoView({ behavior: "smooth" });
+                  }
+                }}
+              >
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-medium opacity-90">
+                      Jogadas fora da meta
+                    </h3>
+                    <svg
+                      className="w-8 h-8 opacity-80"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </div>
+                  <p className="text-3xl font-bold">
+                    {alertasBomDesempenho.length}
+                  </p>
+                  <p className="text-xs opacity-75 mt-1">
+                    ⚠️ Pelúcias fora do esperado
                   </p>
                 </div>
               </div>
@@ -3854,6 +3906,136 @@ export function Dashboard() {
             </div>
           )}
         </div>
+
+        {usuario?.role === "ADMIN" && alertasBomDesempenho.length > 0 && (
+          <div
+            className="card mb-8 border-l-4 border-red-500"
+            id="alertas-bom-desempenho"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <span className="bg-red-100 p-2 rounded-lg">⚠️</span>
+                Pelúcias saindo fora do esperado
+              </h2>
+              <span className="badge bg-red-100 text-red-700 border-red-300">
+                {alertasBomDesempenho.length}{" "}
+                {alertasBomDesempenho.length === 1 ? "alerta" : "alertas"}
+              </span>
+            </div>
+            <div className="space-y-3">
+              {alertasBomDesempenho.slice(0, 5).map((alerta) => {
+                const acimaDaMeta =
+                  alerta.direcao === "acima" ||
+                  Number(alerta.jogadasPorPelucia || 0) >
+                    Number(alerta.jogadasBoasPorPelucia || 0);
+
+                return (
+                  <div
+                    key={alerta.id}
+                    className={`p-5 rounded-xl shadow-sm ${
+                      acimaDaMeta
+                        ? "bg-amber-50 border border-amber-200"
+                        : "bg-red-50 border border-red-200"
+                    }`}
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="flex-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <span className="font-bold text-lg text-gray-900">
+                            🎮 {alerta.maquinaNome || "Máquina"}
+                          </span>
+                          {alerta.lojaNome && (
+                            <span
+                              className={`rounded-full bg-white px-3 py-1 text-sm font-bold ${
+                                acimaDaMeta
+                                  ? "text-amber-700 border border-amber-200"
+                                  : "text-red-700 border border-red-200"
+                              }`}
+                            >
+                              🏪 {alerta.lojaNome}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-700">
+                          Saíram <strong>{alerta.sairam}</strong> pelúcia(s). O
+                          contador IN subiu <strong>{alerta.diffIn}</strong>{" "}
+                          no período, equivalente a{" "}
+                          <strong>{alerta.jogadasPeriodo}</strong> jogada(s).
+                        </p>
+                        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                          <div className="rounded-xl bg-white p-3 border border-red-100">
+                            <p className="text-xs font-bold uppercase text-gray-500">
+                              {acimaDaMeta ? "Saindo depois" : "Saindo antes"}
+                            </p>
+                            <p
+                              className={`text-2xl font-black ${
+                                acimaDaMeta ? "text-amber-700" : "text-red-700"
+                              }`}
+                            >
+                              {Number(alerta.jogadasPorPelucia || 0).toFixed(
+                                2,
+                              )}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              jogadas por pelúcia
+                            </p>
+                          </div>
+                          <div className="rounded-xl bg-white p-3 border border-red-100">
+                            <p className="text-xs font-bold uppercase text-gray-500">
+                              Esperado
+                            </p>
+                            <p className="text-2xl font-black text-green-700">
+                              {Number(
+                                alerta.jogadasBoasPorPelucia || 0,
+                              ).toFixed(2)}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              jogadas por pelúcia
+                            </p>
+                          </div>
+                          <div className="rounded-xl bg-white p-3 border border-red-100">
+                            <p className="text-xs font-bold uppercase text-gray-500">
+                              Valor por jogada
+                            </p>
+                            <p className="text-2xl font-black text-gray-900">
+                              R${" "}
+                              {Number(alerta.valorPorJogada || 0).toFixed(2)}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              ficha × fichas para jogar
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p
+                          className={`text-3xl font-bold ${
+                            acimaDaMeta ? "text-amber-700" : "text-red-700"
+                          }`}
+                        >
+                          {acimaDaMeta ? "+" : "-"}
+                          {Number(alerta.diferencaJogadas || 0).toFixed(2)}
+                        </p>
+                        <p
+                          className={`text-xs mt-1 ${
+                            acimaDaMeta ? "text-amber-700" : "text-red-700"
+                          }`}
+                        >
+                          jogadas {acimaDaMeta ? "acima" : "abaixo"} da meta
+                        </p>
+                      </div>
+                    </div>
+                    {alerta.mensagem && (
+                      <p className="text-sm text-gray-600 mt-3 italic">
+                        {alerta.mensagem}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Alertas de Estoque - Apenas para ADMIN */}
         {usuario?.role === "ADMIN" && stats.alertas.length > 0 && (
