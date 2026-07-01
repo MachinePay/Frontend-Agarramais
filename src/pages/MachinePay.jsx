@@ -43,6 +43,11 @@ const obterStatusVendaClasses = (status) => {
   return "bg-slate-100 text-slate-700 border-slate-200";
 };
 
+const obterPulsoClasses = (pulsoConsultado) =>
+  pulsoConsultado
+    ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+    : "bg-red-100 text-red-800 border-red-200";
+
 const valoresRapidosCredito = [2, 5, 10, 20, 50, 100];
 
 const parseValorCredito = (valor) => {
@@ -430,6 +435,9 @@ export function MachinePay() {
                               <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-500">
                                 Status
                               </th>
+                              <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-500">
+                                Pulso
+                              </th>
                               <th className="px-4 py-3 text-right text-xs font-bold uppercase text-gray-500">
                                 Valor
                               </th>
@@ -464,6 +472,20 @@ export function MachinePay() {
                                       {transacao.status || "-"}
                                     </span>
                                   </td>
+                                  <td className="px-4 py-3 text-sm">
+                                    <span
+                                      className={`rounded-full border px-3 py-1 text-xs font-bold ${obterPulsoClasses(
+                                        transacao.pulsoConsultado,
+                                      )}`}
+                                    >
+                                      {transacao.pulsoConsultado ? "Consultado" : "Não Consultado"}
+                                    </span>
+                                    {transacao.pulsoStatus && (
+                                      <div className="mt-1 text-xs text-gray-500">
+                                        {transacao.pulsoStatus}
+                                      </div>
+                                    )}
+                                  </td>
                                   <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">
                                     R$ {formatarMoeda(transacao.valor)}
                                   </td>
@@ -478,7 +500,7 @@ export function MachinePay() {
                             ) : (
                               <tr>
                                 <td
-                                  colSpan="6"
+                                  colSpan="7"
                                   className="px-4 py-8 text-center text-sm text-gray-500"
                                 >
                                   Nenhuma transacao encontrada nas ultimas 24h.
