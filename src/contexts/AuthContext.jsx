@@ -71,6 +71,8 @@ export function AuthProvider({ children }) {
 
   const isAdmin = () => usuario?.role === "ADMIN";
 
+  const hasRole = (...roles) => roles.includes(usuario?.role);
+
   return (
     <AuthContext.Provider
       value={{
@@ -80,6 +82,7 @@ export function AuthProvider({ children }) {
         registrar,
         logout,
         isAdmin,
+        hasRole,
         signed: !!usuario,
       }}
     >

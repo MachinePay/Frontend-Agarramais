@@ -1,8 +1,8 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
-export function PrivateRoute({ children, adminOnly = false }) {
-  const { signed, loading, isAdmin } = useAuth();
+export function PrivateRoute({ children, adminOnly = false, roles = [] }) {
+  const { signed, loading, isAdmin, hasRole } = useAuth();
 
   if (loading) {
     return (
@@ -17,6 +17,10 @@ export function PrivateRoute({ children, adminOnly = false }) {
   }
 
   if (adminOnly && !isAdmin()) {
+    return <Navigate to="/" />;
+  }
+
+  if (roles.length > 0 && !hasRole(...roles)) {
     return <Navigate to="/" />;
   }
 

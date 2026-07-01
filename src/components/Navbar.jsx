@@ -3,7 +3,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useState } from "react";
 
 export function Navbar() {
-  const { usuario, logout } = useAuth();
+  const { usuario, logout, hasRole } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -154,6 +154,18 @@ export function Navbar() {
                       👥 Usuários
                     </Link>
                   </>
+                )}
+                {hasRole("ADMIN", "MACHINEPAY") && (
+                  <Link
+                    to="/machine-pay"
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      isActive("/machine-pay")
+                        ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
+                        : "text-gray-300 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    💳 Machine Pay
+                  </Link>
                 )}
               </div>
             </div>
@@ -366,6 +378,19 @@ export function Navbar() {
                   👥 Usuários
                 </Link>
               </>
+            )}
+            {hasRole("ADMIN", "MACHINEPAY") && (
+              <Link
+                to="/machine-pay"
+                onClick={closeMenu}
+                className={`block px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                  isActive("/machine-pay")
+                    ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg"
+                    : "text-gray-300 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                💳 Machine Pay
+              </Link>
             )}
 
             {/* User Info Mobile */}

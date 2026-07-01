@@ -11,10 +11,28 @@ export function MaquinaForm() {
   const navigate = useNavigate();
   const isEdit = !!id;
 
+  const [buscandoUsr, setBuscandoUsr] = useState(false);
+
+  const autoDescobrirUsr = async (posId) => {
+    if (!posId?.trim()) return;
+    try {
+      setBuscandoUsr(true);
+      const res = await api.get(`/machine-pay/descobrir-usr/${posId.trim()}`);
+      if (res.data?.usrId) {
+        setFormData((prev) => ({ ...prev, machinePayUsrId: res.data.usrId }));
+      }
+    } catch {
+      // silencioso — usr fica vazio, status ainda funciona via fallback do admin
+    } finally {
+      setBuscandoUsr(false);
+    }
+  };
+
   const [formData, setFormData] = useState({
     codigo: "",
     nome: "",
     machinePayPosId: "",
+    machinePayUsrId: "",
     loja_id: "",
     tipo: "",
     capacidadePadrao: "",
@@ -66,6 +84,7 @@ export function MaquinaForm() {
         codigo: response.data.codigo || "",
         nome: response.data.nome || "",
         machinePayPosId: response.data.machinePayPosId || "",
+        machinePayUsrId: response.data.machinePayUsrId || "",
         loja_id: response.data.lojaId ? String(response.data.lojaId) : "",
         tipo: response.data.tipo || "",
         capacidadePadrao: response.data.capacidadePadrao || "",
@@ -130,6 +149,7 @@ export function MaquinaForm() {
         codigo: formData.codigo.trim(),
         nome: formData.nome.trim(),
         machinePayPosId: formData.machinePayPosId?.trim() || null,
+        machinePayUsrId: formData.machinePayUsrId?.trim() || null,
         lojaId: formData.loja_id,
         tipo: formData.tipo?.trim() || null,
         capacidadePadrao: parseInt(formData.capacidadePadrao, 10) || 0,
@@ -251,12 +271,51 @@ export function MaquinaForm() {
                     name="machinePayPosId"
                     value={formData.machinePayPosId}
                     onChange={handleChange}
+                    onBlur={(e) => {
+                      if (e.target.value && !formData.machinePayUsrId) {
+                        autoDescobrirUsr(e.target.value);
+                      }
+                    }}
                     className="input-field"
                     placeholder="Ex: 102246469"
                     inputMode="numeric"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    POS ID usado para buscar Pix e cartão automaticamente.
+                    POS ID usado para buscar Pix e cartão automaticamente. O Usr ID será preenchido automaticamente.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Usr ID Machine Pay
+                    {buscandoUsr && (
+                      <span className="ml-2 text-xs text-blue-500 font-normal">
+                        Descobrindo automaticamente...
+                      </span>
+                    )}
+                    {!buscandoUsr && formData.machinePayUsrId && (
+                      <span className="ml-2 text-xs text-emerald-600 font-normal">
+                        ✓ Preenchido
+                      </span>
+                    )}
+                  </label>
+                  <div className="flex gap-2 items-center">
+                    <div className="input-field flex-1 bg-gray-50 text-gray-600 select-none cursor-default min-h-10.5 flex items-center">
+                      {buscandoUsr
+                        ? "Descobrindo..."
+                        : formData.machinePayUsrId || "Sera preenchido ao salvar o POS ID"}
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-secondary text-sm px-3 whitespace-nowrap"
+                      disabled={!formData.machinePayPosId || buscandoUsr}
+                      onClick={() => autoDescobrirUsr(formData.machinePayPosId)}
+                    >
+                      {buscandoUsr ? "..." : "Atualizar"}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Preenchido automaticamente ao sair do campo POS ID.
                   </p>
                 </div>
 
