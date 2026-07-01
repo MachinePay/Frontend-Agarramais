@@ -32,6 +32,17 @@ const obterStatusClasses = (status) => {
   return "bg-slate-100 text-slate-700 border-slate-200";
 };
 
+const obterStatusVendaClasses = (status) => {
+  const texto = String(status || "").toLowerCase();
+  if (texto.includes("devolv")) {
+    return "bg-red-100 text-red-800 border-red-200";
+  }
+  if (texto.includes("aprova")) {
+    return "bg-emerald-100 text-emerald-800 border-emerald-200";
+  }
+  return "bg-slate-100 text-slate-700 border-slate-200";
+};
+
 const valoresRapidosCredito = [2, 5, 10, 20, 50, 100];
 
 const parseValorCredito = (valor) => {
@@ -444,8 +455,14 @@ export function MachinePay() {
                                   <td className="px-4 py-3 text-sm text-gray-700">
                                     {transacao.tipo}
                                   </td>
-                                  <td className="px-4 py-3 text-sm text-gray-700">
-                                    {transacao.status || "-"}
+                                  <td className="px-4 py-3 text-sm">
+                                    <span
+                                      className={`rounded-full border px-3 py-1 text-xs font-bold ${obterStatusVendaClasses(
+                                        transacao.status,
+                                      )}`}
+                                    >
+                                      {transacao.status || "-"}
+                                    </span>
                                   </td>
                                   <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">
                                     R$ {formatarMoeda(transacao.valor)}
