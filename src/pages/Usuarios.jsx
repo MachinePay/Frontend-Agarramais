@@ -106,6 +106,7 @@ export function Usuarios() {
                 <option value="">Todos</option>
                 <option value="ADMIN">Administrador</option>
                 <option value="FUNCIONARIO">Funcionário</option>
+                <option value="MACHINEPAY">Funcionário Machine</option>
               </select>
             </div>
 
@@ -173,10 +174,16 @@ export function Usuarios() {
                         className={`px-3 py-1 rounded-full text-xs font-semibold ${
                           usuario.role === "ADMIN"
                             ? "bg-primary/20 text-primary"
+                            : usuario.role === "MACHINEPAY"
+                            ? "bg-amber-100 text-amber-800"
                             : "bg-blue-100 text-blue-800"
                         }`}
                       >
-                        {usuario.role === "ADMIN" ? "Admin" : "Funcionário"}
+                        {usuario.role === "ADMIN"
+                          ? "Admin"
+                          : usuario.role === "MACHINEPAY"
+                          ? "Machine"
+                          : "Funcionário"}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-gray-600">
@@ -185,6 +192,8 @@ export function Usuarios() {
                     <td className="px-6 py-4 text-sm text-gray-600">
                       {usuario.role === "ADMIN" ? (
                         <span className="text-gray-400 italic">Todas</span>
+                      ) : usuario.role === "MACHINEPAY" ? (
+                        <span className="text-gray-400 italic">-</span>
                       ) : usuario.permissoesLojas?.length > 0 ? (
                         <span>{usuario.permissoesLojas.length} loja(s)</span>
                       ) : (
