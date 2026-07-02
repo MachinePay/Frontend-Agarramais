@@ -441,12 +441,6 @@ export function MachinePay() {
                               <th className="px-4 py-3 text-right text-xs font-bold uppercase text-gray-500">
                                 Valor
                               </th>
-                              <th className="px-4 py-3 text-right text-xs font-bold uppercase text-gray-500">
-                                Taxa
-                              </th>
-                              <th className="px-4 py-3 text-right text-xs font-bold uppercase text-gray-500">
-                                Liquido
-                              </th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100">
@@ -489,18 +483,12 @@ export function MachinePay() {
                                   <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">
                                     R$ {formatarMoeda(transacao.valor)}
                                   </td>
-                                  <td className="px-4 py-3 text-right text-sm text-orange-600">
-                                    R$ {formatarMoeda(transacao.taxa)}
-                                  </td>
-                                  <td className="px-4 py-3 text-right text-sm font-bold text-emerald-700">
-                                    R$ {formatarMoeda(transacao.liquido)}
-                                  </td>
                                 </tr>
                               ))
                             ) : (
                               <tr>
                                 <td
-                                  colSpan="7"
+                                  colSpan="5"
                                   className="px-4 py-8 text-center text-sm text-gray-500"
                                 >
                                   Nenhuma transacao encontrada nas ultimas 24h.
