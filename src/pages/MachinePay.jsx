@@ -84,6 +84,7 @@ export function MachinePay() {
   const [buscandoStatus, setBuscandoStatus] = useState(false);
   const [buscandoTransacoesId, setBuscandoTransacoesId] = useState("");
   const [enviandoCreditosId, setEnviandoCreditosId] = useState("");
+  const [devolvendoId, setDevolvendoId] = useState("");
   const [error, setError] = useState("");
 
   const maquinaSelecionada = useMemo(
@@ -195,6 +196,47 @@ export function MachinePay() {
       );
     } finally {
       setBuscandoTransacoesId("");
+    }
+  };
+
+  const devolverPagamento = async (maquina, transacao) => {
+    if (!transacao.idwebhook) return;
+
+    const confirmado = window.confirm(
+      `Confirma a devolução do pagamento de R$ ${formatarMoeda(transacao.valor)}?`,
+    );
+    if (!confirmado) return;
+
+    try {
+      setError("");
+      setDevolvendoId(transacao.idwebhook);
+      await api.post(
+        `/machine-pay/pagamentos/${transacao.idwebhook}/devolver`,
+      );
+
+      setTransacoesPorMaquina((prev) => {
+        const atual = prev[maquina.id];
+        if (!atual) return prev;
+
+        return {
+          ...prev,
+          [maquina.id]: {
+            ...atual,
+            transacoes: atual.transacoes.map((item) =>
+              item.idwebhook === transacao.idwebhook
+                ? { ...item, jaDevolvido: true, podeDevolver: false }
+                : item,
+            ),
+          },
+        };
+      });
+    } catch (err) {
+      setError(
+        err.response?.data?.error ||
+          "Nao foi possivel devolver o pagamento na Machine Pay.",
+      );
+    } finally {
+      setDevolvendoId("");
     }
   };
 
@@ -441,6 +483,9 @@ export function MachinePay() {
                               <th className="px-4 py-3 text-right text-xs font-bold uppercase text-gray-500">
                                 Valor
                               </th>
+                              <th className="px-4 py-3 text-center text-xs font-bold uppercase text-gray-500">
+                                Devolução
+                              </th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100">
@@ -483,12 +528,41 @@ export function MachinePay() {
                                   <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">
                                     R$ {formatarMoeda(transacao.valor)}
                                   </td>
+                                  <td className="px-4 py-3 text-center text-sm">
+                                    {transacao.podeDevolver ? (
+                                      <button
+                                        type="button"
+                                        className="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-bold text-white shadow hover:bg-red-600 disabled:opacity-60"
+                                        onClick={() =>
+                                          devolverPagamento(
+                                            maquinaSelecionada,
+                                            transacao,
+                                          )
+                                        }
+                                        disabled={
+                                          devolvendoId === transacao.idwebhook
+                                        }
+                                      >
+                                        {devolvendoId === transacao.idwebhook
+                                          ? "Devolvendo..."
+                                          : "Devolver"}
+                                      </button>
+                                    ) : transacao.jaDevolvido ? (
+                                      <span className="rounded-full border border-red-200 bg-red-100 px-3 py-1 text-xs font-bold text-red-800">
+                                        Devolvido
+                                      </span>
+                                    ) : (
+                                      <span className="text-xs text-gray-300">
+                                        -
+                                      </span>
+                                    )}
+                                  </td>
                                 </tr>
                               ))
                             ) : (
                               <tr>
                                 <td
-                                  colSpan="5"
+                                  colSpan="6"
                                   className="px-4 py-8 text-center text-sm text-gray-500"
                                 >
                                   Nenhuma transacao encontrada nas ultimas 24h.
