@@ -288,6 +288,7 @@ export function Dashboard() {
   const [lojasComEstoque, setLojasComEstoque] = useState([]);
   const [loadingEstoque, setLoadingEstoque] = useState(false);
   const [lojaEstoqueExpanded, setLojaEstoqueExpanded] = useState({});
+  const [enviandoSaidaTotal, setEnviandoSaidaTotal] = useState({});
 
   // Estados para edição de estoque
   const [estoqueEditando, setEstoqueEditando] = useState(null); // { lojaId, estoque: [...] }
@@ -1252,6 +1253,69 @@ export function Dashboard() {
       lojaNome: loja.nome,
       estoque: estoqueTodos,
     });
+  };
+
+  const darSaidaEmTodoEstoque = async (loja) => {
+    const produtosComEstoque = (loja.estoque || []).filter(
+      (item) => item.quantidade > 0,
+    );
+
+    if (produtosComEstoque.length === 0) {
+      Swal.fire({
+        icon: "info",
+        title: "Estoque já vazio",
+        text: "Esta loja não possui produtos com quantidade em estoque.",
+        confirmButtonColor: "#fbbf24",
+      });
+      return;
+    }
+
+    const confirmacao = await Swal.fire({
+      icon: "warning",
+      title: "Dar saída em todo o estoque?",
+      html: `Isso vai zerar as <b>${produtosComEstoque.length}</b> produtos em estoque da loja <b>${loja.nome}</b> e registrar uma saída para cada um nas movimentações de estoque. Essa ação não pode ser desfeita automaticamente.`,
+      showCancelButton: true,
+      confirmButtonText: "Sim, dar saída em tudo",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#dc2626",
+    });
+
+    if (!confirmacao.isConfirmed) return;
+
+    try {
+      setEnviandoSaidaTotal((prev) => ({ ...prev, [loja.id]: true }));
+
+      await api.post("/movimentacao-estoque-loja", {
+        lojaId: loja.id,
+        usuarioId: usuario?.id,
+        produtos: produtosComEstoque.map((item) => ({
+          produtoId: item.produtoId,
+          quantidade: item.quantidade,
+          tipoMovimentacao: "saida",
+        })),
+        observacao: "Saída em massa - zerar estoque",
+        dataMovimentacao: new Date().toISOString(),
+      });
+
+      Swal.fire({
+        icon: "success",
+        title: "Sucesso",
+        text: "Saída registrada e estoque zerado com sucesso!",
+        confirmButtonColor: "#fbbf24",
+      });
+
+      await carregarEstoqueDasLojas();
+    } catch (error) {
+      console.error("Erro ao dar saída em todo o estoque:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Erro",
+        text: "Erro ao registrar a saída em massa do estoque!",
+        confirmButtonColor: "#ef4444",
+      });
+    } finally {
+      setEnviandoSaidaTotal((prev) => ({ ...prev, [loja.id]: false }));
+    }
   };
 
   // ...
@@ -3029,6 +3093,18 @@ export function Dashboard() {
                               className="w-full sm:w-auto px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/90 transition-colors font-medium text-sm flex items-center justify-center gap-2"
                             >
                               ✏️ Editar Estoque
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                darSaidaEmTodoEstoque(loja);
+                              }}
+                              disabled={enviandoSaidaTotal[loja.id]}
+                              className="w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                              {enviandoSaidaTotal[loja.id]
+                                ? "Enviando..."
+                                : "📤 Dar Saída em Todo Estoque"}
                             </button>
                           </div>
                           <svg
