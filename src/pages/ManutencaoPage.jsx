@@ -12,6 +12,7 @@ export default function ManutencaoPage() {
   const [funcionarios, setFuncionarios] = useState([]);
   const [usuariosFiltro, setUsuariosFiltro] = useState([]);
   const [lojas, setLojas] = useState([]);
+  const [alertasMovimentacao, setAlertasMovimentacao] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -65,24 +66,32 @@ export default function ManutencaoPage() {
       setManutencoes(Array.isArray(manutencoesData) ? manutencoesData : []);
 
       if (usuario?.role === "ADMIN") {
-        const [funcionariosResponse, lojasResponse, usuariosResponse] =
-          await Promise.all([
-            api.get("/manutencoes/funcionarios"),
-            api.get("/lojas"),
-            api.get("/usuarios"),
-          ]);
+        const [
+          funcionariosResponse,
+          lojasResponse,
+          usuariosResponse,
+          alertasResponse,
+        ] = await Promise.all([
+          api.get("/manutencoes/funcionarios"),
+          api.get("/lojas"),
+          api.get("/usuarios"),
+          api.get("/alertas-movimentacao"),
+        ]);
         const funcionariosData = funcionariosResponse.data;
         const lojasData = lojasResponse.data;
         const usuariosData = usuariosResponse.data;
+        const alertasData = alertasResponse.data;
         setFuncionarios(
           Array.isArray(funcionariosData) ? funcionariosData : [],
         );
         setLojas(Array.isArray(lojasData) ? lojasData : []);
         setUsuariosFiltro(Array.isArray(usuariosData) ? usuariosData : []);
+        setAlertasMovimentacao(Array.isArray(alertasData) ? alertasData : []);
       } else {
         setFuncionarios([]);
         setLojas([]);
         setUsuariosFiltro([]);
+        setAlertasMovimentacao([]);
       }
     } catch (err) {
       setError(err.response?.data?.error || "Erro ao carregar dados");
@@ -171,6 +180,18 @@ export default function ManutencaoPage() {
     }
   };
 
+  const handleResolverAlerta = async (id) => {
+    try {
+      setError("");
+      await api.patch(`/alertas-movimentacao/${id}/resolver`);
+      await carregarDados();
+    } catch (err) {
+      setError(
+        err.response?.data?.error || "Erro ao resolver alerta de movimentação",
+      );
+    }
+  };
+
   if (loading || authLoading) {
     return <PageLoader />;
   }
@@ -205,6 +226,61 @@ export default function ManutencaoPage() {
 
         {error && (
           <AlertBox type="error" message={error} onClose={() => setError("")} />
+        )}
+
+        {isAdmin && (
+          <div className="card border-l-4 border-amber-500">
+            <h2 className="mb-3 text-lg font-semibold text-gray-900">
+              ⚠️ Alertas de Movimentação ({alertasMovimentacao.length})
+            </h2>
+
+            {alertasMovimentacao.length === 0 ? (
+              <p className="text-sm text-gray-600">Nenhum alerta pendente.</p>
+            ) : (
+              <div className="space-y-3">
+                {alertasMovimentacao.map((alerta) => (
+                  <div
+                    key={alerta.id}
+                    className="rounded-lg border border-amber-200 bg-amber-50 p-4"
+                  >
+                    <div className="space-y-1 text-sm text-gray-800">
+                      <p>
+                        <span className="font-semibold">Loja:</span>{" "}
+                        {alerta.loja?.nome || "-"}
+                      </p>
+                      <p>
+                        <span className="font-semibold">Máquina:</span>{" "}
+                        {alerta.maquina
+                          ? `${alerta.maquina.nome || ""} - ${alerta.maquina.codigo || ""}`
+                          : "-"}
+                      </p>
+                      <p>
+                        <span className="font-semibold">Usuário:</span>{" "}
+                        {alerta.usuario?.nome || "-"}
+                      </p>
+                      <p>
+                        <span className="font-semibold">Data/Hora:</span>{" "}
+                        {formatarDataHora(alerta.createdAt)}
+                      </p>
+                      <p>
+                        <span className="font-semibold">Motivo:</span>{" "}
+                        {alerta.observacao}
+                      </p>
+                    </div>
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        onClick={() => handleResolverAlerta(alerta.id)}
+                        className="btn-primary"
+                      >
+                        Corrigido
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {isAdmin && (

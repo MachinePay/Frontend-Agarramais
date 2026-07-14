@@ -57,6 +57,10 @@ export function Movimentacoes() {
   const movimentacaoEmEnvioRef = useRef(false);
   const [movimentacaoAssistentePendente, setMovimentacaoAssistentePendente] =
     useState(null);
+  const [naoVaiRegistrar, setNaoVaiRegistrar] = useState(false);
+  const [mostrarObsAlerta, setMostrarObsAlerta] = useState(false);
+  const [obsAlerta, setObsAlerta] = useState("");
+  const [enviandoAlerta, setEnviandoAlerta] = useState(false);
 
   // Filtros Movimentações
   const [filtroLojaForm, setFiltroLojaForm] = useState("");
@@ -573,6 +577,10 @@ export function Movimentacoes() {
 
       await api.post("/movimentacoes", data);
 
+      // Movimentação registrada com sucesso: envia automaticamente para o WhatsApp
+      await enviarParaWhatsapp();
+      resetFluxoWhatsappBypass();
+
       // Devolver retirada para o estoque da loja, se marcado
       if (
         formData.retiradaProdutoDevolverEstoque &&
@@ -835,6 +843,44 @@ export function Movimentacoes() {
 
     const url = `https://wa.me/?text=${encodeURIComponent(mensagem)}`;
     window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const resetFluxoWhatsappBypass = () => {
+    setNaoVaiRegistrar(false);
+    setMostrarObsAlerta(false);
+    setObsAlerta("");
+  };
+
+  const handleClickEnviarWhatsapp = () => {
+    if (!naoVaiRegistrar) return;
+    if (!formData.maquina_id) {
+      setError("Selecione a máquina antes de enviar para o WhatsApp.");
+      return;
+    }
+    setMostrarObsAlerta(true);
+  };
+
+  const confirmarEnvioBypassWhatsapp = async () => {
+    if (!obsAlerta.trim() || enviandoAlerta) return;
+
+    setEnviandoAlerta(true);
+    setError("");
+    try {
+      await api.post("/alertas-movimentacao", {
+        maquinaId: formData.maquina_id,
+        observacao: obsAlerta.trim(),
+      });
+      await enviarParaWhatsapp();
+      resetFluxoWhatsappBypass();
+    } catch (err) {
+      console.error("Erro ao registrar alerta de movimentação:", err);
+      setError(
+        err?.response?.data?.error ||
+          "Não foi possível registrar o alerta. O WhatsApp não foi aberto.",
+      );
+    } finally {
+      setEnviandoAlerta(false);
+    }
   };
 
   // --- CÁLCULOS DE ESTATÍSTICAS ---
@@ -1648,6 +1694,61 @@ export function Movimentacoes() {
                 </div>
               </div>
 
+              <div className="flex items-start gap-2 pt-4 border-t border-gray-200 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <input
+                  type="checkbox"
+                  id="naoVaiRegistrar"
+                  checked={naoVaiRegistrar}
+                  onChange={(e) => {
+                    setNaoVaiRegistrar(e.target.checked);
+                    if (!e.target.checked) {
+                      setMostrarObsAlerta(false);
+                      setObsAlerta("");
+                    }
+                  }}
+                  className="mt-1"
+                />
+                <label htmlFor="naoVaiRegistrar" className="text-sm text-amber-900">
+                  Não vou registrar esta movimentação agora — só quero avisar
+                  pelo WhatsApp. (isso gera um alerta pra loja acompanhar)
+                </label>
+              </div>
+
+              {mostrarObsAlerta && (
+                <div className="border border-amber-300 bg-amber-50 rounded-lg p-4 space-y-2">
+                  <label className="block text-sm font-semibold text-amber-900">
+                    Por que você não vai registrar essa movimentação agora?
+                  </label>
+                  <textarea
+                    value={obsAlerta}
+                    onChange={(e) => setObsAlerta(e.target.value)}
+                    className="input-field"
+                    rows="2"
+                    placeholder="Explique o motivo (obrigatório)"
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => setMostrarObsAlerta(false)}
+                      disabled={enviandoAlerta}
+                    >
+                      Voltar
+                    </button>
+                    <button
+                      type="button"
+                      className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={confirmarEnvioBypassWhatsapp}
+                      disabled={enviandoAlerta || !obsAlerta.trim()}
+                    >
+                      {enviandoAlerta
+                        ? "Enviando..."
+                        : "Confirmar e enviar para WhatsApp"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:justify-end pt-4 border-t border-gray-200">
                 {error && (
                   <AlertBox
@@ -1662,6 +1763,7 @@ export function Movimentacoes() {
                     setShowForm(false);
                     setFiltroLojaForm("");
                     limparFotoContadores();
+                    resetFluxoWhatsappBypass();
                   }}
                   className="btn-secondary w-full sm:w-auto"
                   disabled={salvandoMovimentacao}
@@ -1670,9 +1772,18 @@ export function Movimentacoes() {
                 </button>
                 <button
                   type="button"
-                  onClick={enviarParaWhatsapp}
-                  className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 shadow w-full sm:w-auto"
-                  disabled={salvandoMovimentacao}
+                  onClick={handleClickEnviarWhatsapp}
+                  className={`px-4 py-2 font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 shadow w-full sm:w-auto ${
+                    naoVaiRegistrar
+                      ? "bg-green-500 hover:bg-green-600 text-white"
+                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  }`}
+                  disabled={salvandoMovimentacao || !naoVaiRegistrar}
+                  title={
+                    naoVaiRegistrar
+                      ? "Enviar aviso pelo WhatsApp sem registrar"
+                      : "Marque a caixa acima para liberar este botão"
+                  }
                 >
                   <svg
                     className="w-5 h-5"
