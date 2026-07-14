@@ -71,46 +71,50 @@ export function Navbar() {
                 >
                   🛠️ Manutenção
                 </Link>
-                <Link
-                  to="/maquinas"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    isActive("/maquinas")
-                      ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
-                      : "text-gray-300 hover:bg-white/10 hover:text-white"
-                  }`}
-                >
-                  🎮 Máquinas
-                </Link>
-                <Link
-                  to="/lojas"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    isActive("/lojas")
-                      ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
-                      : "text-gray-300 hover:bg-white/10 hover:text-white"
-                  }`}
-                >
-                  🏪 Lojas
-                </Link>
-                <Link
-                  to="/produtos"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    isActive("/produtos")
-                      ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
-                      : "text-gray-300 hover:bg-white/10 hover:text-white"
-                  }`}
-                >
-                  🧸 Produtos
-                </Link>
-                <Link
-                  to="/produtos-a-comprar"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    isActive("/produtos-a-comprar")
-                      ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
-                      : "text-gray-300 hover:bg-white/10 hover:text-white"
-                  }`}
-                >
-                  🛒 Carrinho
-                </Link>
+                {usuario?.role !== "FUNCIONARIO" && (
+                  <>
+                    <Link
+                      to="/maquinas"
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        isActive("/maquinas")
+                          ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
+                          : "text-gray-300 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      🎮 Máquinas
+                    </Link>
+                    <Link
+                      to="/lojas"
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        isActive("/lojas")
+                          ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
+                          : "text-gray-300 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      🏪 Lojas
+                    </Link>
+                    <Link
+                      to="/produtos"
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        isActive("/produtos")
+                          ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
+                          : "text-gray-300 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      🧸 Produtos
+                    </Link>
+                    <Link
+                      to="/produtos-a-comprar"
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        isActive("/produtos-a-comprar")
+                          ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
+                          : "text-gray-300 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      🛒 Carrinho
+                    </Link>
+                  </>
+                )}
                 {usuario?.role === "ADMIN" && (
                   <>
                     <Link
@@ -287,50 +291,54 @@ export function Navbar() {
             >
               🛠️ Manutenção
             </Link>
-            <Link
-              to="/maquinas"
-              onClick={closeMenu}
-              className={`block px-4 py-3 rounded-lg text-sm font-medium transition-all ${
-                isActive("/maquinas")
-                  ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg"
-                  : "text-gray-300 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              🎮 Máquinas
-            </Link>
-            <Link
-              to="/lojas"
-              onClick={closeMenu}
-              className={`block px-4 py-3 rounded-lg text-sm font-medium transition-all ${
-                isActive("/lojas")
-                  ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg"
-                  : "text-gray-300 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              🏪 Lojas
-            </Link>
-            <Link
-              to="/produtos"
-              onClick={closeMenu}
-              className={`block px-4 py-3 rounded-lg text-sm font-medium transition-all ${
-                isActive("/produtos")
-                  ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg"
-                  : "text-gray-300 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              🧸 Produtos
-            </Link>
-            <Link
-              to="/produtos-a-comprar"
-              onClick={closeMenu}
-              className={`block px-4 py-3 rounded-lg text-sm font-medium transition-all ${
-                isActive("/produtos-a-comprar")
-                  ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg"
-                  : "text-gray-300 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              🛒 Produtos a Comprar
-            </Link>
+            {usuario?.role !== "FUNCIONARIO" && (
+              <>
+                <Link
+                  to="/maquinas"
+                  onClick={closeMenu}
+                  className={`block px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                    isActive("/maquinas")
+                      ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg"
+                      : "text-gray-300 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  🎮 Máquinas
+                </Link>
+                <Link
+                  to="/lojas"
+                  onClick={closeMenu}
+                  className={`block px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                    isActive("/lojas")
+                      ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg"
+                      : "text-gray-300 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  🏪 Lojas
+                </Link>
+                <Link
+                  to="/produtos"
+                  onClick={closeMenu}
+                  className={`block px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                    isActive("/produtos")
+                      ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg"
+                      : "text-gray-300 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  🧸 Produtos
+                </Link>
+                <Link
+                  to="/produtos-a-comprar"
+                  onClick={closeMenu}
+                  className={`block px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                    isActive("/produtos-a-comprar")
+                      ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg"
+                      : "text-gray-300 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  🛒 Produtos a Comprar
+                </Link>
+              </>
+            )}
             {usuario?.role === "ADMIN" && (
               <>
                 <Link

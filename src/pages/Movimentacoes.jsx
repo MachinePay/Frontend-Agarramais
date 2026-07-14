@@ -1062,12 +1062,14 @@ export function Movimentacoes() {
             >
               Sangria
             </button>
-            <button
-              className="px-6 py-2 bg-blue-700 text-white rounded hover:bg-blue-800 font-bold shadow text-base"
-              onClick={() => setModalRegistrarDinheiro(true)}
-            >
-              Registrar Dinheiro
-            </button>
+            {usuario?.role !== "FUNCIONARIO" && (
+              <button
+                className="px-6 py-2 bg-blue-700 text-white rounded hover:bg-blue-800 font-bold shadow text-base"
+                onClick={() => setModalRegistrarDinheiro(true)}
+              >
+                Registrar Dinheiro
+              </button>
+            )}
             <button
               className="px-6 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 font-bold shadow text-base"
               onClick={() => setModalGastoVariavel(true)}

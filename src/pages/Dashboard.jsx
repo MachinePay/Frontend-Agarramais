@@ -8,6 +8,7 @@ import { IAgarraAssistente } from "../components/IAgarraAssistente";
 import { PageLoader } from "../components/Loading";
 import { Badge } from "../components/UIComponents";
 import AlertAdmin from "../components/AlertAdmin";
+import LancarGastoVariavel from "../components/LancarGastoVariavel";
 import { useAuth } from "../contexts/AuthContext";
 
 import Swal from "sweetalert2";
@@ -268,6 +269,8 @@ export function Dashboard() {
   const [manutencoesPendentes, setManutencoesPendentes] = useState([]);
   const [loadingManutencoesPendentes, setLoadingManutencoesPendentes] =
     useState(false);
+  const [veiculos, setVeiculos] = useState([]);
+  const [modalGastoVariavel, setModalGastoVariavel] = useState(false);
 
   // Estados para busca e navegação
 
@@ -1049,6 +1052,16 @@ export function Dashboard() {
   useEffect(() => {
     carregarManutencoesPendentes();
   }, [carregarManutencoesPendentes]);
+
+  useEffect(() => {
+    api
+      .get("/veiculos")
+      .then((response) => setVeiculos(response.data || []))
+      .catch((error) => {
+        console.error("Erro ao carregar veículos:", error);
+        setVeiculos([]);
+      });
+  }, []);
 
   const carregarAlertasEstoqueLoja = async (lojasData) => {
     try {
@@ -2658,7 +2671,55 @@ export function Dashboard() {
               </div>
             </div>
           )}
+          {usuario?.role === "FUNCIONARIO" && (
+            <div
+              className="stat-card bg-linear-to-br from-emerald-600 to-emerald-800 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 cursor-pointer"
+              onClick={() => setModalGastoVariavel(true)}
+            >
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium opacity-90">
+                    Lançar Gasto Variável
+                  </h3>
+                  <span className="text-2xl">🧾</span>
+                </div>
+                <p className="text-3xl font-bold">💰</p>
+                <p className="text-xs opacity-75 mt-1">
+                  Gasolina, estacionamento e outros
+                </p>
+              </div>
+            </div>
+          )}
         </div>
+
+        {modalGastoVariavel && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 shadow-lg relative">
+              <button
+                onClick={() => setModalGastoVariavel(false)}
+                style={{
+                  position: "absolute",
+                  top: 12,
+                  right: 16,
+                  fontSize: 22,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#888",
+                }}
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+              <LancarGastoVariavel
+                lojas={lojas}
+                veiculos={veiculos}
+                onClose={() => setModalGastoVariavel(false)}
+                onSuccess={() => setModalGastoVariavel(false)}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Alerta de Movimentação Inconsistente - ADMIN */}
         {usuario?.role === "ADMIN" && (
