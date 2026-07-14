@@ -2,6 +2,15 @@ import React, { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../contexts/AuthContext";
 import api from "../services/api";
 
+const TIPO_BADGE = {
+  retirada: { label: "Retirada", className: "bg-blue-100 text-blue-800" },
+  devolucao: { label: "Devolução", className: "bg-green-100 text-green-800" },
+  abastecimento: {
+    label: "Abastecimento",
+    className: "bg-orange-100 text-orange-800",
+  },
+};
+
 export default function RegistroVeiculos({
   veiculos = [],
   loading,
@@ -11,6 +20,7 @@ export default function RegistroVeiculos({
   const { usuario } = useContext(AuthContext);
   const [movimentacoes, setMovimentacoes] = useState([]);
   const [filtroVeiculo, setFiltroVeiculo] = useState("");
+  const [filtroTipo, setFiltroTipo] = useState("");
   const [carregandoMov, setCarregandoMov] = useState(false);
 
   useEffect(() => {
@@ -26,6 +36,7 @@ export default function RegistroVeiculos({
       try {
         const params = {};
         if (filtroVeiculo) params.veiculoId = filtroVeiculo;
+        if (filtroTipo) params.tipo = filtroTipo;
         if (filtroDataInicio) params.dataInicio = filtroDataInicio;
         if (filtroDataFim) params.dataFim = filtroDataFim;
         const { data } = await api.get("/movimentacao-veiculos", { params });
@@ -39,7 +50,7 @@ export default function RegistroVeiculos({
       }
     };
     fetchMov();
-  }, [usuario, filtroVeiculo, filtroDataInicio, filtroDataFim]);
+  }, [usuario, filtroVeiculo, filtroTipo, filtroDataInicio, filtroDataFim]);
 
   if (!usuario || usuario.role !== "ADMIN") return null;
   if (loading) return <div className="p-6">Carregando veículos...</div>;
@@ -70,6 +81,21 @@ export default function RegistroVeiculos({
                 {v.nome}
               </option>
             ))}
+          </select>
+        </div>
+        <div className="flex-1">
+          <label className="block text-sm font-medium mb-1 text-blue-900">
+            Filtrar por tipo
+          </label>
+          <select
+            className="border rounded-lg p-2 w-full focus:ring-2 focus:ring-blue-200"
+            value={filtroTipo}
+            onChange={(e) => setFiltroTipo(e.target.value)}
+          >
+            <option value="">Todos</option>
+            <option value="retirada">Retirada</option>
+            <option value="devolucao">Devolução</option>
+            <option value="abastecimento">Abastecimento</option>
           </select>
         </div>
       </div>
@@ -133,9 +159,9 @@ export default function RegistroVeiculos({
                     </td>
                     <td className="px-4 py-2 border-b">
                       <span
-                        className={`inline-block px-2 py-1 rounded text-xs font-semibold ${mov.tipo === "retirada" ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"}`}
+                        className={`inline-block px-2 py-1 rounded text-xs font-semibold ${TIPO_BADGE[mov.tipo]?.className || "bg-gray-100 text-gray-800"}`}
                       >
-                        {mov.tipo === "retirada" ? "Retirada" : "Devolução"}
+                        {TIPO_BADGE[mov.tipo]?.label || mov.tipo}
                       </span>
                     </td>
                     <td className="px-4 py-2 border-b whitespace-nowrap">

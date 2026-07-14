@@ -11,6 +11,7 @@ import {
   AlertBox,
 } from "../components/UIComponents";
 import RegistrarDinheiro from "../components/RegistrarDinheiro";
+import LancarGastoVariavel from "../components/LancarGastoVariavel";
 import { PageLoader, EmptyState } from "../components/Loading";
 import { useAuth } from "../contexts/AuthContext";
 import AvisosMaquinasFaltam from "../components/AvisosMaquinasFaltam";
@@ -20,6 +21,7 @@ export function Movimentacoes() {
   const navigate = useNavigate();
   const location = useLocation();
   const [modalRegistrarDinheiro, setModalRegistrarDinheiro] = useState(false);
+  const [modalGastoVariavel, setModalGastoVariavel] = useState(false);
   const { usuario } = useAuth();
 
   // --- ESTADOS ---
@@ -40,6 +42,7 @@ export function Movimentacoes() {
   const [maquinas, setMaquinas] = useState([]);
   const [produtos, setProdutos] = useState([]);
   const [lojas, setLojas] = useState([]);
+  const [veiculos, setVeiculos] = useState([]);
 
   // UI States
   const [loading, setLoading] = useState(true);
@@ -280,17 +283,20 @@ export function Movimentacoes() {
   const carregarDados = async () => {
     try {
       setLoading(true);
-      const [movRes, maqRes, prodRes, lojasRes] = await Promise.all([
-        api.get("/movimentacoes"),
-        api.get("/maquinas"),
-        api.get("/produtos"),
-        api.get("/lojas"),
-      ]);
+      const [movRes, maqRes, prodRes, lojasRes, veiculosRes] =
+        await Promise.all([
+          api.get("/movimentacoes"),
+          api.get("/maquinas"),
+          api.get("/produtos"),
+          api.get("/lojas"),
+          api.get("/veiculos"),
+        ]);
 
       setMovimentacoes(movRes.data || []);
       setMaquinas(maqRes.data || []);
       setProdutos(prodRes.data || []);
       setLojas(lojasRes.data || []);
+      setVeiculos(veiculosRes.data || []);
     } catch (err) {
       console.error("Erro ao carregar dados:", err);
       setError("Erro ao carregar dados iniciais.");
@@ -1062,8 +1068,47 @@ export function Movimentacoes() {
             >
               Registrar Dinheiro
             </button>
+            <button
+              className="px-6 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 font-bold shadow text-base"
+              onClick={() => setModalGastoVariavel(true)}
+            >
+              Lançar Gasto Variável
+            </button>
           </div>
         </div>
+
+        {/* Modal Lançar Gasto Variável */}
+        {modalGastoVariavel && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 shadow-lg relative">
+              <button
+                onClick={() => setModalGastoVariavel(false)}
+                style={{
+                  position: "absolute",
+                  top: 12,
+                  right: 16,
+                  fontSize: 22,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#888",
+                }}
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+              <LancarGastoVariavel
+                lojas={lojas}
+                veiculos={veiculos}
+                onClose={() => setModalGastoVariavel(false)}
+                onSuccess={() => {
+                  setSuccess("Gasto variável lançado com sucesso!");
+                  carregarDados();
+                }}
+              />
+            </div>
+          </div>
+        )}
         {/* Modal Registrar Dinheiro */}
         {modalRegistrarDinheiro && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">

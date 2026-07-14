@@ -23,6 +23,7 @@ import { Graficos } from "./pages/Graficos";
 import { Relatorios } from "./pages/Relatorios";
 import { MachinePay } from "./pages/MachinePay";
 import { Sangrias } from "./pages/Sangrias";
+import { GastosVariaveis } from "./pages/GastosVariaveis";
 import { StyleGuide } from "./pages/StyleGuide";
 import { AnaliseEstoque } from "./pages/AnaliseEstoque";
 import "./App.css";
@@ -233,6 +234,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Sangrias />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/gastos-variaveis"
+            element={
+              <PrivateRoute>
+                <GastosVariaveis />
               </PrivateRoute>
             }
           />

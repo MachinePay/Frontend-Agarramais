@@ -262,6 +262,7 @@ export function Dashboard() {
     alertas: [],
     balanco: null,
     comparativoLucroMensal: null,
+    gastoVariavelMes: 0,
     loading: true,
   });
   const [manutencoesPendentes, setManutencoesPendentes] = useState([]);
@@ -874,6 +875,20 @@ export function Dashboard() {
                 },
               };
             }),
+          api
+            .get("/gastos-variaveis", {
+              params: {
+                dataInicio: periodoComparacaoMensal.inicioMesAtual,
+                dataFim: periodoComparacaoMensal.fimMesAtual,
+              },
+            })
+            .catch((err) => {
+              console.error(
+                "Erro ao carregar gastos variáveis do mês:",
+                err.message,
+              );
+              return { data: [] };
+            }),
         );
       }
 
@@ -885,11 +900,13 @@ export function Dashboard() {
         alertasBomDesempenhoRes,
         balancoRes,
         machinePayTotalRes,
+        gastoVariavelMesRes,
         lojasRes,
         maquinasRes,
         produtosRes;
 
       let comparativoLucroMensal = null;
+      let gastoVariavelMes = 0;
 
       if (isAdmin) {
         [
@@ -899,10 +916,16 @@ export function Dashboard() {
           alertasBomDesempenhoRes,
           balancoRes,
           machinePayTotalRes,
+          gastoVariavelMesRes,
           lojasRes,
           maquinasRes,
           produtosRes,
         ] = resultados;
+
+        gastoVariavelMes = (gastoVariavelMesRes?.data || []).reduce(
+          (acc, gasto) => acc + Number(gasto.valor || 0),
+          0,
+        );
 
         const faturamentoMesAtual = Number(
           faturamentoMesAtualRes?.data?.totais?.faturamento || 0,
@@ -949,6 +972,7 @@ export function Dashboard() {
         alertas: alertasRes.data?.alertas || [],
         balanco: balancoRes.data,
         comparativoLucroMensal,
+        gastoVariavelMes,
         loading: false,
       });
       setLojas(lojasRes.data || []);
@@ -975,6 +999,7 @@ export function Dashboard() {
         alertas: [],
         balanco: null,
         comparativoLucroMensal: null,
+        gastoVariavelMes: 0,
         loading: false,
       });
       setLojas([]);
@@ -2471,6 +2496,26 @@ export function Dashboard() {
                     {machinePayTotal
                       ? `${machinePayTotal.maquinaCount || 0} máquinas com ID MP`
                       : "Carregando valores reais..."}
+                  </p>
+                </div>
+              </div>
+              {/* Gastos Variáveis */}
+              <div
+                className="stat-card bg-linear-to-br from-orange-500 to-red-600 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 cursor-pointer"
+                onClick={() => navigate("/gastos-variaveis")}
+              >
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-medium opacity-90">
+                      Gastos Variáveis
+                    </h3>
+                    <span className="text-2xl">🧾</span>
+                  </div>
+                  <p className="text-3xl font-bold">
+                    R$ {formatarMoeda(stats.gastoVariavelMes)}
+                  </p>
+                  <p className="text-xs opacity-75 mt-1">
+                    Gasolina, estacionamento e outros no mês
                   </p>
                 </div>
               </div>
