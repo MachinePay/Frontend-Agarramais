@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Swal from "sweetalert2";
 import api from "../services/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
@@ -22,6 +23,24 @@ const formatDateTime = (value) => {
   )}`;
 };
 
+const toDateInputValue = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
+const getPrimeiroDiaMesAtual = () => {
+  const hoje = new Date();
+  return toDateInputValue(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+};
+
+const getUltimoDiaMesAtual = () => {
+  const hoje = new Date();
+  return toDateInputValue(new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0));
+};
+
 export function GastosVariaveis() {
   const [lojas, setLojas] = useState([]);
   const [veiculos, setVeiculos] = useState([]);
@@ -33,18 +52,37 @@ export function GastosVariaveis() {
 
   const [filtroLojaId, setFiltroLojaId] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState("");
-  const [filtroDataInicio, setFiltroDataInicio] = useState("");
-  const [filtroDataFim, setFiltroDataFim] = useState("");
+  const [filtroDataInicio, setFiltroDataInicio] = useState(
+    getPrimeiroDiaMesAtual,
+  );
+  const [filtroDataFim, setFiltroDataFim] = useState(getUltimoDiaMesAtual);
 
-  const carregarGastos = async () => {
+  const [editando, setEditando] = useState(null);
+  const [editForm, setEditForm] = useState({
+    lojaId: "",
+    nome: "",
+    valor: "",
+    observacao: "",
+    data: "",
+  });
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
+
+  const carregarGastos = async (filtros = {}) => {
     try {
       setLoading(true);
       setError("");
+      const {
+        lojaId = filtroLojaId,
+        nome = filtroCategoria,
+        dataInicio = filtroDataInicio,
+        dataFim = filtroDataFim,
+      } = filtros;
+
       const params = {};
-      if (filtroLojaId) params.lojaId = filtroLojaId;
-      if (filtroCategoria) params.nome = filtroCategoria;
-      if (filtroDataInicio) params.dataInicio = filtroDataInicio;
-      if (filtroDataFim) params.dataFim = filtroDataFim;
+      if (lojaId) params.lojaId = lojaId;
+      if (nome) params.nome = nome;
+      if (dataInicio) params.dataInicio = dataInicio;
+      if (dataFim) params.dataFim = dataFim;
 
       const response = await api.get("/gastos-variaveis", { params });
       setGastos(Array.isArray(response.data) ? response.data : []);
@@ -79,11 +117,80 @@ export function GastosVariaveis() {
   };
 
   const handleLimparFiltros = () => {
+    const dataInicio = getPrimeiroDiaMesAtual();
+    const dataFim = getUltimoDiaMesAtual();
     setFiltroLojaId("");
     setFiltroCategoria("");
-    setFiltroDataInicio("");
-    setFiltroDataFim("");
-    setTimeout(carregarGastos, 0);
+    setFiltroDataInicio(dataInicio);
+    setFiltroDataFim(dataFim);
+    carregarGastos({ lojaId: "", nome: "", dataInicio, dataFim });
+  };
+
+  const abrirEdicao = (gasto) => {
+    setEditando(gasto);
+    setEditForm({
+      lojaId: gasto.lojaId || "",
+      nome: gasto.nome || "",
+      valor: gasto.valor ?? "",
+      observacao: gasto.observacao || "",
+      data: toDateInputValue(gasto.dataInicio),
+    });
+  };
+
+  const fecharEdicao = () => {
+    setEditando(null);
+  };
+
+  const salvarEdicao = async () => {
+    if (!editando || salvandoEdicao) return;
+    try {
+      setSalvandoEdicao(true);
+      await api.put(`/gastos-variaveis/${editando.id}`, {
+        lojaId: editForm.lojaId,
+        nome: editForm.nome,
+        valor: Number(editForm.valor),
+        observacao: editForm.observacao || undefined,
+        data: editForm.data,
+      });
+      setSuccess("Gasto variável atualizado com sucesso!");
+      fecharEdicao();
+      carregarGastos();
+    } catch (err) {
+      console.error("Erro ao atualizar gasto variável:", err);
+      Swal.fire(
+        "Erro",
+        err?.response?.data?.error || "Não foi possível atualizar o gasto.",
+        "error",
+      );
+    } finally {
+      setSalvandoEdicao(false);
+    }
+  };
+
+  const excluirGasto = async (gasto) => {
+    const confirmacao = await Swal.fire({
+      icon: "warning",
+      title: "Excluir gasto?",
+      text: `Tem certeza que deseja excluir "${gasto.nome}" (R$ ${formatCurrency(gasto.valor)})?`,
+      showCancelButton: true,
+      confirmButtonText: "Excluir",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#dc2626",
+    });
+    if (!confirmacao.isConfirmed) return;
+
+    try {
+      await api.delete(`/gastos-variaveis/${gasto.id}`);
+      setSuccess("Gasto variável excluído com sucesso!");
+      carregarGastos();
+    } catch (err) {
+      console.error("Erro ao excluir gasto variável:", err);
+      Swal.fire(
+        "Erro",
+        err?.response?.data?.error || "Não foi possível excluir o gasto.",
+        "error",
+      );
+    }
   };
 
   const totalFiltrado = gastos.reduce(
@@ -107,6 +214,26 @@ export function GastosVariaveis() {
       render: (g) => `R$ ${formatCurrency(g.valor)}`,
     },
     { key: "observacao", label: "Observação", render: (g) => g.observacao || "-" },
+    {
+      key: "acoes",
+      label: "Ações",
+      render: (g) => (
+        <div className="flex gap-2 justify-center">
+          <button
+            className="px-3 py-1 text-xs rounded bg-blue-100 text-blue-800 hover:bg-blue-200 font-semibold"
+            onClick={() => abrirEdicao(g)}
+          >
+            Editar
+          </button>
+          <button
+            className="px-3 py-1 text-xs rounded bg-red-100 text-red-800 hover:bg-red-200 font-semibold"
+            onClick={() => excluirGasto(g)}
+          >
+            Excluir
+          </button>
+        </div>
+      ),
+    },
   ];
 
   if (loading && gastos.length === 0) return <PageLoader />;
@@ -164,6 +291,125 @@ export function GastosVariaveis() {
                   carregarGastos();
                 }}
               />
+            </div>
+          </div>
+        )}
+
+        {editando && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-96 shadow-lg relative">
+              <button
+                onClick={fecharEdicao}
+                style={{
+                  position: "absolute",
+                  top: 12,
+                  right: 16,
+                  fontSize: 22,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#888",
+                }}
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+              <h2 className="text-lg font-bold mb-4">Editar Gasto</h2>
+              <div className="mb-3">
+                <label className="block text-sm font-medium">Categoria</label>
+                <input
+                  value={editForm.nome}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({ ...prev, nome: e.target.value }))
+                  }
+                  className="w-full border rounded p-1"
+                />
+              </div>
+              <div className="mb-3">
+                <label className="block text-sm font-medium">Loja</label>
+                <select
+                  value={editForm.lojaId}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      lojaId: e.target.value,
+                    }))
+                  }
+                  className="w-full border rounded p-1"
+                >
+                  <option value="">Selecione a loja</option>
+                  {lojas.map((loja) => (
+                    <option key={loja.id} value={loja.id}>
+                      {loja.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="mb-3">
+                <label className="block text-sm font-medium">Valor (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={editForm.valor}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      valor: e.target.value,
+                    }))
+                  }
+                  className="w-full border rounded p-1"
+                  onWheel={(e) => e.target.blur()}
+                />
+              </div>
+              <div className="mb-3">
+                <label className="block text-sm font-medium">Data</label>
+                <input
+                  type="date"
+                  value={editForm.data}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({ ...prev, data: e.target.value }))
+                  }
+                  className="w-full border rounded p-1"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium">
+                  Observação:
+                </label>
+                <input
+                  value={editForm.observacao}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      observacao: e.target.value,
+                    }))
+                  }
+                  className="w-full border rounded p-1"
+                  placeholder="Opcional"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  className="px-4 py-1 bg-gray-300 rounded hover:bg-gray-400"
+                  onClick={fecharEdicao}
+                  disabled={salvandoEdicao}
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={salvarEdicao}
+                  disabled={
+                    salvandoEdicao ||
+                    !editForm.lojaId ||
+                    !editForm.nome ||
+                    !editForm.valor
+                  }
+                >
+                  {salvandoEdicao ? "Salvando..." : "Salvar"}
+                </button>
+              </div>
             </div>
           </div>
         )}
