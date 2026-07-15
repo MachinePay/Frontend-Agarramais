@@ -17,6 +17,8 @@ import { useAuth } from "../contexts/AuthContext";
 import AvisosMaquinasFaltam from "../components/AvisosMaquinasFaltam";
 import TabelaMovimentacoesEstoqueDeLoja from "../components/TabelaMovimentacoesEstoqueDeLoja";
 
+const CHAVE_ULTIMA_MENSAGEM_WHATSAPP = "ultimaMensagemMovimentacaoWhatsapp";
+
 export function Movimentacoes() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -61,6 +63,9 @@ export function Movimentacoes() {
   const [mostrarObsAlerta, setMostrarObsAlerta] = useState(false);
   const [obsAlerta, setObsAlerta] = useState("");
   const [enviandoAlerta, setEnviandoAlerta] = useState(false);
+  const [temMensagemSalva, setTemMensagemSalva] = useState(
+    () => !!localStorage.getItem(CHAVE_ULTIMA_MENSAGEM_WHATSAPP),
+  );
 
   // Filtros Movimentações
   const [filtroLojaForm, setFiltroLojaForm] = useState("");
@@ -814,6 +819,9 @@ export function Movimentacoes() {
       mensagem += `\n->  *Foto dos contadores:* anexada nesta mensagem\n`;
     }
 
+    localStorage.setItem(CHAVE_ULTIMA_MENSAGEM_WHATSAPP, mensagem);
+    setTemMensagemSalva(true);
+
     if (
       fotoContadores &&
       navigator.canShare &&
@@ -841,6 +849,16 @@ export function Movimentacoes() {
       );
     }
 
+    const url = `https://wa.me/?text=${encodeURIComponent(mensagem)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const enviarUltimaMensagemSalva = () => {
+    const mensagem = localStorage.getItem(CHAVE_ULTIMA_MENSAGEM_WHATSAPP);
+    if (!mensagem) {
+      setError("Nenhuma mensagem de movimentação salva para reenviar.");
+      return;
+    }
     const url = `https://wa.me/?text=${encodeURIComponent(mensagem)}`;
     window.open(url, "_blank", "noopener,noreferrer");
   };
@@ -1121,6 +1139,18 @@ export function Movimentacoes() {
               onClick={() => setModalGastoVariavel(true)}
             >
               Lançar Gasto Variável
+            </button>
+            <button
+              className="px-6 py-2 bg-gray-700 text-white rounded hover:bg-gray-800 font-bold shadow text-base disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-700"
+              onClick={enviarUltimaMensagemSalva}
+              disabled={!temMensagemSalva}
+              title={
+                temMensagemSalva
+                  ? "Reenviar a mensagem da última movimentação lançada"
+                  : "Nenhuma mensagem salva ainda"
+              }
+            >
+              Enviar Última Mensagem
             </button>
           </div>
         </div>
