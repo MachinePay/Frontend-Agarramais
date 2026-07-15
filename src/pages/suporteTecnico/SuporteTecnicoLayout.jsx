@@ -87,6 +87,18 @@ export function SuporteTecnicoLayout({ activeTab, children }) {
                 🕒 Histórico de Movimentações
               </button>
             )}
+            {usuario?.role === "ADMIN" && (
+              <button
+                onClick={() => navigate("/suporte-tecnico/devolucoes-pendentes")}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === "devolucoes"
+                    ? "bg-cyan-600 text-white shadow-lg"
+                    : "text-cyan-200/80 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                🔁 Devoluções Pendentes
+              </button>
+            )}
           </nav>
         </div>
       </header>
