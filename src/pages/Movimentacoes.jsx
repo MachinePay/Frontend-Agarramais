@@ -16,6 +16,11 @@ import { PageLoader, EmptyState } from "../components/Loading";
 import { useAuth } from "../contexts/AuthContext";
 import AvisosMaquinasFaltam from "../components/AvisosMaquinasFaltam";
 import TabelaMovimentacoesEstoqueDeLoja from "../components/TabelaMovimentacoesEstoqueDeLoja";
+import {
+  salvarFotoUltimaMovimentacao,
+  obterFotoUltimaMovimentacao,
+  limparFotoUltimaMovimentacao,
+} from "../services/fotoUltimaMovimentacaoDb";
 
 const CHAVE_ULTIMA_MENSAGEM_WHATSAPP = "ultimaMensagemMovimentacaoWhatsapp";
 
@@ -821,6 +826,15 @@ export function Movimentacoes() {
 
     localStorage.setItem(CHAVE_ULTIMA_MENSAGEM_WHATSAPP, mensagem);
     setTemMensagemSalva(true);
+    try {
+      if (fotoContadores) {
+        await salvarFotoUltimaMovimentacao(fotoContadores);
+      } else {
+        await limparFotoUltimaMovimentacao();
+      }
+    } catch (err) {
+      console.error("Erro ao salvar foto da última movimentação:", err);
+    }
 
     if (
       fotoContadores &&
@@ -853,12 +867,45 @@ export function Movimentacoes() {
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
-  const enviarUltimaMensagemSalva = () => {
+  const enviarUltimaMensagemSalva = async () => {
     const mensagem = localStorage.getItem(CHAVE_ULTIMA_MENSAGEM_WHATSAPP);
     if (!mensagem) {
       setError("Nenhuma mensagem de movimentação salva para reenviar.");
       return;
     }
+
+    const foto = await obterFotoUltimaMovimentacao().catch((err) => {
+      console.error("Erro ao ler foto salva da última movimentação:", err);
+      return null;
+    });
+
+    if (
+      foto &&
+      navigator.canShare &&
+      navigator.share &&
+      navigator.canShare({ files: [foto] })
+    ) {
+      try {
+        await navigator.share({
+          title: "Movimentacao de Maquina",
+          text: mensagem,
+          files: [foto],
+        });
+        return;
+      } catch (err) {
+        if (err?.name === "AbortError") {
+          return;
+        }
+        console.error("Erro ao compartilhar foto salva no WhatsApp:", err);
+      }
+    }
+
+    if (foto) {
+      setError(
+        "Este navegador não permite anexar a foto automaticamente pelo WhatsApp. O texto foi aberto; anexe a foto manualmente na conversa.",
+      );
+    }
+
     const url = `https://wa.me/?text=${encodeURIComponent(mensagem)}`;
     window.open(url, "_blank", "noopener,noreferrer");
   };
