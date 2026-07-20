@@ -7,7 +7,11 @@ import { PageLoader } from "../components/Loading";
 import { AlertBox, Badge, PageHeader } from "../components/UIComponents";
 
 export default function ManutencaoPage() {
-  const { usuario, loading: authLoading } = useAuth();
+  const {
+    usuario,
+    loading: authLoading,
+    atualizarAlertasManutencaoCount,
+  } = useAuth();
   const [manutencoes, setManutencoes] = useState([]);
   const [funcionarios, setFuncionarios] = useState([]);
   const [usuariosFiltro, setUsuariosFiltro] = useState([]);
@@ -185,6 +189,7 @@ export default function ManutencaoPage() {
       setError("");
       await api.patch(`/alertas-movimentacao/${id}/resolver`);
       await carregarDados();
+      await atualizarAlertasManutencaoCount();
     } catch (err) {
       setError(
         err.response?.data?.error || "Erro ao resolver alerta de movimentação",

@@ -1,4 +1,10 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useState,
+  useEffect,
+} from "react";
 import api from "../services/api";
 
 export const AuthContext = createContext({});
@@ -6,6 +12,7 @@ export const AuthContext = createContext({});
 export function AuthProvider({ children }) {
   const [usuario, setUsuario] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [alertasManutencaoCount, setAlertasManutencaoCount] = useState(0);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -18,6 +25,36 @@ export function AuthProvider({ children }) {
 
     setLoading(false);
   }, []);
+
+  const atualizarAlertasManutencaoCount = useCallback(async () => {
+    if (usuario?.role !== "ADMIN") return;
+    try {
+      const response = await api.get("/alertas-movimentacao");
+      const dados = response.data;
+      setAlertasManutencaoCount(Array.isArray(dados) ? dados.length : 0);
+    } catch {
+      // Silencioso: não bloqueia a navegação por falha ao buscar alertas.
+    }
+  }, [usuario?.role]);
+
+  useEffect(() => {
+    if (usuario?.role !== "ADMIN") return;
+
+    const buscar = async () => {
+      try {
+        const response = await api.get("/alertas-movimentacao");
+        const dados = response.data;
+        setAlertasManutencaoCount(Array.isArray(dados) ? dados.length : 0);
+      } catch {
+        // Silencioso: não bloqueia a navegação por falha ao buscar alertas.
+      }
+    };
+
+    buscar();
+    const intervalId = setInterval(buscar, 30000);
+
+    return () => clearInterval(intervalId);
+  }, [usuario?.role]);
 
   const login = async (email, senha) => {
     try {
@@ -84,6 +121,9 @@ export function AuthProvider({ children }) {
         isAdmin,
         hasRole,
         signed: !!usuario,
+        alertasManutencaoCount:
+          usuario?.role === "ADMIN" ? alertasManutencaoCount : 0,
+        atualizarAlertasManutencaoCount,
       }}
     >
       {children}

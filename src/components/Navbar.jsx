@@ -3,10 +3,12 @@ import { useAuth } from "../contexts/AuthContext";
 import { useState } from "react";
 
 export function Navbar() {
-  const { usuario, logout, hasRole } = useAuth();
+  const { usuario, logout, hasRole, alertasManutencaoCount } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const temAlertaManutencao = alertasManutencaoCount > 0;
 
   const handleLogout = () => {
     logout();
@@ -63,13 +65,20 @@ export function Navbar() {
                 </Link>
                 <Link
                   to="/manutencao"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    isActive("/manutencao")
-                      ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
-                      : "text-gray-300 hover:bg-white/10 hover:text-white"
+                  className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    temAlertaManutencao
+                      ? "text-white animate-blink-alert"
+                      : isActive("/manutencao")
+                        ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
+                        : "text-gray-300 hover:bg-white/10 hover:text-white"
                   }`}
                 >
                   🛠️ Manutenção
+                  {temAlertaManutencao && (
+                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-bold text-red-600 shadow">
+                      {alertasManutencaoCount}
+                    </span>
+                  )}
                 </Link>
                 {usuario?.role !== "FUNCIONARIO" && (
                   <>
@@ -283,13 +292,20 @@ export function Navbar() {
             <Link
               to="/manutencao"
               onClick={closeMenu}
-              className={`block px-4 py-3 rounded-lg text-sm font-medium transition-all ${
-                isActive("/manutencao")
-                  ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg"
-                  : "text-gray-300 hover:bg-white/10 hover:text-white"
+              className={`relative flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                temAlertaManutencao
+                  ? "text-white animate-blink-alert"
+                  : isActive("/manutencao")
+                    ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg"
+                    : "text-gray-300 hover:bg-white/10 hover:text-white"
               }`}
             >
               🛠️ Manutenção
+              {temAlertaManutencao && (
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-bold text-red-600 shadow">
+                  {alertasManutencaoCount}
+                </span>
+              )}
             </Link>
             {usuario?.role !== "FUNCIONARIO" && (
               <>
