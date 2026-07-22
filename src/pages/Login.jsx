@@ -202,7 +202,7 @@ export function Login() {
         {/* Footer decorativo */}
         <div className="mt-6 pt-6 border-t border-gray-200 text-center">
           <p className="text-xs text-gray-500">
-            Made with Coffe by Gabriel Akira & Mateus Saavedra
+            Made by Selfmachine
           </p>
         </div>
       </div>
