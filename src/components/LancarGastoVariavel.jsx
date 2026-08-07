@@ -2,6 +2,12 @@ import React, { useState } from "react";
 import Swal from "sweetalert2";
 import api from "../services/api";
 
+const getHojeInputValue = () => {
+  const hoje = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${hoje.getFullYear()}-${pad(hoje.getMonth() + 1)}-${pad(hoje.getDate())}`;
+};
+
 export default function LancarGastoVariavel({
   lojas = [],
   veiculos = [],
@@ -13,6 +19,7 @@ export default function LancarGastoVariavel({
   const [lojaId, setLojaId] = useState("");
   const [valor, setValor] = useState("");
   const [observacao, setObservacao] = useState("");
+  const [data, setData] = useState(getHojeInputValue);
   const [salvando, setSalvando] = useState(false);
 
   const [veiculoId, setVeiculoId] = useState("");
@@ -52,6 +59,7 @@ export default function LancarGastoVariavel({
         nome,
         valor: Number(valor),
         observacao: observacao || undefined,
+        data: data || undefined,
       };
 
       if (isGasolina) {
@@ -154,6 +162,19 @@ export default function LancarGastoVariavel({
           className="w-full border rounded p-1"
           placeholder="Opcional"
         />
+      </div>
+
+      <div className="mb-3">
+        <label className="block text-sm font-medium">Data</label>
+        <input
+          type="date"
+          value={data}
+          onChange={(e) => setData(e.target.value)}
+          className="w-full border rounded p-1"
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          Data em que este gasto será contabilizado nos relatórios.
+        </p>
       </div>
 
       {isGasolina && (

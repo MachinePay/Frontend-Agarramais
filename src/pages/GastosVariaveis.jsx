@@ -372,6 +372,9 @@ export function GastosVariaveis() {
                   }
                   className="w-full border rounded p-1"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Data em que este gasto será contabilizado nos relatórios.
+                </p>
               </div>
               <div className="mb-4">
                 <label className="block text-sm font-medium">
