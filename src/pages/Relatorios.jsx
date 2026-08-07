@@ -447,15 +447,19 @@ export function Relatorios() {
         };
       });
 
+      const custoProdutosSairam = produtosSairam.reduce(
+        (acc, produto) => acc + toNumber(produto.custoTotal),
+        0,
+      );
+
       return {
         ...maquina,
         produtosSairam,
         totais: {
           ...(maquina?.totais || {}),
-          custoProdutosSairam: produtosSairam.reduce(
-            (acc, produto) => acc + toNumber(produto.custoTotal),
-            0,
-          ),
+          custoProdutosSairam,
+          lucroLiquido:
+            toNumber(maquina?.totais?.faturamentoBruto) - custoProdutosSairam,
         },
       };
     });
