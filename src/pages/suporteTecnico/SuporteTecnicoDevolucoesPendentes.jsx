@@ -17,6 +17,7 @@ export function SuporteTecnicoDevolucoesPendentes() {
   const [devolucoes, setDevolucoes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
+  const [processandoId, setProcessandoId] = useState(null);
 
   const carregarDevolucoes = useCallback(async () => {
     try {
@@ -40,6 +41,36 @@ export function SuporteTecnicoDevolucoesPendentes() {
   useEffect(() => {
     carregarDevolucoes();
   }, [carregarDevolucoes]);
+
+  const handleDarBaixa = async (dev) => {
+    if (
+      !window.confirm(
+        `Confirmar o recebimento de ${dev.quantidade} un. de "${dev.item?.nome}" como devolvido?`,
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setProcessandoId(dev.id);
+      setErro("");
+      await api.post("/suporte-tecnico/movimentacoes", {
+        itemId: dev.item?.id,
+        tipo: "ENTRADA",
+        categoria: "DEVOLUCAO",
+        quantidade: dev.quantidade,
+        motivo: dev.motivo,
+        devolucaoPendenteId: dev.id,
+      });
+      setDevolucoes((atuais) => atuais.filter((d) => d.id !== dev.id));
+    } catch (error) {
+      setErro(
+        error.response?.data?.error || "Erro ao dar baixa na devolução.",
+      );
+    } finally {
+      setProcessandoId(null);
+    }
+  };
 
   return (
     <SuporteTecnicoLayout activeTab="devolucoes">
@@ -101,6 +132,9 @@ export function SuporteTecnicoDevolucoesPendentes() {
                   <th className="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">
                     Data
                   </th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    Ações
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
@@ -132,6 +166,17 @@ export function SuporteTecnicoDevolucoesPendentes() {
                     </td>
                     <td className="px-4 py-3 text-sm text-slate-300 whitespace-nowrap">
                       {formatarDataHora(dev.createdAt)}
+                    </td>
+                    <td className="px-4 py-3 text-sm whitespace-nowrap">
+                      <button
+                        onClick={() => handleDarBaixa(dev)}
+                        disabled={processandoId === dev.id}
+                        className="text-sm font-semibold text-emerald-300 hover:text-emerald-200 border border-emerald-800 hover:border-emerald-600 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {processandoId === dev.id
+                          ? "Processando..."
+                          : "✅ Dar baixa"}
+                      </button>
                     </td>
                   </tr>
                 ))}
