@@ -53,6 +53,66 @@ export function Relatorios() {
     }
   };
 
+  // Quando a Machine Pay já fez o fechamento do mês, o valor lá fica zerado.
+  // Nesse caso usamos o último valor registrado no nosso sistema (Registrar
+  // Dinheiro) para aquela máquina no período, em vez de mostrar R$ 0,00.
+  const buscarValorRegistradoPorMaquina = async (periodoInicio, periodoFim) => {
+    const mapa = new Map();
+    try {
+      const response = await api.get("/registro-dinheiro");
+      const registros = Array.isArray(response.data) ? response.data : [];
+
+      const parseDataSegura = (valor) => {
+        if (!valor) return null;
+        const data = new Date(valor);
+        return Number.isNaN(data.getTime()) ? null : data;
+      };
+
+      const temIntersecaoPeriodo = (inicioA, fimA, inicioB, fimB) => {
+        if (!inicioA || !fimA || !inicioB || !fimB) return false;
+        return inicioA <= fimB && fimA >= inicioB;
+      };
+
+      const periodoInicioData = new Date(`${periodoInicio}T00:00:00`);
+      const periodoFimData = new Date(`${periodoFim}T23:59:59`);
+
+      registros.forEach((registro) => {
+        if (!registro.maquinaId) return;
+
+        const inicioRegistro = parseDataSegura(registro.inicio);
+        const fimRegistro = parseDataSegura(registro.fim);
+        if (
+          !temIntersecaoPeriodo(
+            inicioRegistro,
+            fimRegistro,
+            periodoInicioData,
+            periodoFimData,
+          )
+        ) {
+          return;
+        }
+
+        const valor =
+          Number(registro.valorDinheiro || 0) +
+          Number(registro.valorCartaoPix || 0);
+        const criadoEm =
+          parseDataSegura(registro.createdAt)?.getTime() || 0;
+
+        const atual = mapa.get(String(registro.maquinaId));
+        if (!atual || criadoEm > atual.criadoEm) {
+          mapa.set(String(registro.maquinaId), { valor, criadoEm });
+        }
+      });
+    } catch (erroRegistro) {
+      console.warn(
+        "Não foi possível buscar registros de dinheiro para o ranking:",
+        erroRegistro,
+      );
+    }
+
+    return mapa;
+  };
+
   const montarRankingMaquinas = async (dadosRelatorio, periodoInicio, periodoFim) => {
     const maquinas = Array.isArray(dadosRelatorio?.maquinas)
       ? dadosRelatorio.maquinas
@@ -65,6 +125,11 @@ export function Relatorios() {
 
     setCarregandoRanking(true);
     try {
+      const valorRegistradoPorMaquina = await buscarValorRegistradoPorMaquina(
+        periodoInicio,
+        periodoFim,
+      );
+
       const itens = await Promise.all(
         maquinas.map(async (m) => {
           const fichas = toNumber(m.totais?.fichas);
@@ -84,6 +149,16 @@ export function Relatorios() {
               }
             : null;
 
+          const base = {
+            maquinaId: m.maquina?.id,
+            nome: m.maquina?.nome || "-",
+            codigo: m.maquina?.codigo,
+            fichas,
+            valorFicha,
+            produtoPrincipal,
+          };
+
+          let valorMachinePay = null;
           try {
             const response = await api.get("/registro-dinheiro/machine-pay", {
               params: {
@@ -92,28 +167,27 @@ export function Relatorios() {
                 fim: periodoFim,
               },
             });
-
-            return {
-              maquinaId: m.maquina?.id,
-              nome: m.maquina?.nome || "-",
-              codigo: m.maquina?.codigo,
-              fonte: "machinePay",
-              valor: toNumber(response.data?.brutoComTaxasMp),
-              fichas,
-              produtoPrincipal,
-            };
+            valorMachinePay = toNumber(response.data?.brutoComTaxasMp);
           } catch {
+            valorMachinePay = null;
+          }
+
+          if (valorMachinePay && valorMachinePay > 0) {
+            return { ...base, fonte: "machinePay", valor: valorMachinePay };
+          }
+
+          const registrado = valorRegistradoPorMaquina.get(
+            String(m.maquina?.id),
+          );
+          if (registrado && registrado.valor > 0) {
             return {
-              maquinaId: m.maquina?.id,
-              nome: m.maquina?.nome || "-",
-              codigo: m.maquina?.codigo,
-              fonte: "fichas",
-              valor: fichas * valorFicha,
-              fichas,
-              valorFicha,
-              produtoPrincipal,
+              ...base,
+              fonte: "registrado",
+              valor: registrado.valor,
             };
           }
+
+          return { ...base, fonte: "fichas", valor: fichas * valorFicha };
         }),
       );
 
@@ -126,16 +200,18 @@ export function Relatorios() {
   const montarRankingMaquinasTodasLojas = async (periodoInicio, periodoFim) => {
     setCarregandoRankingTodasLojas(true);
     try {
-      const [performanceResponse, machinePayResponse] = await Promise.all([
-        api.get("/relatorios/performance-maquinas", {
-          params: { dataInicio: periodoInicio, dataFim: periodoFim },
-        }),
-        api
-          .get("/registro-dinheiro/machine-pay-total", {
-            params: { inicio: periodoInicio, fim: `${periodoFim}T23:59` },
-          })
-          .catch(() => ({ data: { maquinas: [] } })),
-      ]);
+      const [performanceResponse, machinePayResponse, valorRegistradoPorMaquina] =
+        await Promise.all([
+          api.get("/relatorios/performance-maquinas", {
+            params: { dataInicio: periodoInicio, dataFim: periodoFim },
+          }),
+          api
+            .get("/registro-dinheiro/machine-pay-total", {
+              params: { inicio: periodoInicio, fim: `${periodoFim}T23:59` },
+            })
+            .catch(() => ({ data: { maquinas: [] } })),
+          buscarValorRegistradoPorMaquina(periodoInicio, periodoFim),
+        ]);
 
       const valorFichaPorLojaId = new Map(
         lojas.map((loja) => [
@@ -157,18 +233,26 @@ export function Relatorios() {
         const valorFicha =
           valorFichaPorLojaId.get(String(p.maquina?.lojaId)) || 2.5;
         const valorMachinePay = machinePayPorMaquinaId.get(maquinaId);
-        const temMachinePay = valorMachinePay !== undefined;
+        const registrado = valorRegistradoPorMaquina.get(maquinaId);
 
-        return {
+        const base = {
           maquinaId,
           nome: p.maquina?.nome || "-",
           loja: p.maquina?.loja || "-",
-          fonte: temMachinePay ? "machinePay" : "fichas",
-          valor: temMachinePay ? valorMachinePay : fichas * valorFicha,
           fichas,
           valorFicha,
           produtoPrincipal: p.produtoPrincipal || null,
         };
+
+        if (valorMachinePay !== undefined && valorMachinePay > 0) {
+          return { ...base, fonte: "machinePay", valor: valorMachinePay };
+        }
+
+        if (registrado && registrado.valor > 0) {
+          return { ...base, fonte: "registrado", valor: registrado.valor };
+        }
+
+        return { ...base, fonte: "fichas", valor: fichas * valorFicha };
       });
 
       setRankingMaquinasTodasLojas(itens.sort((a, b) => b.valor - a.valor));
@@ -1957,9 +2041,10 @@ export function Relatorios() {
                 </h3>
                 <p className="text-xs sm:text-sm text-gray-600 mb-4">
                   Ordenado pelo valor recebido na Machine Pay no período;
-                  quando a máquina não tem Machine Pay cadastrada, o ranking
-                  usa a quantidade de fichas dela vezes o valor da ficha
-                  cadastrado na loja.
+                  quando o valor lá está zerado (mês já fechado), usa o
+                  último valor registrado no sistema para a máquina; se
+                  nenhum dos dois existir, usa a quantidade de fichas vezes
+                  o valor da ficha cadastrado na loja.
                 </p>
 
                 {carregandoRanking ? (
@@ -1991,28 +2076,29 @@ export function Relatorios() {
                         </div>
 
                         <div className="mt-2 pl-11">
-                          {item.fonte === "machinePay" ? (
-                            <div className="font-bold text-indigo-700 text-lg">
-                              R${" "}
-                              {item.valor.toLocaleString("pt-BR", {
-                                minimumFractionDigits: 2,
-                              })}
-                            </div>
-                          ) : (
-                            <div className="font-bold text-blue-700 text-lg">
-                              R${" "}
-                              {item.valor.toLocaleString("pt-BR", {
-                                minimumFractionDigits: 2,
-                              })}
-                            </div>
-                          )}
+                          <div
+                            className={`font-bold text-lg ${
+                              item.fonte === "machinePay"
+                                ? "text-indigo-700"
+                                : item.fonte === "registrado"
+                                  ? "text-purple-700"
+                                  : "text-blue-700"
+                            }`}
+                          >
+                            R${" "}
+                            {item.valor.toLocaleString("pt-BR", {
+                              minimumFractionDigits: 2,
+                            })}
+                          </div>
                           <div className="text-[10px] text-gray-500 mb-2">
                             {item.fonte === "machinePay"
                               ? "Machine Pay"
-                              : `🎟️ ${item.fichas.toLocaleString("pt-BR")} fichas × R$ ${item.valorFicha?.toLocaleString(
-                                  "pt-BR",
-                                  { minimumFractionDigits: 2 },
-                                )} (sem Machine Pay)`}
+                              : item.fonte === "registrado"
+                                ? "Registrado no sistema (Machine Pay já fechou o mês)"
+                                : `🎟️ ${item.fichas.toLocaleString("pt-BR")} fichas × R$ ${item.valorFicha?.toLocaleString(
+                                    "pt-BR",
+                                    { minimumFractionDigits: 2 },
+                                  )} (sem Machine Pay)`}
                           </div>
 
                           {item.produtoPrincipal ? (

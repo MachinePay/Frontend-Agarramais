@@ -6,6 +6,54 @@ import { PageHeader } from "../components/UIComponents";
 
 const toN = (v) => Number(v || 0);
 
+// Quando a Machine Pay já fez o fechamento do mês, o valor lá fica zerado.
+// Nesse caso usamos o último valor registrado no nosso sistema (Registrar
+// Dinheiro) para aquela máquina no período, em vez de mostrar R$ 0,00.
+const parseDataSegura = (valor) => {
+  if (!valor) return null;
+  const data = new Date(valor);
+  return Number.isNaN(data.getTime()) ? null : data;
+};
+
+const temIntersecaoPeriodo = (inicioA, fimA, inicioB, fimB) => {
+  if (!inicioA || !fimA || !inicioB || !fimB) return false;
+  return inicioA <= fimB && fimA >= inicioB;
+};
+
+const construirMapaValorRegistrado = (registros, periodoInicio, periodoFim) => {
+  const mapa = new Map();
+  const periodoInicioData = new Date(`${periodoInicio}T00:00:00`);
+  const periodoFimData = new Date(`${periodoFim}T23:59:59`);
+
+  (registros || []).forEach((registro) => {
+    if (!registro.maquinaId) return;
+
+    const inicioRegistro = parseDataSegura(registro.inicio);
+    const fimRegistro = parseDataSegura(registro.fim);
+    if (
+      !temIntersecaoPeriodo(
+        inicioRegistro,
+        fimRegistro,
+        periodoInicioData,
+        periodoFimData,
+      )
+    ) {
+      return;
+    }
+
+    const valor =
+      Number(registro.valorDinheiro || 0) + Number(registro.valorCartaoPix || 0);
+    const criadoEm = parseDataSegura(registro.createdAt)?.getTime() || 0;
+
+    const atual = mapa.get(String(registro.maquinaId));
+    if (!atual || criadoEm > atual.criadoEm) {
+      mapa.set(String(registro.maquinaId), { valor, criadoEm });
+    }
+  });
+
+  return mapa;
+};
+
 const formatarMesInput = (data) => {
   const ano = data.getFullYear();
   const mes = String(data.getMonth() + 1).padStart(2, "0");
@@ -71,6 +119,9 @@ export function RankingMaquinas() {
 
   const [performance, setPerformance] = useState([]);
   const [machinePayTotal, setMachinePayTotal] = useState(null);
+  const [valorRegistradoPorMaquina, setValorRegistradoPorMaquina] = useState(
+    new Map(),
+  );
 
   const carregarDados = useCallback(async () => {
     if (!dataInicio || !dataFim) return;
@@ -81,25 +132,31 @@ export function RankingMaquinas() {
       const params = { dataInicio, dataFim };
       if (lojaSelecionada) params.lojaId = lojaSelecionada;
 
-      const [dashboardRes, performanceRes, machinePayRes] = await Promise.all([
-        api.get("/relatorios/dashboard", { params }),
-        api.get("/relatorios/performance-maquinas", { params }),
-        api
-          .get("/registro-dinheiro/machine-pay-total", {
-            params: { inicio: dataInicio, fim: `${dataFim}T23:59` },
-          })
-          .catch(() => ({ data: { maquinas: [] } })),
-      ]);
+      const [dashboardRes, performanceRes, machinePayRes, registrosRes] =
+        await Promise.all([
+          api.get("/relatorios/dashboard", { params }),
+          api.get("/relatorios/performance-maquinas", { params }),
+          api
+            .get("/registro-dinheiro/machine-pay-total", {
+              params: { inicio: dataInicio, fim: `${dataFim}T23:59` },
+            })
+            .catch(() => ({ data: { maquinas: [] } })),
+          api.get("/registro-dinheiro").catch(() => ({ data: [] })),
+        ]);
 
       setDados(dashboardRes.data);
       setPerformance(performanceRes.data?.performance || []);
       setMachinePayTotal(machinePayRes.data || null);
+      setValorRegistradoPorMaquina(
+        construirMapaValorRegistrado(registrosRes.data, dataInicio, dataFim),
+      );
     } catch (err) {
       console.error("[RankingMaquinas] Erro ao carregar dados:", err);
       setErro("Não foi possível carregar o ranking de máquinas.");
       setDados(null);
       setPerformance([]);
       setMachinePayTotal(null);
+      setValorRegistradoPorMaquina(new Map());
     } finally {
       setLoading(false);
     }
@@ -133,22 +190,35 @@ export function RankingMaquinas() {
       const fichas = toN(p.metricas?.totalFichas);
       const valorFicha = valorFichaPorLoja.get(String(p.maquina?.lojaId)) || 2.5;
       const valorMachinePay = machinePayPorMaquina.get(maquinaId);
-      const temMachinePay = valorMachinePay !== undefined;
+      const registrado = valorRegistradoPorMaquina.get(maquinaId);
 
-      return {
+      const base = {
         maquinaId,
         nome: p.maquina?.nome || "-",
         loja: p.maquina?.loja || "-",
-        fonte: temMachinePay ? "machinePay" : "fichas",
-        valor: temMachinePay ? valorMachinePay : fichas * valorFicha,
         fichas,
         valorFicha,
         produtoPrincipal: p.produtoPrincipal || null,
       };
+
+      if (valorMachinePay !== undefined && valorMachinePay > 0) {
+        return { ...base, fonte: "machinePay", valor: valorMachinePay };
+      }
+
+      if (registrado && registrado.valor > 0) {
+        return { ...base, fonte: "registrado", valor: registrado.valor };
+      }
+
+      return { ...base, fonte: "fichas", valor: fichas * valorFicha };
     });
 
     return itens.sort((a, b) => b.valor - a.valor);
-  }, [performance, valorFichaPorLoja, machinePayPorMaquina]);
+  }, [
+    performance,
+    valorFichaPorLoja,
+    machinePayPorMaquina,
+    valorRegistradoPorMaquina,
+  ]);
 
   const maquinasExibidas = mostrarTodasMaquinas
     ? maquinasRanking
@@ -302,9 +372,11 @@ export function RankingMaquinas() {
                   )}
                 </div>
                 <p className="text-xs text-gray-500 mb-3">
-                  Valor recebido na Machine Pay no período; quando a máquina
-                  não tem Machine Pay cadastrada, usa a quantidade de fichas
-                  vezes o valor da ficha cadastrado na loja.
+                  Valor recebido na Machine Pay no período; quando o valor lá
+                  está zerado (mês já fechado), usa o último valor
+                  registrado no sistema para a máquina; se nenhum dos dois
+                  existir, usa a quantidade de fichas vezes o valor da ficha
+                  cadastrado na loja.
                 </p>
                 <div className="overflow-x-auto">
                   <table className="min-w-full">
@@ -354,12 +426,14 @@ export function RankingMaquinas() {
                           <td className="px-4 py-3 text-xs text-gray-600">
                             {maquina.fonte === "machinePay"
                               ? "💳 Machine Pay"
-                              : `🎟️ ${maquina.fichas.toLocaleString(
-                                  "pt-BR",
-                                )} fichas × R$ ${maquina.valorFicha.toLocaleString(
-                                  "pt-BR",
-                                  { minimumFractionDigits: 2 },
-                                )}`}
+                              : maquina.fonte === "registrado"
+                                ? "🗄️ Registrado no sistema"
+                                : `🎟️ ${maquina.fichas.toLocaleString(
+                                    "pt-BR",
+                                  )} fichas × R$ ${maquina.valorFicha.toLocaleString(
+                                    "pt-BR",
+                                    { minimumFractionDigits: 2 },
+                                  )}`}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-700">
                             {maquina.produtoPrincipal ? (

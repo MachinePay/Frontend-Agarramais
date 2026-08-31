@@ -28,6 +28,7 @@ export function Dashboard() {
   const [alertasBomDesempenho, setAlertasBomDesempenho] = useState([]);
   const [machinePayTotal, setMachinePayTotal] = useState(null);
   const [performanceMaquinasMes, setPerformanceMaquinasMes] = useState([]);
+  const [registrosDinheiroMes, setRegistrosDinheiroMes] = useState([]);
   // Estado para modal de movimentação de estoque de loja
   const [movimentacaoLojaId, setMovimentacaoLojaId] = useState("");
   const [movimentacaoEnviando, setMovimentacaoEnviando] = useState(false);
@@ -908,6 +909,13 @@ export function Dashboard() {
               );
               return { data: { performance: [] } };
             }),
+          api.get("/registro-dinheiro").catch((err) => {
+            console.error(
+              "Erro ao carregar registros de dinheiro do mês:",
+              err.message,
+            );
+            return { data: [] };
+          }),
         );
       }
 
@@ -921,6 +929,7 @@ export function Dashboard() {
         machinePayTotalRes,
         gastoVariavelMesRes,
         performanceMaquinasRes,
+        registrosDinheiroRes,
         lojasRes,
         maquinasRes,
         produtosRes;
@@ -938,6 +947,7 @@ export function Dashboard() {
           machinePayTotalRes,
           gastoVariavelMesRes,
           performanceMaquinasRes,
+          registrosDinheiroRes,
           lojasRes,
           maquinasRes,
           produtosRes,
@@ -1010,6 +1020,9 @@ export function Dashboard() {
         },
       );
       setPerformanceMaquinasMes(performanceMaquinasRes?.data?.performance || []);
+      setRegistrosDinheiroMes(
+        Array.isArray(registrosDinheiroRes?.data) ? registrosDinheiroRes.data : [],
+      );
 
       // Carregar alertas de estoque de lojas (para todos os usuários)
       if (lojasRes.data && lojasRes.data.length > 0) {
@@ -1035,6 +1048,7 @@ export function Dashboard() {
         maquinaCount: 0,
       });
       setPerformanceMaquinasMes([]);
+      setRegistrosDinheiroMes([]);
     }
   }, [usuario]);
 
@@ -2317,6 +2331,56 @@ export function Dashboard() {
     ]),
   );
 
+  // Quando a Machine Pay já fechou o mês, o valor lá fica zerado. Nesse caso
+  // usamos o último valor registrado no sistema (Registrar Dinheiro) para a
+  // máquina no período, em vez de mostrar R$ 0,00.
+  const valorRegistradoPorMaquinaId = (() => {
+    const mapa = new Map();
+    const hoje = new Date();
+    const inicioMesAtualData = new Date(
+      hoje.getFullYear(),
+      hoje.getMonth(),
+      1,
+      0,
+      0,
+      0,
+      0,
+    );
+
+    const parseDataSegura = (valor) => {
+      if (!valor) return null;
+      const data = new Date(valor);
+      return Number.isNaN(data.getTime()) ? null : data;
+    };
+
+    registrosDinheiroMes.forEach((registro) => {
+      if (!registro.maquinaId) return;
+
+      const inicioRegistro = parseDataSegura(registro.inicio);
+      const fimRegistro = parseDataSegura(registro.fim);
+      if (
+        !inicioRegistro ||
+        !fimRegistro ||
+        inicioRegistro > hoje ||
+        fimRegistro < inicioMesAtualData
+      ) {
+        return;
+      }
+
+      const valor =
+        Number(registro.valorDinheiro || 0) +
+        Number(registro.valorCartaoPix || 0);
+      const criadoEm = parseDataSegura(registro.createdAt)?.getTime() || 0;
+
+      const atual = mapa.get(String(registro.maquinaId));
+      if (!atual || criadoEm > atual.criadoEm) {
+        mapa.set(String(registro.maquinaId), { valor, criadoEm });
+      }
+    });
+
+    return mapa;
+  })();
+
   const top10MaquinasMachinePay = performanceMaquinasMes
     .map((p) => {
       const maquinaId = String(p.maquina?.id);
@@ -2324,16 +2388,19 @@ export function Dashboard() {
       const valorFicha =
         valorFichaPorLojaId.get(String(p.maquina?.lojaId)) || 2.5;
       const valorMachinePay = machinePayPorMaquinaId.get(maquinaId);
-      const temMachinePay = valorMachinePay !== undefined;
+      const registrado = valorRegistradoPorMaquinaId.get(maquinaId);
 
-      return {
-        maquinaId,
-        nome: p.maquina?.nome || "-",
-        fonte: temMachinePay ? "machinePay" : "fichas",
-        valor: temMachinePay ? valorMachinePay : fichas * valorFicha,
-        fichas,
-        valorFicha,
-      };
+      const base = { maquinaId, nome: p.maquina?.nome || "-", fichas, valorFicha };
+
+      if (valorMachinePay !== undefined && valorMachinePay > 0) {
+        return { ...base, fonte: "machinePay", valor: valorMachinePay };
+      }
+
+      if (registrado && registrado.valor > 0) {
+        return { ...base, fonte: "registrado", valor: registrado.valor };
+      }
+
+      return { ...base, fonte: "fichas", valor: fichas * valorFicha };
     })
     .sort((a, b) => b.valor - a.valor)
     .slice(0, 10);
@@ -2542,8 +2609,12 @@ export function Dashboard() {
                             {idx + 1}. {maquina.nome}
                           </span>
                           <span className="opacity-80 shrink-0">
-                            {maquina.fonte === "machinePay" ? "💳" : "🎟️"} R${" "}
-                            {formatarMoeda(maquina.valor)}
+                            {maquina.fonte === "machinePay"
+                              ? "💳"
+                              : maquina.fonte === "registrado"
+                                ? "🗄️"
+                                : "🎟️"}{" "}
+                            R$ {formatarMoeda(maquina.valor)}
                           </span>
                         </li>
                       ))}

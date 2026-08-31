@@ -729,9 +729,11 @@ export function RelatorioTodasLojas({
           )}
         </div>
         <p className="text-xs sm:text-sm text-gray-600 mb-4">
-          Ordenado pelo valor recebido na Machine Pay no período; quando a
-          máquina não tem Machine Pay cadastrada, o ranking usa a quantidade
-          de fichas dela vezes o valor da ficha cadastrado na loja.
+          Ordenado pelo valor recebido na Machine Pay no período; quando o
+          valor lá está zerado (mês já fechado), usa o último valor
+          registrado no sistema para a máquina; se nenhum dos dois existir,
+          usa a quantidade de fichas vezes o valor da ficha cadastrado na
+          loja.
         </p>
 
         {carregandoRankingMaquinas ? (
@@ -767,7 +769,9 @@ export function RelatorioTodasLojas({
                     className={`font-bold text-lg ${
                       item.fonte === "machinePay"
                         ? "text-indigo-700"
-                        : "text-blue-700"
+                        : item.fonte === "registrado"
+                          ? "text-purple-700"
+                          : "text-blue-700"
                     }`}
                   >
                     {formatarMoeda(item.valor)}
@@ -775,9 +779,11 @@ export function RelatorioTodasLojas({
                   <div className="text-[10px] text-gray-500 mb-2">
                     {item.fonte === "machinePay"
                       ? "Machine Pay"
-                      : `🎟️ ${Number(item.fichas || 0).toLocaleString(
-                          "pt-BR",
-                        )} fichas × ${formatarMoeda(item.valorFicha)} (sem Machine Pay)`}
+                      : item.fonte === "registrado"
+                        ? "Registrado no sistema (Machine Pay já fechou o mês)"
+                        : `🎟️ ${Number(item.fichas || 0).toLocaleString(
+                            "pt-BR",
+                          )} fichas × ${formatarMoeda(item.valorFicha)} (sem Machine Pay)`}
                   </div>
 
                   {item.produtoPrincipal ? (
