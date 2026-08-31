@@ -1801,6 +1801,207 @@ export function Relatorios() {
               </div>
             </div>
 
+            {/* Gráfico de saída por máquina */}
+            {relatorio.graficoSaidaPorMaquina &&
+              relatorio.graficoSaidaPorMaquina.length > 0 &&
+              (() => {
+                const max = Math.max(
+                  ...relatorio.graficoSaidaPorMaquina.map(
+                    (item) => item.produtosSairam,
+                  ),
+                );
+                const maxHeight = 48; // px
+                return (
+                  <div className="card bg-linear-to-r from-blue-50 to-blue-100 border-2 border-blue-300 overflow-x-auto">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <span className="text-2xl">📊</span>
+                      Gráfico: Saída de Produtos por Máquina
+                    </h3>
+                    <div className="flex flex-wrap gap-4">
+                      {relatorio.graficoSaidaPorMaquina.map((item) => {
+                        const height =
+                          max > 0 ? (item.produtosSairam / max) * maxHeight : 0;
+                        return (
+                          <div
+                            key={item.maquina}
+                            className="flex flex-col items-center overflow-x-auto"
+                          >
+                            <div className="font-bold text-lg text-blue-700 overflow-x-auto">
+                              {item.maquina}
+                            </div>
+                            <div className="w-12 h-12 flex items-end">
+                              <div
+                                style={{
+                                  height: `${height}px`,
+                                  background: "#1976d2",
+                                  width: "100%",
+                                  borderRadius: 4,
+                                  transition: "height 0.3s",
+                                }}
+                              ></div>
+                            </div>
+                            <div className="text-sm text-gray-700 mt-2">
+                              {item.produtosSairam} saíram
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+            {/* Gráfico de saída por produto */}
+            {relatorio.graficoSaidaPorProduto &&
+              relatorio.graficoSaidaPorProduto.length > 0 &&
+              (() => {
+                const max = Math.max(
+                  ...relatorio.graficoSaidaPorProduto.map(
+                    (item) => item.quantidade,
+                  ),
+                );
+                const maxHeight = 48; // px
+                return (
+                  <div className="card bg-linear-to-r from-green-50 to-green-100 border-2 border-green-300 overflow-x-auto">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <span className="text-2xl">📦</span>
+                      Gráfico: Saída de Produtos por Tipo
+                    </h3>
+                    <div className="flex flex-wrap gap-4">
+                      {relatorio.graficoSaidaPorProduto.map((item) => {
+                        const height =
+                          max > 0 ? (item.quantidade / max) * maxHeight : 0;
+                        return (
+                          <div
+                            key={item.produto}
+                            className="flex flex-col items-center"
+                          >
+                            <div className="font-bold text-lg text-green-700">
+                              {item.produto}
+                            </div>
+                            <div className="w-12 h-12 flex items-end">
+                              <div
+                                style={{
+                                  height: `${height}px`,
+                                  background: "#43a047",
+                                  width: "100%",
+                                  borderRadius: 4,
+                                  transition: "height 0.3s",
+                                }}
+                              ></div>
+                            </div>
+                            <div className="text-sm text-gray-700 mt-2">
+                              {item.quantidade} saíram
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+            {/* Consolidado Geral de Produtos */}
+            <div className="card bg-gradient-to-r from-amber-50 to-orange-100 border-2 border-orange-300">
+              <h3 className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+                <span className="text-3xl">📊</span>
+                Consolidado Geral de Produtos
+              </h3>
+              <p className="text-sm text-gray-600 mb-6">
+                Resumo de todos os produtos (todas as máquinas somadas)
+              </p>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Produtos que Saíram - Consolidado */}
+                <div>
+                  <h4 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span className="text-2xl">📤</span>
+                    Produtos que Saíram (Total Geral)
+                  </h4>
+                  {relatorio.produtosSairam &&
+                  relatorio.produtosSairam.length > 0 ? (
+                    <div className="space-y-2">
+                      {relatorio.produtosSairam
+                        .sort((a, b) => b.quantidade - a.quantidade)
+                        .map((produto) => (
+                          <div
+                            key={produto.id}
+                            className="p-3 bg-white border-2 border-red-200 rounded-lg"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="text-2xl">
+                                  {produto.emoji || "📦"}
+                                </span>
+                                <div>
+                                  <div className="font-bold text-gray-900">
+                                    {produto.nome}
+                                  </div>
+                                  <div className="text-xs text-gray-600">
+                                    Cód: {produto.codigo || "S/C"}
+                                  </div>
+                                </div>
+                              </div>
+                              <span className="bg-red-500 text-white px-3 py-1 rounded-full font-bold">
+                                {produto.quantidade.toLocaleString("pt-BR")}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-4xl mb-2">📭</p>
+                      <p className="text-gray-600">Nenhum produto saiu</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Produtos que Entraram - Consolidado */}
+                <div>
+                  <h4 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span className="text-2xl">📥</span>
+                    Produtos que Entraram (Total Geral)
+                  </h4>
+                  {relatorio.produtosEntraram &&
+                  relatorio.produtosEntraram.length > 0 ? (
+                    <div className="space-y-2">
+                      {relatorio.produtosEntraram
+                        .sort((a, b) => b.quantidade - a.quantidade)
+                        .map((produto) => (
+                          <div
+                            key={produto.id}
+                            className="p-3 bg-white border-2 border-green-200 rounded-lg"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="text-2xl">
+                                  {produto.emoji || "📦"}
+                                </span>
+                                <div>
+                                  <div className="font-bold text-gray-900">
+                                    {produto.nome}
+                                  </div>
+                                  <div className="text-xs text-gray-600">
+                                    Cód: {produto.codigo || "S/C"}
+                                  </div>
+                                </div>
+                              </div>
+                              <span className="bg-green-500 text-white px-3 py-1 rounded-full font-bold">
+                                {produto.quantidade.toLocaleString("pt-BR")}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-4xl mb-2">📭</p>
+                      <p className="text-gray-600">Nenhum produto entrou</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <div className="card bg-linear-to-r from-red-50 to-rose-100 border-2 border-rose-200">
               <h3 className="text-lg sm:text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2">
                 <span className="text-2xl sm:text-3xl">💸</span>
@@ -2393,207 +2594,6 @@ export function Relatorios() {
                 ))}
               </div>
             )}
-
-            {/* Gráfico de saída por máquina */}
-            {relatorio.graficoSaidaPorMaquina &&
-              relatorio.graficoSaidaPorMaquina.length > 0 &&
-              (() => {
-                const max = Math.max(
-                  ...relatorio.graficoSaidaPorMaquina.map(
-                    (item) => item.produtosSairam,
-                  ),
-                );
-                const maxHeight = 48; // px
-                return (
-                  <div className="card bg-linear-to-r from-blue-50 to-blue-100 border-2 border-blue-300 mt-8 overflow-x-auto">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <span className="text-2xl">📊</span>
-                      Gráfico: Saída de Produtos por Máquina
-                    </h3>
-                    <div className="flex flex-wrap gap-4">
-                      {relatorio.graficoSaidaPorMaquina.map((item) => {
-                        const height =
-                          max > 0 ? (item.produtosSairam / max) * maxHeight : 0;
-                        return (
-                          <div
-                            key={item.maquina}
-                            className="flex flex-col items-center overflow-x-auto"
-                          >
-                            <div className="font-bold text-lg text-blue-700 overflow-x-auto">
-                              {item.maquina}
-                            </div>
-                            <div className="w-12 h-12 flex items-end">
-                              <div
-                                style={{
-                                  height: `${height}px`,
-                                  background: "#1976d2",
-                                  width: "100%",
-                                  borderRadius: 4,
-                                  transition: "height 0.3s",
-                                }}
-                              ></div>
-                            </div>
-                            <div className="text-sm text-gray-700 mt-2">
-                              {item.produtosSairam} saíram
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })()}
-            {/* Gráfico de saída por produto */}
-            {relatorio.graficoSaidaPorProduto &&
-              relatorio.graficoSaidaPorProduto.length > 0 &&
-              (() => {
-                const max = Math.max(
-                  ...relatorio.graficoSaidaPorProduto.map(
-                    (item) => item.quantidade,
-                  ),
-                );
-                const maxHeight = 48; // px
-                return (
-                  <div className="card bg-linear-to-r from-green-50 to-green-100 border-2 border-green-300 mt-8 overflow-x-auto">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <span className="text-2xl">📦</span>
-                      Gráfico: Saída de Produtos por Tipo
-                    </h3>
-                    <div className="flex flex-wrap gap-4">
-                      {relatorio.graficoSaidaPorProduto.map((item) => {
-                        const height =
-                          max > 0 ? (item.quantidade / max) * maxHeight : 0;
-                        return (
-                          <div
-                            key={item.produto}
-                            className="flex flex-col items-center"
-                          >
-                            <div className="font-bold text-lg text-green-700">
-                              {item.produto}
-                            </div>
-                            <div className="w-12 h-12 flex items-end">
-                              <div
-                                style={{
-                                  height: `${height}px`,
-                                  background: "#43a047",
-                                  width: "100%",
-                                  borderRadius: 4,
-                                  transition: "height 0.3s",
-                                }}
-                              ></div>
-                            </div>
-                            <div className="text-sm text-gray-700 mt-2">
-                              {item.quantidade} saíram
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })()}
-            {/* Consolidado Geral de Produtos */}
-            <div className="card bg-gradient-to-r from-amber-50 to-orange-100 border-2 border-orange-300">
-              <h3 className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2">
-                <span className="text-3xl">📊</span>
-                Consolidado Geral de Produtos
-              </h3>
-              <p className="text-sm text-gray-600 mb-6">
-                Resumo de todos os produtos (todas as máquinas somadas)
-              </p>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Produtos que Saíram - Consolidado */}
-                <div>
-                  <h4 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <span className="text-2xl">📤</span>
-                    Produtos que Saíram (Total Geral)
-                  </h4>
-                  {relatorio.produtosSairam &&
-                  relatorio.produtosSairam.length > 0 ? (
-                    <div className="space-y-2">
-                      {relatorio.produtosSairam
-                        .sort((a, b) => b.quantidade - a.quantidade)
-                        .map((produto) => (
-                          <div
-                            key={produto.id}
-                            className="p-3 bg-white border-2 border-red-200 rounded-lg"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="text-2xl">
-                                  {produto.emoji || "📦"}
-                                </span>
-                                <div>
-                                  <div className="font-bold text-gray-900">
-                                    {produto.nome}
-                                  </div>
-                                  <div className="text-xs text-gray-600">
-                                    Cód: {produto.codigo || "S/C"}
-                                  </div>
-                                </div>
-                              </div>
-                              <span className="bg-red-500 text-white px-3 py-1 rounded-full font-bold">
-                                {produto.quantidade.toLocaleString("pt-BR")}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <p className="text-4xl mb-2">📭</p>
-                      <p className="text-gray-600">Nenhum produto saiu</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Produtos que Entraram - Consolidado */}
-                <div>
-                  <h4 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <span className="text-2xl">📥</span>
-                    Produtos que Entraram (Total Geral)
-                  </h4>
-                  {relatorio.produtosEntraram &&
-                  relatorio.produtosEntraram.length > 0 ? (
-                    <div className="space-y-2">
-                      {relatorio.produtosEntraram
-                        .sort((a, b) => b.quantidade - a.quantidade)
-                        .map((produto) => (
-                          <div
-                            key={produto.id}
-                            className="p-3 bg-white border-2 border-green-200 rounded-lg"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="text-2xl">
-                                  {produto.emoji || "📦"}
-                                </span>
-                                <div>
-                                  <div className="font-bold text-gray-900">
-                                    {produto.nome}
-                                  </div>
-                                  <div className="text-xs text-gray-600">
-                                    Cód: {produto.codigo || "S/C"}
-                                  </div>
-                                </div>
-                              </div>
-                              <span className="bg-green-500 text-white px-3 py-1 rounded-full font-bold">
-                                {produto.quantidade.toLocaleString("pt-BR")}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <p className="text-4xl mb-2">📭</p>
-                      <p className="text-gray-600">Nenhum produto entrou</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
           </div>
         )}
 
