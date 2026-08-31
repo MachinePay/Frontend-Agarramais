@@ -3,8 +3,33 @@ import api from "../services/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { PageHeader } from "../components/UIComponents";
+import {
+  LineChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 const toN = (v) => Number(v || 0);
+
+const MESES_NOMES = [
+  "Jan",
+  "Fev",
+  "Mar",
+  "Abr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Set",
+  "Out",
+  "Nov",
+  "Dez",
+];
 
 // Quando a Machine Pay já fez o fechamento do mês, o valor lá fica zerado.
 // Nesse caso usamos o último valor registrado no nosso sistema (Registrar
@@ -236,6 +261,170 @@ export function RankingMaquinas() {
       style: "currency",
       currency: "BRL",
     }).format(val || 0);
+
+  // ─── Evolução mensal (máquinas e produtos) ─────────────────────────────
+  const anoAtual = new Date().getFullYear();
+  const [anoGraficos, setAnoGraficos] = useState(anoAtual);
+  const [produtosCatalogo, setProdutosCatalogo] = useState([]);
+  const [produtoSelecionado, setProdutoSelecionado] = useState("");
+  const [dadosMensais, setDadosMensais] = useState([]);
+  const [loadingMensal, setLoadingMensal] = useState(false);
+
+  const anosDisponiveis = useMemo(() => {
+    const anos = [];
+    for (let a = anoAtual; a >= anoAtual - 4; a--) anos.push(a);
+    return anos;
+  }, [anoAtual]);
+
+  useEffect(() => {
+    api
+      .get("/produtos?incluirInativos=true")
+      .then((res) => setProdutosCatalogo(res.data || []))
+      .catch(() => {});
+  }, []);
+
+  const carregarDadosMensais = useCallback(async () => {
+    setLoadingMensal(true);
+    const isTodas = !lojaSelecionada;
+    const mesAtualNoAno =
+      anoGraficos === anoAtual ? new Date().getMonth() + 1 : 12;
+
+    const periodos = Array.from({ length: 12 }, (_, i) => {
+      const mes = i + 1;
+      const ini = `${anoGraficos}-${String(mes).padStart(2, "0")}-01`;
+      const diasNoMes = new Date(anoGraficos, mes, 0).getDate();
+      const fim = `${anoGraficos}-${String(mes).padStart(2, "0")}-${String(
+        diasNoMes,
+      ).padStart(2, "0")}`;
+      return { mes, ini, fim };
+    });
+
+    try {
+      const resultados = await Promise.allSettled(
+        periodos.map(({ ini, fim }) => {
+          const params = { dataInicio: ini, dataFim: fim };
+          if (isTodas) {
+            return api.get("/relatorios/todas-lojas", { params });
+          }
+          return api.get("/relatorios/impressao", {
+            params: { ...params, lojaId: lojaSelecionada },
+          });
+        }),
+      );
+
+      const serie = resultados.map((res, i) => {
+        const mes = i + 1;
+        const nome = MESES_NOMES[i];
+        const isFuturo = anoGraficos === anoAtual && mes > mesAtualNoAno;
+
+        if (res.status !== "fulfilled" || isFuturo) {
+          return {
+            mes,
+            nome,
+            faturamento: null,
+            custo: null,
+            lucro: null,
+            produtosSairam: null,
+            produtoQuantidade: null,
+            variacaoMes: null,
+            semDados: true,
+          };
+        }
+
+        const data = res.value?.data;
+        let faturamento = 0;
+        let custo = 0;
+        let lucro = 0;
+        let produtosSairam = 0;
+        let produtoQuantidade = null;
+
+        if (isTodas) {
+          faturamento = toN(data?.totais?.lucroBrutoTotal);
+          custo = toN(data?.totais?.custoTotal);
+          lucro = toN(data?.totais?.lucroLiquidoTotal);
+          produtosSairam = toN(data?.totais?.produtosSairamTotal);
+        } else {
+          const t = data?.totais || {};
+          faturamento = toN(t.valorBrutoConsolidadoLojaMaquinas);
+          custo = toN(t.gastoTotalPeriodo);
+          lucro = toN(t.valorLiquidoConsolidadoLojaMaquinas);
+          produtosSairam = toN(t.produtosSairam);
+
+          if (produtoSelecionado) {
+            const produtoEncontrado = (data?.produtosSairam || []).find(
+              (p) => String(p.id) === String(produtoSelecionado),
+            );
+            produtoQuantidade = produtoEncontrado
+              ? toN(produtoEncontrado.quantidade)
+              : 0;
+          }
+        }
+
+        return {
+          mes,
+          nome,
+          faturamento,
+          custo,
+          lucro,
+          produtosSairam,
+          produtoQuantidade,
+          variacaoMes: null,
+          semDados: false,
+        };
+      });
+
+      for (let i = 1; i < serie.length; i++) {
+        const anterior = serie[i - 1];
+        const atual = serie[i];
+        if (
+          !anterior.semDados &&
+          !atual.semDados &&
+          anterior.faturamento > 0
+        ) {
+          atual.variacaoMes =
+            ((atual.faturamento - anterior.faturamento) /
+              anterior.faturamento) *
+            100;
+        }
+      }
+
+      setDadosMensais(serie);
+    } catch (erroMensal) {
+      console.error(
+        "[RankingMaquinas] Erro ao carregar evolução mensal:",
+        erroMensal,
+      );
+      setDadosMensais([]);
+    } finally {
+      setLoadingMensal(false);
+    }
+  }, [anoGraficos, anoAtual, lojaSelecionada, produtoSelecionado]);
+
+  useEffect(() => {
+    carregarDadosMensais();
+  }, [carregarDadosMensais]);
+
+  const dadosMensaisVisiveis = useMemo(
+    () => dadosMensais.filter((d) => !d.semDados),
+    [dadosMensais],
+  );
+
+  const formatMoneyShort = (val) => {
+    const v = toN(val);
+    if (v >= 1_000_000) return `R$ ${(v / 1_000_000).toFixed(1)}M`;
+    if (v >= 1_000) return `R$ ${(v / 1_000).toFixed(1)}k`;
+    return formatMoney(v);
+  };
+
+  const nomeLojaSelecionada = lojaSelecionada
+    ? lojas.find((l) => String(l.id) === String(lojaSelecionada))?.nome ||
+      "Loja"
+    : "Todas as Lojas";
+
+  const nomeProdutoSelecionado = produtoSelecionado
+    ? produtosCatalogo.find((p) => String(p.id) === String(produtoSelecionado))
+        ?.nome || "Produto"
+    : null;
 
   return (
     <div className="min-h-screen bg-gray-50 bg-pattern teddy-pattern">
@@ -516,6 +705,234 @@ export function RankingMaquinas() {
                 </div>
               </div>
             )}
+
+            {/* Evolução Mensal — Máquinas (financeiro) */}
+            <div className="bg-white p-6 rounded-lg shadow">
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-2">
+                <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                  <span className="text-2xl">📈</span>
+                  Evolução Mensal — Máquinas ({nomeLojaSelecionada})
+                </h3>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-semibold text-gray-600">
+                    Ano:
+                  </label>
+                  <select
+                    value={anoGraficos}
+                    onChange={(e) => setAnoGraficos(Number(e.target.value))}
+                    className="rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-800 font-bold px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  >
+                    {anosDisponiveis.map((a) => (
+                      <option key={a} value={a}>
+                        {a}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mb-4">
+                Faturamento, custo e lucro líquido mês a mês, para a loja
+                escolhida no filtro do topo (ou todas as lojas).
+              </p>
+
+              {loadingMensal ? (
+                <div className="flex items-center justify-center h-80 text-gray-400">
+                  <div className="text-center">
+                    <div className="inline-block w-8 h-8 border-4 border-indigo-300 border-t-indigo-600 rounded-full animate-spin mb-3" />
+                    <p className="text-sm">Carregando evolução mensal...</p>
+                  </div>
+                </div>
+              ) : dadosMensaisVisiveis.length > 0 ? (
+                <div className="h-96">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={dadosMensaisVisiveis}
+                      margin={{ top: 20, right: 40, left: 20, bottom: 10 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="4 4"
+                        stroke="#f0f0f0"
+                        vertical={false}
+                      />
+                      <XAxis
+                        dataKey="nome"
+                        tick={{ fontSize: 13, fontWeight: 600, fill: "#374151" }}
+                        axisLine={{ stroke: "#e5e7eb" }}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tickFormatter={formatMoneyShort}
+                        tick={{ fontSize: 11, fill: "#6b7280" }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={72}
+                      />
+                      <YAxis
+                        yAxisId="var"
+                        orientation="right"
+                        tickFormatter={(v) =>
+                          v !== null ? `${v > 0 ? "+" : ""}${v?.toFixed(0)}%` : ""
+                        }
+                        tick={{ fontSize: 10, fill: "#9ca3af" }}
+                        axisLine={false}
+                        tickLine={false}
+                        domain={[-100, 100]}
+                        width={52}
+                      />
+                      <Tooltip
+                        formatter={(v, name) =>
+                          name === "Variação % (mês ant.)"
+                            ? [`${v?.toFixed?.(1) ?? v}%`, name]
+                            : [formatMoney(v), name]
+                        }
+                      />
+                      <Legend wrapperStyle={{ paddingTop: "16px", fontSize: "13px" }} />
+
+                      <Line
+                        type="monotoneX"
+                        dataKey="faturamento"
+                        name="Faturamento"
+                        stroke="#10B981"
+                        strokeWidth={3.5}
+                        dot={{ r: 5, fill: "#10B981", stroke: "#fff", strokeWidth: 2 }}
+                        activeDot={{ r: 7, fill: "#10B981", stroke: "#fff", strokeWidth: 2 }}
+                      />
+                      <Line
+                        type="monotoneX"
+                        dataKey="custo"
+                        name="Custo Total"
+                        stroke="#EF4444"
+                        strokeWidth={1.5}
+                        strokeOpacity={0.6}
+                        dot={false}
+                      />
+                      <Line
+                        type="monotoneX"
+                        dataKey="lucro"
+                        name="Lucro Líquido"
+                        stroke="#3B82F6"
+                        strokeWidth={2}
+                        strokeDasharray="5 3"
+                        dot={{ r: 3, fill: "#3B82F6", stroke: "#fff", strokeWidth: 1 }}
+                      />
+                      <Line
+                        yAxisId="var"
+                        type="monotoneX"
+                        dataKey="variacaoMes"
+                        name="Variação % (mês ant.)"
+                        stroke="#8B5CF6"
+                        strokeWidth={1.5}
+                        strokeDasharray="5 3"
+                        dot={{ r: 3, fill: "#8B5CF6", stroke: "#fff", strokeWidth: 1.5 }}
+                        connectNulls={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-48 text-gray-400 text-sm border border-dashed border-gray-200 rounded-xl">
+                  Sem dados suficientes em {anoGraficos} para montar a
+                  evolução mensal.
+                </div>
+              )}
+            </div>
+
+            {/* Evolução Mensal — Produtos */}
+            <div className="bg-white p-6 rounded-lg shadow">
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-2">
+                <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                  <span className="text-2xl">🧸</span>
+                  Evolução Mensal — Produtos ({nomeLojaSelecionada})
+                </h3>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-semibold text-gray-600">
+                    Produto:
+                  </label>
+                  <select
+                    value={produtoSelecionado}
+                    onChange={(e) => setProdutoSelecionado(e.target.value)}
+                    className="rounded-lg border border-amber-200 bg-amber-50 text-amber-800 font-bold px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 max-w-55"
+                  >
+                    <option value="">Todos os produtos</option>
+                    {produtosCatalogo.map((produto) => (
+                      <option key={produto.id} value={produto.id}>
+                        {produto.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mb-4">
+                {produtoSelecionado
+                  ? !lojaSelecionada
+                    ? "Selecione uma loja específica para acompanhar um produto — em \"Todas as lojas\" só o total geral fica disponível."
+                    : `Quantidade de "${nomeProdutoSelecionado}" que saiu mês a mês, na loja escolhida no filtro do topo.`
+                  : "Total de produtos que saíram mês a mês, para a loja escolhida no filtro do topo (ou todas as lojas)."}
+              </p>
+
+              {loadingMensal ? (
+                <div className="flex items-center justify-center h-80 text-gray-400">
+                  <div className="text-center">
+                    <div className="inline-block w-8 h-8 border-4 border-amber-300 border-t-amber-600 rounded-full animate-spin mb-3" />
+                    <p className="text-sm">Carregando evolução mensal...</p>
+                  </div>
+                </div>
+              ) : dadosMensaisVisiveis.length > 0 &&
+                !(produtoSelecionado && !lojaSelecionada) ? (
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={dadosMensaisVisiveis}
+                      margin={{ top: 20, right: 40, left: 20, bottom: 10 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="4 4"
+                        stroke="#f0f0f0"
+                        vertical={false}
+                      />
+                      <XAxis
+                        dataKey="nome"
+                        tick={{ fontSize: 13, fontWeight: 600, fill: "#374151" }}
+                        axisLine={{ stroke: "#e5e7eb" }}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 11, fill: "#6b7280" }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={50}
+                      />
+                      <Tooltip
+                        formatter={(v) => Number(v || 0).toLocaleString("pt-BR")}
+                      />
+                      <Legend wrapperStyle={{ paddingTop: "16px", fontSize: "13px" }} />
+                      <Line
+                        type="monotoneX"
+                        dataKey={
+                          produtoSelecionado ? "produtoQuantidade" : "produtosSairam"
+                        }
+                        name={
+                          produtoSelecionado
+                            ? `${nomeProdutoSelecionado} (saíram)`
+                            : "Total de produtos saíram"
+                        }
+                        stroke="#F59E0B"
+                        strokeWidth={3.5}
+                        dot={{ r: 5, fill: "#F59E0B", stroke: "#fff", strokeWidth: 2 }}
+                        activeDot={{ r: 7, fill: "#F59E0B", stroke: "#fff", strokeWidth: 2 }}
+                        connectNulls={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-48 text-gray-400 text-sm border border-dashed border-gray-200 rounded-xl">
+                  {produtoSelecionado && !lojaSelecionada
+                    ? "Escolha uma loja específica no filtro do topo para ver a evolução de um produto."
+                    : `Sem dados suficientes em ${anoGraficos} para montar a evolução de produtos.`}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
