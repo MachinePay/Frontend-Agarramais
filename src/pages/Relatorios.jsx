@@ -63,6 +63,11 @@ export function Relatorios() {
       const itens = await Promise.all(
         maquinas.map(async (m) => {
           const fichas = toNumber(m.totais?.fichas);
+          const valorFicha = toNumber(
+            m.maquina?.valorFicha ??
+              dadosRelatorio?.loja?.valorFichaPadrao ??
+              obterValorFichaPadraoDaLojaSelecionada(),
+          );
           const produtoTopo = Array.isArray(m.produtosSairam)
             ? m.produtosSairam[0]
             : null;
@@ -98,8 +103,9 @@ export function Relatorios() {
               nome: m.maquina?.nome || "-",
               codigo: m.maquina?.codigo,
               fonte: "fichas",
-              valor: fichas,
+              valor: fichas * valorFicha,
               fichas,
+              valorFicha,
               produtoPrincipal,
             };
           }
@@ -1880,7 +1886,8 @@ export function Relatorios() {
                 <p className="text-xs sm:text-sm text-gray-600 mb-4">
                   Ordenado pelo valor recebido na Machine Pay no período;
                   quando a máquina não tem Machine Pay cadastrada, o ranking
-                  usa a quantidade de fichas dela.
+                  usa a quantidade de fichas dela vezes o valor da ficha
+                  cadastrado na loja.
                 </p>
 
                 {carregandoRanking ? (
@@ -1921,13 +1928,19 @@ export function Relatorios() {
                             </div>
                           ) : (
                             <div className="font-bold text-blue-700 text-lg">
-                              🎟️ {item.fichas.toLocaleString("pt-BR")} fichas
+                              R${" "}
+                              {item.valor.toLocaleString("pt-BR", {
+                                minimumFractionDigits: 2,
+                              })}
                             </div>
                           )}
                           <div className="text-[10px] text-gray-500 mb-2">
                             {item.fonte === "machinePay"
                               ? "Machine Pay"
-                              : "Fichas (sem Machine Pay)"}
+                              : `🎟️ ${item.fichas.toLocaleString("pt-BR")} fichas × R$ ${item.valorFicha?.toLocaleString(
+                                  "pt-BR",
+                                  { minimumFractionDigits: 2 },
+                                )} (sem Machine Pay)`}
                           </div>
 
                           {item.produtoPrincipal ? (

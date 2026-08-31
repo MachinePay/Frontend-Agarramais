@@ -27,6 +27,7 @@ export function Dashboard() {
   const [produtos, setProdutos] = useState([]);
   const [alertasBomDesempenho, setAlertasBomDesempenho] = useState([]);
   const [machinePayTotal, setMachinePayTotal] = useState(null);
+  const [performanceMaquinasMes, setPerformanceMaquinasMes] = useState([]);
   // Estado para modal de movimentação de estoque de loja
   const [movimentacaoLojaId, setMovimentacaoLojaId] = useState("");
   const [movimentacaoEnviando, setMovimentacaoEnviando] = useState(false);
@@ -893,6 +894,20 @@ export function Dashboard() {
               );
               return { data: [] };
             }),
+          api
+            .get("/relatorios/performance-maquinas", {
+              params: {
+                dataInicio: periodoComparacaoMensal.inicioMesAtual,
+                dataFim: periodoComparacaoMensal.fimMesAtual,
+              },
+            })
+            .catch((err) => {
+              console.error(
+                "Erro ao carregar performance de máquinas do mês:",
+                err.message,
+              );
+              return { data: { performance: [] } };
+            }),
         );
       }
 
@@ -905,6 +920,7 @@ export function Dashboard() {
         balancoRes,
         machinePayTotalRes,
         gastoVariavelMesRes,
+        performanceMaquinasRes,
         lojasRes,
         maquinasRes,
         produtosRes;
@@ -921,6 +937,7 @@ export function Dashboard() {
           balancoRes,
           machinePayTotalRes,
           gastoVariavelMesRes,
+          performanceMaquinasRes,
           lojasRes,
           maquinasRes,
           produtosRes,
@@ -992,6 +1009,7 @@ export function Dashboard() {
           maquinaCount: 0,
         },
       );
+      setPerformanceMaquinasMes(performanceMaquinasRes?.data?.performance || []);
 
       // Carregar alertas de estoque de lojas (para todos os usuários)
       if (lojasRes.data && lojasRes.data.length > 0) {
@@ -1016,6 +1034,7 @@ export function Dashboard() {
         totalLiquido: 0,
         maquinaCount: 0,
       });
+      setPerformanceMaquinasMes([]);
     }
   }, [usuario]);
 
@@ -2284,11 +2303,44 @@ export function Dashboard() {
         ? "text-red-700"
         : "text-slate-700";
 
-  const topMaquinaMachinePay = Array.isArray(machinePayTotal?.maquinas)
-    ? [...machinePayTotal.maquinas].sort(
-        (a, b) => Number(b.brutoComTaxasMp || 0) - Number(a.brutoComTaxasMp || 0),
-      )[0]
-    : null;
+  const valorFichaPorLojaId = new Map(
+    (lojas || []).map((loja) => [
+      String(loja.id),
+      Number(loja.valorFichaPadrao) || 2.5,
+    ]),
+  );
+
+  const machinePayPorMaquinaId = new Map(
+    (machinePayTotal?.maquinas || []).map((item) => [
+      String(item.maquinaId),
+      Number(item.brutoComTaxasMp || 0),
+    ]),
+  );
+
+  const top10MaquinasMachinePay = performanceMaquinasMes
+    .map((p) => {
+      const maquinaId = String(p.maquina?.id);
+      const fichas = Number(p.metricas?.totalFichas || 0);
+      const valorFicha =
+        valorFichaPorLojaId.get(String(p.maquina?.lojaId)) || 2.5;
+      const valorMachinePay = machinePayPorMaquinaId.get(maquinaId);
+      const temMachinePay = valorMachinePay !== undefined;
+
+      return {
+        maquinaId,
+        nome: p.maquina?.nome || "-",
+        fonte: temMachinePay ? "machinePay" : "fichas",
+        valor: temMachinePay ? valorMachinePay : fichas * valorFicha,
+        fichas,
+        valorFicha,
+      };
+    })
+    .sort((a, b) => b.valor - a.valor)
+    .slice(0, 10);
+
+  const top10ProdutosBalanco = Array.isArray(stats.balanco?.distribuicaoProdutos)
+    ? stats.balanco.distribuicaoProdutos.slice(0, 10)
+    : [];
 
   const assistenteNome = assistenteResultado?.assistente?.nome || "IAgarra";
 
@@ -2479,51 +2531,66 @@ export function Dashboard() {
                     </h3>
                     <span className="text-2xl opacity-90">🏆</span>
                   </div>
-                  {topMaquinaMachinePay ? (
-                    <>
-                      <p className="text-xl font-bold truncate">
-                        {topMaquinaMachinePay.nome}
-                      </p>
-                      <p className="text-xs opacity-75 mt-1">
-                        💳 R${" "}
-                        {formatarMoeda(topMaquinaMachinePay.brutoComTaxasMp)}{" "}
-                        no mês
-                      </p>
-                    </>
+                  {top10MaquinasMachinePay.length > 0 ? (
+                    <ol className="text-[11px] leading-tight space-y-0.5">
+                      {top10MaquinasMachinePay.map((maquina, idx) => (
+                        <li
+                          key={maquina.maquinaId || idx}
+                          className="flex items-center justify-between gap-2"
+                        >
+                          <span className="truncate">
+                            {idx + 1}. {maquina.nome}
+                          </span>
+                          <span className="opacity-80 shrink-0">
+                            {maquina.fonte === "machinePay" ? "💳" : "🎟️"} R${" "}
+                            {formatarMoeda(maquina.valor)}
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
                   ) : (
                     <p className="text-3xl font-bold">🥇</p>
                   )}
-                  <p className="text-xs opacity-75 mt-1 font-semibold">
+                  <p className="text-xs opacity-75 mt-2 font-semibold">
                     Ranking, gráficos e produtos →
                   </p>
                 </div>
               </div>
-              {/* Prêmios Saídos */}
-              <div className="stat-card bg-linear-to-br from-green-500 to-green-600 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30">
+              {/* Top 10 Produtos */}
+              <div
+                className="stat-card bg-linear-to-br from-green-500 to-green-600 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 cursor-pointer"
+                onClick={() => navigate("/ranking-maquinas")}
+              >
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-medium opacity-90">
-                      Prêmios Saídos
+                      Top 10 Produtos
                     </h3>
-                    <svg
-                      className="w-8 h-8 opacity-80"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"
-                      />
-                    </svg>
+                    <span className="text-2xl opacity-90">🧸</span>
                   </div>
-                  <p className="text-3xl font-bold">
-                    {stats.balanco?.totais?.totalSairam || 0}
-                  </p>
-                  <p className="text-xs opacity-75 mt-1">
-                    🎁 Pelúcias entregues
+                  {top10ProdutosBalanco.length > 0 ? (
+                    <ol className="text-[11px] leading-tight space-y-0.5">
+                      {top10ProdutosBalanco.map((produto, idx) => (
+                        <li
+                          key={produto.nome || idx}
+                          className="flex items-center justify-between gap-2"
+                        >
+                          <span className="truncate">
+                            {idx + 1}. {produto.nome}
+                          </span>
+                          <span className="opacity-80 shrink-0">
+                            {produto.quantidadeSaiu}
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className="text-3xl font-bold">
+                      {stats.balanco?.totais?.totalSairam || 0}
+                    </p>
+                  )}
+                  <p className="text-xs opacity-75 mt-2 font-semibold">
+                    Ranking completo de produtos →
                   </p>
                 </div>
               </div>

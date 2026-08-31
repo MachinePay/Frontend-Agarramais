@@ -51,6 +51,9 @@ export function RankingMaquinas() {
       .catch(() => {});
   }, []);
 
+  const [performance, setPerformance] = useState([]);
+  const [machinePayTotal, setMachinePayTotal] = useState(null);
+
   const carregarDados = useCallback(async () => {
     if (!dataInicio || !dataFim) return;
 
@@ -60,12 +63,25 @@ export function RankingMaquinas() {
       const params = { dataInicio, dataFim };
       if (lojaSelecionada) params.lojaId = lojaSelecionada;
 
-      const response = await api.get("/relatorios/dashboard", { params });
-      setDados(response.data);
+      const [dashboardRes, performanceRes, machinePayRes] = await Promise.all([
+        api.get("/relatorios/dashboard", { params }),
+        api.get("/relatorios/performance-maquinas", { params }),
+        api
+          .get("/registro-dinheiro/machine-pay-total", {
+            params: { inicio: dataInicio, fim: `${dataFim}T23:59` },
+          })
+          .catch(() => ({ data: { maquinas: [] } })),
+      ]);
+
+      setDados(dashboardRes.data);
+      setPerformance(performanceRes.data?.performance || []);
+      setMachinePayTotal(machinePayRes.data || null);
     } catch (err) {
       console.error("[RankingMaquinas] Erro ao carregar dados:", err);
       setErro("Não foi possível carregar o ranking de máquinas.");
       setDados(null);
+      setPerformance([]);
+      setMachinePayTotal(null);
     } finally {
       setLoading(false);
     }
@@ -75,14 +91,43 @@ export function RankingMaquinas() {
     if (dataInicio && dataFim) carregarDados();
   }, [dataInicio, dataFim, carregarDados]);
 
+  const valorFichaPorLoja = useMemo(() => {
+    const mapa = new Map();
+    lojas.forEach((loja) => {
+      mapa.set(String(loja.id), toN(loja.valorFichaPadrao) || 2.5);
+    });
+    return mapa;
+  }, [lojas]);
+
+  const machinePayPorMaquina = useMemo(() => {
+    const mapa = new Map();
+    (machinePayTotal?.maquinas || []).forEach((item) => {
+      mapa.set(String(item.maquinaId), toN(item.brutoComTaxasMp));
+    });
+    return mapa;
+  }, [machinePayTotal]);
+
   const top10Maquinas = useMemo(() => {
-    const lista = Array.isArray(dados?.performanceMaquinas)
-      ? dados.performanceMaquinas
-      : [];
-    return [...lista]
-      .sort((a, b) => toN(b.faturamento) - toN(a.faturamento))
-      .slice(0, 10);
-  }, [dados]);
+    const itens = performance.map((p) => {
+      const maquinaId = String(p.maquina?.id);
+      const fichas = toN(p.metricas?.totalFichas);
+      const valorFicha = valorFichaPorLoja.get(String(p.maquina?.lojaId)) || 2.5;
+      const valorMachinePay = machinePayPorMaquina.get(maquinaId);
+      const temMachinePay = valorMachinePay !== undefined;
+
+      return {
+        maquinaId,
+        nome: p.maquina?.nome || "-",
+        loja: p.maquina?.loja || "-",
+        fonte: temMachinePay ? "machinePay" : "fichas",
+        valor: temMachinePay ? valorMachinePay : fichas * valorFicha,
+        fichas,
+        valorFicha,
+      };
+    });
+
+    return itens.sort((a, b) => b.valor - a.valor).slice(0, 10);
+  }, [performance, valorFichaPorLoja, machinePayPorMaquina]);
 
   const topProdutos = useMemo(
     () => (Array.isArray(dados?.rankingProdutos) ? dados.rankingProdutos : []),
@@ -200,9 +245,13 @@ export function RankingMaquinas() {
             {top10Maquinas.length > 0 ? (
               <div className="bg-white p-6 rounded-lg shadow">
                 <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <span className="text-2xl">📊</span> Top 10 Máquinas por
-                  Faturamento
+                  <span className="text-2xl">📊</span> Top 10 Máquinas
                 </h3>
+                <p className="text-xs text-gray-500 mb-3">
+                  Valor recebido na Machine Pay no período; quando a máquina
+                  não tem Machine Pay cadastrada, usa a quantidade de fichas
+                  vezes o valor da ficha cadastrado na loja.
+                </p>
                 <div className="h-96">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
@@ -224,8 +273,8 @@ export function RankingMaquinas() {
                       />
                       <Tooltip formatter={(v) => formatMoney(v)} />
                       <Bar
-                        dataKey="faturamento"
-                        name="Faturamento"
+                        dataKey="valor"
+                        name="Valor"
                         radius={[0, 4, 4, 0]}
                         barSize={18}
                       >
@@ -262,17 +311,20 @@ export function RankingMaquinas() {
                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                           Máquina
                         </th>
-                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                          Faturamento
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                          Loja
                         </th>
                         <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                          Ocupação
+                          Valor
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                          Fonte
                         </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {top10Maquinas.map((maquina, idx) => (
-                        <tr key={`${maquina.nome}-${idx}`} className="hover:bg-gray-50">
+                        <tr key={maquina.maquinaId || idx} className="hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm font-bold text-gray-900">
                             {idx === 0
                               ? "🥇"
@@ -285,11 +337,21 @@ export function RankingMaquinas() {
                           <td className="px-4 py-3 text-sm text-gray-900 font-medium">
                             {maquina.nome}
                           </td>
-                          <td className="px-4 py-3 text-sm text-emerald-700 font-semibold text-right">
-                            {formatMoney(maquina.faturamento)}
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {maquina.loja}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600 text-right">
-                            {maquina.ocupacao}%
+                          <td className="px-4 py-3 text-sm text-emerald-700 font-semibold text-right">
+                            {formatMoney(maquina.valor)}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-600">
+                            {maquina.fonte === "machinePay"
+                              ? "💳 Machine Pay"
+                              : `🎟️ ${maquina.fichas.toLocaleString(
+                                  "pt-BR",
+                                )} fichas × R$ ${maquina.valorFicha.toLocaleString(
+                                  "pt-BR",
+                                  { minimumFractionDigits: 2 },
+                                )}`}
                           </td>
                         </tr>
                       ))}
