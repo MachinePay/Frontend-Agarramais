@@ -25,6 +25,8 @@ export function Relatorios() {
   const [error, setError] = useState("");
   const [gastosFixosLoja, setGastosFixosLoja] = useState([]);
   const [comparativoMensal, setComparativoMensal] = useState(null);
+  const [rankingMaquinas, setRankingMaquinas] = useState([]);
+  const [carregandoRanking, setCarregandoRanking] = useState(false);
   const [salvandoFechamento, setSalvandoFechamento] = useState(false);
   const [relatorioAssistentePendente, setRelatorioAssistentePendente] =
     useState(null);
@@ -43,6 +45,58 @@ export function Relatorios() {
     } catch (error) {
       console.error("Erro ao carregar dashboard:", error);
       setDashboard(null);
+    }
+  };
+
+  const montarRankingMaquinas = async (dadosRelatorio, periodoInicio, periodoFim) => {
+    const maquinas = Array.isArray(dadosRelatorio?.maquinas)
+      ? dadosRelatorio.maquinas
+      : [];
+
+    if (maquinas.length === 0) {
+      setRankingMaquinas([]);
+      return;
+    }
+
+    setCarregandoRanking(true);
+    try {
+      const itens = await Promise.all(
+        maquinas.map(async (m) => {
+          const fichas = toNumber(m.totais?.fichas);
+
+          try {
+            const response = await api.get("/registro-dinheiro/machine-pay", {
+              params: {
+                maquinaId: m.maquina?.id,
+                inicio: periodoInicio,
+                fim: periodoFim,
+              },
+            });
+
+            return {
+              maquinaId: m.maquina?.id,
+              nome: m.maquina?.nome || "-",
+              codigo: m.maquina?.codigo,
+              fonte: "machinePay",
+              valor: toNumber(response.data?.brutoComTaxasMp),
+              fichas,
+            };
+          } catch {
+            return {
+              maquinaId: m.maquina?.id,
+              nome: m.maquina?.nome || "-",
+              codigo: m.maquina?.codigo,
+              fonte: "fichas",
+              valor: fichas,
+              fichas,
+            };
+          }
+        }),
+      );
+
+      setRankingMaquinas(itens.sort((a, b) => b.valor - a.valor));
+    } finally {
+      setCarregandoRanking(false);
     }
   };
 
@@ -708,6 +762,7 @@ export function Relatorios() {
       setDashboard(null);
       setGastosFixosLoja([]);
       setComparativoMensal(null);
+      setRankingMaquinas([]);
 
       if (lojaSelecionada === TODAS_LOJAS_VALUE) {
         const response = await api.get("/relatorios/todas-lojas", {
@@ -1066,6 +1121,7 @@ export function Relatorios() {
       setComparativoMensal(comparativoCalculado);
 
       setRelatorio(relatorioAtualNormalizado);
+      montarRankingMaquinas(relatorioAtualNormalizado, dataInicio, dataFim);
     } catch (error) {
       console.error("Erro ao gerar relatório:", error);
       console.error("Detalhes do erro:", {
@@ -1098,6 +1154,7 @@ export function Relatorios() {
       setDashboard(null);
       setGastosFixosLoja([]);
       setComparativoMensal(null);
+      setRankingMaquinas([]);
     } finally {
       setLoading(false);
     }
@@ -1800,6 +1857,76 @@ export function Relatorios() {
                 </div>
               </div>
             </div>
+
+            {/* Ranking de Máquinas (Machine Pay / Fichas) */}
+            {relatorio.maquinas && relatorio.maquinas.length > 0 && (
+              <div className="card bg-gradient-to-r from-indigo-50 to-indigo-100 border-2 border-indigo-300">
+                <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
+                  <span className="text-2xl">🏆</span>
+                  Ranking de Máquinas
+                </h3>
+                <p className="text-xs sm:text-sm text-gray-600 mb-4">
+                  Ordenado pelo valor recebido na Machine Pay no período;
+                  quando a máquina não tem Machine Pay cadastrada, o ranking
+                  usa a quantidade de fichas dela.
+                </p>
+
+                {carregandoRanking ? (
+                  <div className="text-center py-6">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                    <p className="text-sm text-gray-600 mt-3">
+                      Consultando Machine Pay das máquinas...
+                    </p>
+                  </div>
+                ) : rankingMaquinas.length > 0 ? (
+                  <div className="space-y-2">
+                    {rankingMaquinas.map((item, index) => (
+                      <div
+                        key={item.maquinaId}
+                        className="flex items-center justify-between gap-3 bg-white border-2 border-indigo-200 rounded-lg p-3"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="shrink-0 w-8 h-8 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-sm">
+                            {index + 1}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="font-bold text-gray-900 truncate">
+                              {item.nome}
+                            </div>
+                            <div className="text-xs text-gray-500 truncate">
+                              Cód: {item.codigo || "S/C"}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          {item.fonte === "machinePay" ? (
+                            <div className="font-bold text-indigo-700">
+                              R${" "}
+                              {item.valor.toLocaleString("pt-BR", {
+                                minimumFractionDigits: 2,
+                              })}
+                            </div>
+                          ) : (
+                            <div className="font-bold text-blue-700">
+                              🎟️ {item.fichas.toLocaleString("pt-BR")} fichas
+                            </div>
+                          )}
+                          <div className="text-[10px] text-gray-500">
+                            {item.fonte === "machinePay"
+                              ? "Machine Pay"
+                              : "Fichas (sem Machine Pay)"}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-600">
+                    Não foi possível montar o ranking das máquinas.
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Gráfico de saída por máquina */}
             {relatorio.graficoSaidaPorMaquina &&
