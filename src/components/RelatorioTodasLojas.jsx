@@ -772,13 +772,33 @@ export function RelatorioTodasLojas({
                   >
                     {formatarMoeda(item.valor)}
                   </div>
-                  <div className="text-[10px] text-gray-500">
+                  <div className="text-[10px] text-gray-500 mb-2">
                     {item.fonte === "machinePay"
                       ? "Machine Pay"
                       : `🎟️ ${Number(item.fichas || 0).toLocaleString(
                           "pt-BR",
                         )} fichas × ${formatarMoeda(item.valorFicha)} (sem Machine Pay)`}
                   </div>
+
+                  {item.produtoPrincipal ? (
+                    <div className="text-sm text-gray-700">
+                      <span className="mr-1">
+                        {item.produtoPrincipal.emoji || "📦"}
+                      </span>
+                      {item.produtoPrincipal.nome}
+                      <span className="text-xs text-gray-500 ml-1">
+                        (
+                        {Number(
+                          item.produtoPrincipal.quantidade || 0,
+                        ).toLocaleString("pt-BR")}{" "}
+                        saíram)
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-400">
+                      Sem produto registrado
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

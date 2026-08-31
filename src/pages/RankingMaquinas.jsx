@@ -164,6 +164,7 @@ export function RankingMaquinas() {
         valor: temMachinePay ? valorMachinePay : fichas * valorFicha,
         fichas,
         valorFicha,
+        produtoPrincipal: p.produtoPrincipal || null,
       };
     });
 
@@ -372,6 +373,9 @@ export function RankingMaquinas() {
                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                           Fonte
                         </th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                          Produto que mais saiu
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -404,6 +408,23 @@ export function RankingMaquinas() {
                                   "pt-BR",
                                   { minimumFractionDigits: 2 },
                                 )}`}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700">
+                            {maquina.produtoPrincipal ? (
+                              <>
+                                {maquina.produtoPrincipal.emoji || "📦"}{" "}
+                                {maquina.produtoPrincipal.nome}{" "}
+                                <span className="text-xs text-gray-500">
+                                  (
+                                  {Number(
+                                    maquina.produtoPrincipal.quantidade || 0,
+                                  ).toLocaleString("pt-BR")}{" "}
+                                  saíram)
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-xs text-gray-400">-</span>
+                            )}
                           </td>
                         </tr>
                       ))}

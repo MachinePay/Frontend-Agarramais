@@ -167,6 +167,7 @@ export function Relatorios() {
           valor: temMachinePay ? valorMachinePay : fichas * valorFicha,
           fichas,
           valorFicha,
+          produtoPrincipal: p.produtoPrincipal || null,
         };
       });
 
