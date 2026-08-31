@@ -29,9 +29,43 @@ const CORES_RANKING = [
   "#2563EB",
 ];
 
+const formatarMesInput = (data) => {
+  const ano = data.getFullYear();
+  const mes = String(data.getMonth() + 1).padStart(2, "0");
+  return `${ano}-${mes}`;
+};
+
+const obterPeriodoDoMes = (mesTexto) => {
+  if (!mesTexto) return null;
+
+  const [anoTexto, mesNumeroTexto] = String(mesTexto).split("-");
+  const ano = Number(anoTexto);
+  const mes = Number(mesNumeroTexto);
+
+  if (!Number.isInteger(ano) || !Number.isInteger(mes) || mes < 1 || mes > 12) {
+    return null;
+  }
+
+  const formatarDataISO = (data) => {
+    const anoData = data.getFullYear();
+    const mesData = String(data.getMonth() + 1).padStart(2, "0");
+    const diaData = String(data.getDate()).padStart(2, "0");
+    return `${anoData}-${mesData}-${diaData}`;
+  };
+
+  const inicio = new Date(ano, mes - 1, 1);
+  const fim = new Date(ano, mes, 0);
+
+  return {
+    dataInicio: formatarDataISO(inicio),
+    dataFim: formatarDataISO(fim),
+  };
+};
+
 export function RankingMaquinas() {
   const [lojas, setLojas] = useState([]);
   const [lojaSelecionada, setLojaSelecionada] = useState("");
+  const [mesReferencia, setMesReferencia] = useState("");
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [loading, setLoading] = useState(false);
@@ -39,17 +73,24 @@ export function RankingMaquinas() {
   const [dados, setDados] = useState(null);
 
   useEffect(() => {
-    const hoje = new Date();
-    const trintaDiasAtras = new Date();
-    trintaDiasAtras.setDate(hoje.getDate() - 30);
-    setDataFim(hoje.toISOString().split("T")[0]);
-    setDataInicio(trintaDiasAtras.toISOString().split("T")[0]);
+    const mesAtual = formatarMesInput(new Date());
+    const periodoAtual = obterPeriodoDoMes(mesAtual);
+    setMesReferencia(mesAtual);
+    setDataInicio(periodoAtual?.dataInicio || "");
+    setDataFim(periodoAtual?.dataFim || "");
 
     api
       .get("/lojas")
       .then((res) => setLojas(res.data || []))
       .catch(() => {});
   }, []);
+
+  const handleMesReferenciaChange = (valorMes) => {
+    setMesReferencia(valorMes);
+    const periodo = obterPeriodoDoMes(valorMes);
+    setDataInicio(periodo?.dataInicio || "");
+    setDataFim(periodo?.dataFim || "");
+  };
 
   const [performance, setPerformance] = useState([]);
   const [machinePayTotal, setMachinePayTotal] = useState(null);
@@ -157,7 +198,7 @@ export function RankingMaquinas() {
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
             Filtros do período
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Loja
@@ -174,6 +215,17 @@ export function RankingMaquinas() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Mês
+              </label>
+              <input
+                type="month"
+                value={mesReferencia}
+                onChange={(e) => handleMesReferenciaChange(e.target.value)}
+                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 border text-sm"
+              />
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">

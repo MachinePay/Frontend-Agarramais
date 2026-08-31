@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 const formatarMoeda = (valor) =>
   `R$ ${Number(valor || 0).toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
@@ -212,7 +214,16 @@ const GraficoBarras = ({
   );
 };
 
-export function RelatorioTodasLojas({ relatorio }) {
+export function RelatorioTodasLojas({
+  relatorio,
+  rankingMaquinas = [],
+  carregandoRankingMaquinas = false,
+}) {
+  const [mostrarTodasMaquinas, setMostrarTodasMaquinas] = useState(false);
+  const maquinasExibidas = mostrarTodasMaquinas
+    ? rankingMaquinas
+    : rankingMaquinas.slice(0, 10);
+
   const totais = relatorio?.totais || {};
   const destaques = relatorio?.destaques || {};
   const graficos = relatorio?.graficos || {};
@@ -695,6 +706,88 @@ export function RelatorioTodasLojas({ relatorio }) {
           formatter={(valor) => Number(valor || 0).toLocaleString("pt-BR")}
           vazio="Sem produtos com saída no período."
         />
+      </div>
+
+      <div className="card bg-linear-to-r from-indigo-50 to-indigo-100 border-2 border-indigo-300">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <h4 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+            <span className="text-2xl">🏆</span>
+            {mostrarTodasMaquinas
+              ? "Ranking de Máquinas (Todas)"
+              : "Ranking de Máquinas (Top 10)"}
+          </h4>
+          {rankingMaquinas.length > 10 && (
+            <button
+              type="button"
+              onClick={() => setMostrarTodasMaquinas((atual) => !atual)}
+              className="text-sm font-semibold text-indigo-700 hover:text-indigo-900"
+            >
+              {mostrarTodasMaquinas
+                ? "Ver menos"
+                : `Ver mais (${rankingMaquinas.length})`}
+            </button>
+          )}
+        </div>
+        <p className="text-xs sm:text-sm text-gray-600 mb-4">
+          Ordenado pelo valor recebido na Machine Pay no período; quando a
+          máquina não tem Machine Pay cadastrada, o ranking usa a quantidade
+          de fichas dela vezes o valor da ficha cadastrado na loja.
+        </p>
+
+        {carregandoRankingMaquinas ? (
+          <div className="text-center py-6">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+            <p className="text-sm text-gray-600 mt-3">
+              Consultando Machine Pay das máquinas...
+            </p>
+          </div>
+        ) : maquinasExibidas.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {maquinasExibidas.map((item, idx) => (
+              <div
+                key={item.maquinaId || idx}
+                className="bg-white border-2 border-indigo-200 rounded-lg p-3"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="shrink-0 w-8 h-8 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-sm">
+                    {idx + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="font-bold text-gray-900 truncate">
+                      {item.nome}
+                    </div>
+                    <div className="text-xs text-gray-500 truncate">
+                      {item.loja}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-2 pl-11">
+                  <div
+                    className={`font-bold text-lg ${
+                      item.fonte === "machinePay"
+                        ? "text-indigo-700"
+                        : "text-blue-700"
+                    }`}
+                  >
+                    {formatarMoeda(item.valor)}
+                  </div>
+                  <div className="text-[10px] text-gray-500">
+                    {item.fonte === "machinePay"
+                      ? "Machine Pay"
+                      : `🎟️ ${Number(item.fichas || 0).toLocaleString(
+                          "pt-BR",
+                        )} fichas × ${formatarMoeda(item.valorFicha)} (sem Machine Pay)`}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-600">
+            Sem dados de máquinas para o período selecionado.
+          </p>
+        )}
       </div>
 
       <div className="card bg-linear-to-r from-cyan-50 to-blue-100 border-2 border-cyan-200">

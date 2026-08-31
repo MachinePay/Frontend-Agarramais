@@ -27,6 +27,11 @@ export function Relatorios() {
   const [comparativoMensal, setComparativoMensal] = useState(null);
   const [rankingMaquinas, setRankingMaquinas] = useState([]);
   const [carregandoRanking, setCarregandoRanking] = useState(false);
+  const [rankingMaquinasTodasLojas, setRankingMaquinasTodasLojas] = useState(
+    [],
+  );
+  const [carregandoRankingTodasLojas, setCarregandoRankingTodasLojas] =
+    useState(false);
   const [salvandoFechamento, setSalvandoFechamento] = useState(false);
   const [relatorioAssistentePendente, setRelatorioAssistentePendente] =
     useState(null);
@@ -115,6 +120,65 @@ export function Relatorios() {
       setRankingMaquinas(itens.sort((a, b) => b.valor - a.valor));
     } finally {
       setCarregandoRanking(false);
+    }
+  };
+
+  const montarRankingMaquinasTodasLojas = async (periodoInicio, periodoFim) => {
+    setCarregandoRankingTodasLojas(true);
+    try {
+      const [performanceResponse, machinePayResponse] = await Promise.all([
+        api.get("/relatorios/performance-maquinas", {
+          params: { dataInicio: periodoInicio, dataFim: periodoFim },
+        }),
+        api
+          .get("/registro-dinheiro/machine-pay-total", {
+            params: { inicio: periodoInicio, fim: `${periodoFim}T23:59` },
+          })
+          .catch(() => ({ data: { maquinas: [] } })),
+      ]);
+
+      const valorFichaPorLojaId = new Map(
+        lojas.map((loja) => [
+          String(loja.id),
+          toNumber(loja.valorFichaPadrao) || 2.5,
+        ]),
+      );
+
+      const machinePayPorMaquinaId = new Map(
+        (machinePayResponse.data?.maquinas || []).map((item) => [
+          String(item.maquinaId),
+          toNumber(item.brutoComTaxasMp),
+        ]),
+      );
+
+      const itens = (performanceResponse.data?.performance || []).map((p) => {
+        const maquinaId = String(p.maquina?.id);
+        const fichas = toNumber(p.metricas?.totalFichas);
+        const valorFicha =
+          valorFichaPorLojaId.get(String(p.maquina?.lojaId)) || 2.5;
+        const valorMachinePay = machinePayPorMaquinaId.get(maquinaId);
+        const temMachinePay = valorMachinePay !== undefined;
+
+        return {
+          maquinaId,
+          nome: p.maquina?.nome || "-",
+          loja: p.maquina?.loja || "-",
+          fonte: temMachinePay ? "machinePay" : "fichas",
+          valor: temMachinePay ? valorMachinePay : fichas * valorFicha,
+          fichas,
+          valorFicha,
+        };
+      });
+
+      setRankingMaquinasTodasLojas(itens.sort((a, b) => b.valor - a.valor));
+    } catch (erroRanking) {
+      console.warn(
+        "Não foi possível montar o ranking de máquinas de todas as lojas:",
+        erroRanking,
+      );
+      setRankingMaquinasTodasLojas([]);
+    } finally {
+      setCarregandoRankingTodasLojas(false);
     }
   };
 
@@ -781,6 +845,7 @@ export function Relatorios() {
       setGastosFixosLoja([]);
       setComparativoMensal(null);
       setRankingMaquinas([]);
+      setRankingMaquinasTodasLojas([]);
 
       if (lojaSelecionada === TODAS_LOJAS_VALUE) {
         const response = await api.get("/relatorios/todas-lojas", {
@@ -883,6 +948,7 @@ export function Relatorios() {
         });
         setGastosFixosLoja([]);
         setComparativoMensal(null);
+        montarRankingMaquinasTodasLojas(dataInicio, dataFim);
 
         return;
       }
@@ -1173,6 +1239,7 @@ export function Relatorios() {
       setGastosFixosLoja([]);
       setComparativoMensal(null);
       setRankingMaquinas([]);
+      setRankingMaquinasTodasLojas([]);
     } finally {
       setLoading(false);
     }
@@ -1364,7 +1431,11 @@ export function Relatorios() {
 
         {/* Relatório */}
         {relatorio && !loading && relatorio.tipo === "todas-lojas" && (
-          <RelatorioTodasLojas relatorio={relatorio} />
+          <RelatorioTodasLojas
+            relatorio={relatorio}
+            rankingMaquinas={rankingMaquinasTodasLojas}
+            carregandoRankingMaquinas={carregandoRankingTodasLojas}
+          />
         )}
 
         {relatorio && !loading && relatorio.tipo !== "todas-lojas" && (
