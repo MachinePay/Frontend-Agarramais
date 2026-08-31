@@ -63,6 +63,16 @@ export function Relatorios() {
       const itens = await Promise.all(
         maquinas.map(async (m) => {
           const fichas = toNumber(m.totais?.fichas);
+          const produtoTopo = Array.isArray(m.produtosSairam)
+            ? m.produtosSairam[0]
+            : null;
+          const produtoPrincipal = produtoTopo
+            ? {
+                nome: produtoTopo.nome,
+                emoji: produtoTopo.emoji,
+                quantidade: toNumber(produtoTopo.quantidade),
+              }
+            : null;
 
           try {
             const response = await api.get("/registro-dinheiro/machine-pay", {
@@ -80,6 +90,7 @@ export function Relatorios() {
               fonte: "machinePay",
               valor: toNumber(response.data?.brutoComTaxasMp),
               fichas,
+              produtoPrincipal,
             };
           } catch {
             return {
@@ -89,6 +100,7 @@ export function Relatorios() {
               fonte: "fichas",
               valor: fichas,
               fichas,
+              produtoPrincipal,
             };
           }
         }),
@@ -1879,11 +1891,11 @@ export function Relatorios() {
                     </p>
                   </div>
                 ) : rankingMaquinas.length > 0 ? (
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {rankingMaquinas.map((item, index) => (
                       <div
                         key={item.maquinaId}
-                        className="flex items-center justify-between gap-3 bg-white border-2 border-indigo-200 rounded-lg p-3"
+                        className="bg-white border-2 border-indigo-200 rounded-lg p-3"
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <span className="shrink-0 w-8 h-8 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-sm">
@@ -1898,24 +1910,45 @@ export function Relatorios() {
                             </div>
                           </div>
                         </div>
-                        <div className="text-right shrink-0">
+
+                        <div className="mt-2 pl-11">
                           {item.fonte === "machinePay" ? (
-                            <div className="font-bold text-indigo-700">
+                            <div className="font-bold text-indigo-700 text-lg">
                               R${" "}
                               {item.valor.toLocaleString("pt-BR", {
                                 minimumFractionDigits: 2,
                               })}
                             </div>
                           ) : (
-                            <div className="font-bold text-blue-700">
+                            <div className="font-bold text-blue-700 text-lg">
                               🎟️ {item.fichas.toLocaleString("pt-BR")} fichas
                             </div>
                           )}
-                          <div className="text-[10px] text-gray-500">
+                          <div className="text-[10px] text-gray-500 mb-2">
                             {item.fonte === "machinePay"
                               ? "Machine Pay"
                               : "Fichas (sem Machine Pay)"}
                           </div>
+
+                          {item.produtoPrincipal ? (
+                            <div className="text-sm text-gray-700">
+                              <span className="mr-1">
+                                {item.produtoPrincipal.emoji || "📦"}
+                              </span>
+                              {item.produtoPrincipal.nome}
+                              <span className="text-xs text-gray-500 ml-1">
+                                (
+                                {item.produtoPrincipal.quantidade.toLocaleString(
+                                  "pt-BR",
+                                )}{" "}
+                                saíram)
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-400">
+                              Sem produto registrado
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
