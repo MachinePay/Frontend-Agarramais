@@ -3,31 +3,8 @@ import api from "../services/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { PageHeader } from "../components/UIComponents";
-import {
-  BarChart,
-  Bar,
-  Cell,
-  CartesianGrid,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
 
 const toN = (v) => Number(v || 0);
-
-const CORES_RANKING = [
-  "#D97706",
-  "#4F46E5",
-  "#7C3AED",
-  "#DB2777",
-  "#DC2626",
-  "#EA580C",
-  "#65A30D",
-  "#059669",
-  "#0891B2",
-  "#2563EB",
-];
 
 const formatarMesInput = (data) => {
   const ano = data.getFullYear();
@@ -148,7 +125,9 @@ export function RankingMaquinas() {
     return mapa;
   }, [machinePayTotal]);
 
-  const top10Maquinas = useMemo(() => {
+  const [mostrarTodasMaquinas, setMostrarTodasMaquinas] = useState(false);
+
+  const maquinasRanking = useMemo(() => {
     const itens = performance.map((p) => {
       const maquinaId = String(p.maquina?.id);
       const fichas = toN(p.metricas?.totalFichas);
@@ -168,8 +147,12 @@ export function RankingMaquinas() {
       };
     });
 
-    return itens.sort((a, b) => b.valor - a.valor).slice(0, 10);
+    return itens.sort((a, b) => b.valor - a.valor);
   }, [performance, valorFichaPorLoja, machinePayPorMaquina]);
+
+  const maquinasExibidas = mostrarTodasMaquinas
+    ? maquinasRanking
+    : maquinasRanking.slice(0, 10);
 
   const topProdutos = useMemo(
     () => (Array.isArray(dados?.rankingProdutos) ? dados.rankingProdutos : []),
@@ -294,66 +277,35 @@ export function RankingMaquinas() {
               />
             </div>
 
-            {/* Gráfico Top 10 */}
-            {top10Maquinas.length > 0 ? (
+            {/* Ranking detalhado */}
+            {maquinasRanking.length > 0 ? (
               <div className="bg-white p-6 rounded-lg shadow">
-                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <span className="text-2xl">📊</span> Top 10 Máquinas
-                </h3>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <span className="text-2xl">🏆</span>
+                    {mostrarTodasMaquinas
+                      ? "Ranking Detalhado (Todas)"
+                      : "Ranking Detalhado (Top 10)"}
+                  </h3>
+                  {maquinasRanking.length > 10 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setMostrarTodasMaquinas((atual) => !atual)
+                      }
+                      className="text-sm font-semibold text-indigo-700 hover:text-indigo-900"
+                    >
+                      {mostrarTodasMaquinas
+                        ? "Ver menos"
+                        : `Ver tudo (${maquinasRanking.length})`}
+                    </button>
+                  )}
+                </div>
                 <p className="text-xs text-gray-500 mb-3">
                   Valor recebido na Machine Pay no período; quando a máquina
                   não tem Machine Pay cadastrada, usa a quantidade de fichas
                   vezes o valor da ficha cadastrado na loja.
                 </p>
-                <div className="h-96">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={top10Maquinas}
-                      layout="vertical"
-                      margin={{ top: 5, right: 30, left: 60, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                      <XAxis
-                        type="number"
-                        tickFormatter={formatMoney}
-                        tick={{ fontSize: 11 }}
-                      />
-                      <YAxis
-                        dataKey="nome"
-                        type="category"
-                        width={140}
-                        tick={{ fontSize: 11 }}
-                      />
-                      <Tooltip formatter={(v) => formatMoney(v)} />
-                      <Bar
-                        dataKey="valor"
-                        name="Valor"
-                        radius={[0, 4, 4, 0]}
-                        barSize={18}
-                      >
-                        {top10Maquinas.map((_, i) => (
-                          <Cell
-                            key={i}
-                            fill={CORES_RANKING[i % CORES_RANKING.length]}
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white p-6 rounded-lg shadow text-center text-gray-400 text-sm">
-                Sem dados de máquinas para o período selecionado.
-              </div>
-            )}
-
-            {/* Ranking detalhado */}
-            {top10Maquinas.length > 0 && (
-              <div className="bg-white p-6 rounded-lg shadow">
-                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <span className="text-2xl">🏆</span> Ranking Detalhado
-                </h3>
                 <div className="overflow-x-auto">
                   <table className="min-w-full">
                     <thead className="bg-gray-50 border-b">
@@ -379,7 +331,7 @@ export function RankingMaquinas() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {top10Maquinas.map((maquina, idx) => (
+                      {maquinasExibidas.map((maquina, idx) => (
                         <tr key={maquina.maquinaId || idx} className="hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm font-bold text-gray-900">
                             {idx === 0
@@ -431,6 +383,10 @@ export function RankingMaquinas() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+            ) : (
+              <div className="bg-white p-6 rounded-lg shadow text-center text-gray-400 text-sm">
+                Sem dados de máquinas para o período selecionado.
               </div>
             )}
 
