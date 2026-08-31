@@ -2284,6 +2284,12 @@ export function Dashboard() {
         ? "text-red-700"
         : "text-slate-700";
 
+  const topMaquinaMachinePay = Array.isArray(machinePayTotal?.maquinas)
+    ? [...machinePayTotal.maquinas].sort(
+        (a, b) => Number(b.brutoComTaxasMp || 0) - Number(a.brutoComTaxasMp || 0),
+      )[0]
+    : null;
+
   const assistenteNome = assistenteResultado?.assistente?.nome || "IAgarra";
 
   const assistenteStatusLabel = {
@@ -2461,32 +2467,34 @@ export function Dashboard() {
                   )}
                 </div>
               </div>
-              {/* Fichas Inseridas */}
-              <div className="stat-card bg-linear-to-br from-blue-500 to-blue-600 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30">
+              {/* Top 10 Máquinas */}
+              <div
+                className="stat-card bg-linear-to-br from-amber-400 to-yellow-600 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 cursor-pointer"
+                onClick={() => navigate("/ranking-maquinas")}
+              >
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-medium opacity-90">
-                      Fichas Inseridas
+                      Top 10 Máquinas
                     </h3>
-                    <svg
-                      className="w-8 h-8 opacity-80"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                      />
-                    </svg>
+                    <span className="text-2xl opacity-90">🏆</span>
                   </div>
-                  <p className="text-3xl font-bold">
-                    {stats.balanco?.totais?.totalFichas || 0}
-                  </p>
-                  <p className="text-xs opacity-75 mt-1">
-                    🎫 Fichas que entraram
+                  {topMaquinaMachinePay ? (
+                    <>
+                      <p className="text-xl font-bold truncate">
+                        {topMaquinaMachinePay.nome}
+                      </p>
+                      <p className="text-xs opacity-75 mt-1">
+                        💳 R${" "}
+                        {formatarMoeda(topMaquinaMachinePay.brutoComTaxasMp)}{" "}
+                        no mês
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-3xl font-bold">🥇</p>
+                  )}
+                  <p className="text-xs opacity-75 mt-1 font-semibold">
+                    Ranking, gráficos e produtos →
                   </p>
                 </div>
               </div>
