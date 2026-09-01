@@ -133,11 +133,11 @@ export function Relatorios() {
       const itens = await Promise.all(
         maquinas.map(async (m) => {
           const fichas = toNumber(m.totais?.fichas);
-          const valorFicha = toNumber(
-            m.maquina?.valorFicha ??
-              dadosRelatorio?.loja?.valorFichaPadrao ??
-              obterValorFichaPadraoDaLojaSelecionada(),
-          );
+          // valorFichasReais já vem calculado pelo backend com o valorFicha
+          // vigente em cada movimentação da época (histórico), então não
+          // recalculamos aqui com o valor atual da máquina/loja.
+          const valorFichasHistorico = toNumber(m.totais?.valorFichasReais);
+          const valorFicha = fichas > 0 ? valorFichasHistorico / fichas : 0;
           const produtoTopo = Array.isArray(m.produtosSairam)
             ? m.produtosSairam[0]
             : null;
@@ -187,7 +187,7 @@ export function Relatorios() {
             };
           }
 
-          return { ...base, fonte: "fichas", valor: fichas * valorFicha };
+          return { ...base, fonte: "fichas", valor: valorFichasHistorico };
         }),
       );
 
@@ -213,13 +213,6 @@ export function Relatorios() {
           buscarValorRegistradoPorMaquina(periodoInicio, periodoFim),
         ]);
 
-      const valorFichaPorLojaId = new Map(
-        lojas.map((loja) => [
-          String(loja.id),
-          toNumber(loja.valorFichaPadrao) || 2.5,
-        ]),
-      );
-
       const machinePayPorMaquinaId = new Map(
         (machinePayResponse.data?.maquinas || []).map((item) => [
           String(item.maquinaId),
@@ -230,8 +223,12 @@ export function Relatorios() {
       const itens = (performanceResponse.data?.performance || []).map((p) => {
         const maquinaId = String(p.maquina?.id);
         const fichas = toNumber(p.metricas?.totalFichas);
-        const valorFicha =
-          valorFichaPorLojaId.get(String(p.maquina?.lojaId)) || 2.5;
+        // totalFaturamento vem do backend somado a partir do valorFaturado
+        // salvo em cada movimentação (calculado com o valorFicha vigente na
+        // época), então continua correto mesmo depois que o valor da ficha
+        // muda — ao contrário de recalcular aqui com o valor atual.
+        const valorFichasHistorico = toNumber(p.metricas?.totalFaturamento);
+        const valorFicha = fichas > 0 ? valorFichasHistorico / fichas : 0;
         const valorMachinePay = machinePayPorMaquinaId.get(maquinaId);
         const registrado = valorRegistradoPorMaquina.get(maquinaId);
 
@@ -252,7 +249,7 @@ export function Relatorios() {
           return { ...base, fonte: "registrado", valor: registrado.valor };
         }
 
-        return { ...base, fonte: "fichas", valor: fichas * valorFicha };
+        return { ...base, fonte: "fichas", valor: valorFichasHistorico };
       });
 
       setRankingMaquinasTodasLojas(itens.sort((a, b) => b.valor - a.valor));
@@ -512,6 +509,19 @@ export function Relatorios() {
   };
 
   const calcularValorFichasRelatorio = (dadosRelatorio) => {
+    // Prioriza o total histórico já calculado pelo backend (fichas × valor
+    // vigente em cada movimentação da época). Isso é essencial ao comparar
+    // com o mês anterior: se recalculássemos aqui com o valor atual da
+    // ficha, uma mudança de preço faria o mês passado parecer diferente do
+    // que realmente foi.
+    const valorHistorico = Number(
+      dadosRelatorio?.totais?.valorFichasTotal ??
+        dadosRelatorio?.totais?.valorFichas,
+    );
+    if (Number.isFinite(valorHistorico) && valorHistorico > 0) {
+      return valorHistorico;
+    }
+
     const totalFichas = toNumber(dadosRelatorio?.totais?.fichas);
     const valorFicha = toNumber(
       dadosRelatorio?.loja?.valorFichaPadrao ??
@@ -1563,17 +1573,10 @@ export function Relatorios() {
                   <div className="text-2xl sm:text-3xl mb-2">💸</div>
                   <div className="text-xl sm:text-2xl font-bold">
                     ${" "}
-                    {(() => {
-                      const totalFichas = relatorio.totais?.fichas || 0;
-                      const valorFicha = toNumber(
-                        relatorio.loja?.valorFichaPadrao ??
-                          obterValorFichaPadraoDaLojaSelecionada(),
-                      );
-                      return (totalFichas * valorFicha).toLocaleString(
-                        "pt-BR",
-                        { minimumFractionDigits: 2 },
-                      );
-                    })()}
+                    {calcularValorFichasRelatorio(relatorio).toLocaleString(
+                      "pt-BR",
+                      { minimumFractionDigits: 2 },
+                    )}
                   </div>
                   <div className="text-xs sm:text-sm opacity-90">
                     Valor das Fichas (Dashboard)
@@ -2708,13 +2711,15 @@ export function Relatorios() {
                           <div className="text-xl sm:text-3xl font-bold text-center">
                             R${" "}
                             {(() => {
-                              const fichas = maquina.totais.fichas || 0;
-                              const valorFicha = toNumber(
-                                maquina.maquina.valorFicha ??
-                                  relatorio.loja?.valorFichaPadrao ??
-                                  obterValorFichaPadraoDaLojaSelecionada(),
+                              // Usa o valor histórico calculado pelo backend
+                              // (fichas × valorFicha vigente em cada
+                              // movimentação), e não o valorFicha atual da
+                              // máquina/loja, para não distorcer meses
+                              // passados após uma mudança de preço.
+                              const valorFichasHistorico = toNumber(
+                                maquina.totais.valorFichasReais,
                               );
-                              return (fichas * valorFicha).toFixed(2);
+                              return valorFichasHistorico.toFixed(2);
                             })()}
                           </div>
                           <div className="text-xs sm:text-sm text-center mt-1 sm:mt-2 opacity-90">

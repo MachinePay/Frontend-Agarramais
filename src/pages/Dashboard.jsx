@@ -2317,13 +2317,6 @@ export function Dashboard() {
         ? "text-red-700"
         : "text-slate-700";
 
-  const valorFichaPorLojaId = new Map(
-    (lojas || []).map((loja) => [
-      String(loja.id),
-      Number(loja.valorFichaPadrao) || 2.5,
-    ]),
-  );
-
   const machinePayPorMaquinaId = new Map(
     (machinePayTotal?.maquinas || []).map((item) => [
       String(item.maquinaId),
@@ -2385,8 +2378,12 @@ export function Dashboard() {
     .map((p) => {
       const maquinaId = String(p.maquina?.id);
       const fichas = Number(p.metricas?.totalFichas || 0);
-      const valorFicha =
-        valorFichaPorLojaId.get(String(p.maquina?.lojaId)) || 2.5;
+      // totalFaturamento vem do backend somado a partir do valorFaturado
+      // salvo em cada movimentação (calculado com o valorFicha vigente na
+      // época), então continua correto mesmo depois que o valor da ficha
+      // muda — ao contrário de recalcular aqui com o valor atual da loja.
+      const valorFichasHistorico = Number(p.metricas?.totalFaturamento || 0);
+      const valorFicha = fichas > 0 ? valorFichasHistorico / fichas : 0;
       const valorMachinePay = machinePayPorMaquinaId.get(maquinaId);
       const registrado = valorRegistradoPorMaquinaId.get(maquinaId);
 
@@ -2400,7 +2397,7 @@ export function Dashboard() {
         return { ...base, fonte: "registrado", valor: registrado.valor };
       }
 
-      return { ...base, fonte: "fichas", valor: fichas * valorFicha };
+      return { ...base, fonte: "fichas", valor: valorFichasHistorico };
     })
     .sort((a, b) => b.valor - a.valor)
     .slice(0, 10);

@@ -191,14 +191,6 @@ export function RankingMaquinas() {
     if (dataInicio && dataFim) carregarDados();
   }, [dataInicio, dataFim, carregarDados]);
 
-  const valorFichaPorLoja = useMemo(() => {
-    const mapa = new Map();
-    lojas.forEach((loja) => {
-      mapa.set(String(loja.id), toN(loja.valorFichaPadrao) || 2.5);
-    });
-    return mapa;
-  }, [lojas]);
-
   const machinePayPorMaquina = useMemo(() => {
     const mapa = new Map();
     (machinePayTotal?.maquinas || []).forEach((item) => {
@@ -213,7 +205,13 @@ export function RankingMaquinas() {
     const itens = performance.map((p) => {
       const maquinaId = String(p.maquina?.id);
       const fichas = toN(p.metricas?.totalFichas);
-      const valorFicha = valorFichaPorLoja.get(String(p.maquina?.lojaId)) || 2.5;
+      // totalFaturamento já vem do backend somado a partir do valor
+      // registrado em cada movimentação (valorFaturado), calculado com o
+      // valorFicha vigente na época de cada coleta — por isso é seguro
+      // mesmo depois que o valor da ficha muda, ao contrário de recalcular
+      // aqui "fichas × valor atual da loja/máquina".
+      const totalFaturamentoHistorico = toN(p.metricas?.totalFaturamento);
+      const valorFichaMedio = fichas > 0 ? totalFaturamentoHistorico / fichas : 0;
       const valorMachinePay = machinePayPorMaquina.get(maquinaId);
       const registrado = valorRegistradoPorMaquina.get(maquinaId);
 
@@ -222,7 +220,7 @@ export function RankingMaquinas() {
         nome: p.maquina?.nome || "-",
         loja: p.maquina?.loja || "-",
         fichas,
-        valorFicha,
+        valorFicha: valorFichaMedio,
         produtoPrincipal: p.produtoPrincipal || null,
       };
 
@@ -234,16 +232,11 @@ export function RankingMaquinas() {
         return { ...base, fonte: "registrado", valor: registrado.valor };
       }
 
-      return { ...base, fonte: "fichas", valor: fichas * valorFicha };
+      return { ...base, fonte: "fichas", valor: totalFaturamentoHistorico };
     });
 
     return itens.sort((a, b) => b.valor - a.valor);
-  }, [
-    performance,
-    valorFichaPorLoja,
-    machinePayPorMaquina,
-    valorRegistradoPorMaquina,
-  ]);
+  }, [performance, machinePayPorMaquina, valorRegistradoPorMaquina]);
 
   const maquinasExibidas = mostrarTodasMaquinas
     ? maquinasRanking
