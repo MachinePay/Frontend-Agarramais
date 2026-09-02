@@ -6,6 +6,7 @@ import { Footer } from "../components/Footer";
 import { PageHeader } from "../components/UIComponents";
 import { PageLoader } from "../components/Loading";
 import { RelatorioTodasLojas } from "../components/RelatorioTodasLojas";
+import { SeletorLojasMultiplo } from "../components/SeletorLojasMultiplo";
 import Swal from "sweetalert2";
 
 const TODAS_LOJAS_VALUE = "__TODAS_AS_LOJAS__";
@@ -15,7 +16,22 @@ export function Relatorios() {
   const [dashboard, setDashboard] = useState(null);
   const [lojas, setLojas] = useState([]);
   const [usuariosMap, setUsuariosMap] = useState({});
+  // lojasSelecionadas guia o novo seletor múltiplo (checkboxes); lojaSelecionada
+  // é mantida em espelho (string) para não reescrever toda a lógica existente
+  // que já assume "uma loja" ou o sentinel TODAS_LOJAS_VALUE.
+  const [lojasSelecionadas, setLojasSelecionadas] = useState([]);
   const [lojaSelecionada, setLojaSelecionada] = useState("");
+
+  const atualizarLojasSelecionadas = (novaLista) => {
+    setLojasSelecionadas(novaLista);
+    if (novaLista.length === 0) {
+      setLojaSelecionada("");
+    } else if (novaLista.length === 1) {
+      setLojaSelecionada(novaLista[0]);
+    } else {
+      setLojaSelecionada(TODAS_LOJAS_VALUE);
+    }
+  };
   const [mesReferencia, setMesReferencia] = useState("");
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
@@ -197,7 +213,11 @@ export function Relatorios() {
     }
   };
 
-  const montarRankingMaquinasTodasLojas = async (periodoInicio, periodoFim) => {
+  const montarRankingMaquinasTodasLojas = async (
+    periodoInicio,
+    periodoFim,
+    nomesLojasFiltro = null,
+  ) => {
     setCarregandoRankingTodasLojas(true);
     try {
       const [performanceResponse, machinePayResponse, valorRegistradoPorMaquina] =
@@ -220,7 +240,13 @@ export function Relatorios() {
         ]),
       );
 
-      const itens = (performanceResponse.data?.performance || []).map((p) => {
+      const performanceFiltrada = nomesLojasFiltro
+        ? (performanceResponse.data?.performance || []).filter((p) =>
+            nomesLojasFiltro.has(p.maquina?.loja),
+          )
+        : performanceResponse.data?.performance || [];
+
+      const itens = performanceFiltrada.map((p) => {
         const maquinaId = String(p.maquina?.id);
         const fichas = toNumber(p.metricas?.totalFichas);
         // totalFaturamento vem do backend somado a partir do valorFaturado
@@ -314,7 +340,7 @@ export function Relatorios() {
     }
 
     queueMicrotask(() => {
-      setLojaSelecionada(String(filtrosAssistente.lojaId));
+      atualizarLojasSelecionadas([String(filtrosAssistente.lojaId)]);
       setDataInicio(filtrosAssistente.dataInicio);
       setDataFim(filtrosAssistente.dataFim);
       setMesReferencia(
@@ -918,7 +944,7 @@ export function Relatorios() {
   };
 
   const gerarRelatorio = async () => {
-    if (!lojaSelecionada || !dataInicio || !dataFim) {
+    if (lojasSelecionadas.length === 0 || !dataInicio || !dataFim) {
       setError("Por favor, preencha loja, data inicial e data final");
       return;
     }
@@ -943,10 +969,16 @@ export function Relatorios() {
       setRankingMaquinasTodasLojas([]);
 
       if (lojaSelecionada === TODAS_LOJAS_VALUE) {
+        const todasAsLojasSelecionadas = lojasSelecionadas.length === lojas.length;
+        const lojaIdsParam = todasAsLojasSelecionadas
+          ? undefined
+          : lojasSelecionadas.join(",");
+
         const response = await api.get("/relatorios/todas-lojas", {
           params: {
             dataInicio,
             dataFim,
+            lojaIds: lojaIdsParam,
           },
         });
 
@@ -959,6 +991,7 @@ export function Relatorios() {
             params: {
               dataInicio: dataInicioMesAnterior,
               dataFim: dataFimMesAnterior,
+              lojaIds: lojaIdsParam,
             },
           });
 
@@ -1043,7 +1076,17 @@ export function Relatorios() {
         });
         setGastosFixosLoja([]);
         setComparativoMensal(null);
-        montarRankingMaquinasTodasLojas(dataInicio, dataFim);
+        montarRankingMaquinasTodasLojas(
+          dataInicio,
+          dataFim,
+          todasAsLojasSelecionadas
+            ? null
+            : new Set(
+                lojas
+                  .filter((loja) => lojasSelecionadas.includes(String(loja.id)))
+                  .map((loja) => loja.nome),
+              ),
+        );
 
         return;
       }
@@ -1441,21 +1484,13 @@ export function Relatorios() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                🏪 Loja *
+                🏪 Loja(s) *
               </label>
-              <select
-                value={lojaSelecionada}
-                onChange={(e) => setLojaSelecionada(e.target.value)}
-                className="input-field w-full"
-              >
-                <option value="">Selecione uma loja</option>
-                <option value={TODAS_LOJAS_VALUE}>Todas as lojas</option>
-                {lojas.map((loja) => (
-                  <option key={loja.id} value={loja.id}>
-                    {loja.nome}
-                  </option>
-                ))}
-              </select>
+              <SeletorLojasMultiplo
+                lojas={lojas}
+                selecionadas={lojasSelecionadas}
+                onChange={atualizarLojasSelecionadas}
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1530,6 +1565,11 @@ export function Relatorios() {
             relatorio={relatorio}
             rankingMaquinas={rankingMaquinasTodasLojas}
             carregandoRankingMaquinas={carregandoRankingTodasLojas}
+            titulo={
+              lojasSelecionadas.length === lojas.length
+                ? "🏬 Consolidado de Todas as Lojas"
+                : `🏬 Consolidado de ${lojasSelecionadas.length} Lojas Selecionadas`
+            }
           />
         )}
 
