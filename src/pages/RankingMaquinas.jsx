@@ -70,10 +70,12 @@ const construirMapaValorRegistrado = (registros, periodoInicio, periodoFim) => {
       Number(registro.valorDinheiro || 0) + Number(registro.valorCartaoPix || 0);
     const criadoEm = parseDataSegura(registro.createdAt)?.getTime() || 0;
 
-    const atual = mapa.get(String(registro.maquinaId));
-    if (!atual || criadoEm > atual.criadoEm) {
-      mapa.set(String(registro.maquinaId), { valor, criadoEm });
-    }
+    const chave = String(registro.maquinaId);
+    const atual = mapa.get(chave);
+    mapa.set(chave, {
+      valor: (atual?.valor || 0) + valor,
+      criadoEm: Math.max(atual?.criadoEm || 0, criadoEm),
+    });
   });
 
   return mapa;
