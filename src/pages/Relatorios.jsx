@@ -153,7 +153,9 @@ export function Relatorios() {
           // vigente em cada movimentação da época (histórico), então não
           // recalculamos aqui com o valor atual da máquina/loja.
           const valorFichasHistorico = toNumber(m.totais?.valorFichasReais);
-          const valorFicha = fichas > 0 ? valorFichasHistorico / fichas : 0;
+          // valor da ficha cadastrado atualmente na máquina (exibição),
+          // não a média histórica ponderada pelas movimentações.
+          const valorFicha = toNumber(m.maquina?.valorFicha);
           const produtoTopo = Array.isArray(m.produtosSairam)
             ? m.produtosSairam[0]
             : null;
@@ -254,7 +256,9 @@ export function Relatorios() {
         // época), então continua correto mesmo depois que o valor da ficha
         // muda — ao contrário de recalcular aqui com o valor atual.
         const valorFichasHistorico = toNumber(p.metricas?.totalFaturamento);
-        const valorFicha = fichas > 0 ? valorFichasHistorico / fichas : 0;
+        // valor da ficha cadastrado atualmente na máquina (exibição),
+        // não a média entre fichas + notas + pix do faturamento histórico.
+        const valorFicha = toNumber(p.maquina?.valorFicha);
         const valorMachinePay = machinePayPorMaquinaId.get(maquinaId);
         const registrado = valorRegistradoPorMaquina.get(maquinaId);
 

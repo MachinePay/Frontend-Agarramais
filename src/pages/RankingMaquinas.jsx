@@ -213,7 +213,6 @@ export function RankingMaquinas() {
       // mesmo depois que o valor da ficha muda, ao contrário de recalcular
       // aqui "fichas × valor atual da loja/máquina".
       const totalFaturamentoHistorico = toN(p.metricas?.totalFaturamento);
-      const valorFichaMedio = fichas > 0 ? totalFaturamentoHistorico / fichas : 0;
       const valorMachinePay = machinePayPorMaquina.get(maquinaId);
       const registrado = valorRegistradoPorMaquina.get(maquinaId);
 
@@ -222,7 +221,9 @@ export function RankingMaquinas() {
         nome: p.maquina?.nome || "-",
         loja: p.maquina?.loja || "-",
         fichas,
-        valorFicha: valorFichaMedio,
+        // valor da ficha cadastrado na máquina (não a média entre
+        // fichas + notas + pix do totalFaturamento histórico)
+        valorFicha: toN(p.maquina?.valorFicha),
         produtoPrincipal: p.produtoPrincipal || null,
       };
 
