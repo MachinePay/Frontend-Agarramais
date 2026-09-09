@@ -306,7 +306,7 @@ export function ProdutoForm() {
               <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Preço de Venda *
+                    Preço de Compra *
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">
