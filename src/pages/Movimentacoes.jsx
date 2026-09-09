@@ -24,6 +24,20 @@ import {
 
 const CHAVE_ULTIMA_MENSAGEM_WHATSAPP = "ultimaMensagemMovimentacaoWhatsapp";
 
+// Safari/iOS só permite abrir uma nova aba (ou usar navigator.share) de forma
+// síncrona, dentro do mesmo gesto de clique. Como o envio ao WhatsApp só
+// acontece depois de um `await` (chamada à API), a permissão do gesto já
+// expirou quando chegamos lá e o navegador bloqueia silenciosamente a aba.
+// Por isso a aba é aberta em branco aqui, ainda de forma síncrona, e só
+// recebe a URL final (ou é fechada) depois que o envio termina.
+function abrirJanelaWhatsapp() {
+  try {
+    return window.open("", "_blank");
+  } catch {
+    return null;
+  }
+}
+
 export function Movimentacoes() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -478,6 +492,11 @@ export function Movimentacoes() {
       return;
     }
 
+    // Precisa ser aberta aqui, de forma síncrona, para não ser bloqueada
+    // pelo Safari/iOS quando o envio ao WhatsApp acontecer mais tarde.
+    const janelaWhatsapp = abrirJanelaWhatsapp();
+    let janelaWhatsappUsada = false;
+
     movimentacaoEmEnvioRef.current = true;
     setSalvandoMovimentacao(true);
     setError("");
@@ -588,7 +607,8 @@ export function Movimentacoes() {
       await api.post("/movimentacoes", data);
 
       // Movimentação registrada com sucesso: envia automaticamente para o WhatsApp
-      await enviarParaWhatsapp();
+      await enviarParaWhatsapp(janelaWhatsapp);
+      janelaWhatsappUsada = true;
       resetFluxoWhatsappBypass();
 
       // Devolver retirada para o estoque da loja, se marcado
@@ -683,6 +703,9 @@ export function Movimentacoes() {
           "Erro ao registrar movimentação",
       );
     } finally {
+      if (janelaWhatsapp && !janelaWhatsappUsada && !janelaWhatsapp.closed) {
+        janelaWhatsapp.close();
+      }
       movimentacaoEmEnvioRef.current = false;
       setSalvandoMovimentacao(false);
     }
@@ -773,7 +796,7 @@ export function Movimentacoes() {
   };
 
   // --- WHATSAPP ---
-  const enviarParaWhatsapp = async () => {
+  const enviarParaWhatsapp = async (janelaPreAberta = null) => {
     const loja = lojas.find((l) => l.id === filtroLojaForm);
     const maquina = maquinas.find((m) => m.id === formData.maquina_id);
     const produto = produtos.find((p) => p.id === formData.produto_id);
@@ -848,9 +871,11 @@ export function Movimentacoes() {
           text: mensagem,
           files: [fotoContadores],
         });
+        if (janelaPreAberta && !janelaPreAberta.closed) janelaPreAberta.close();
         return;
       } catch (err) {
         if (err?.name === "AbortError") {
+          if (janelaPreAberta && !janelaPreAberta.closed) janelaPreAberta.close();
           return;
         }
         console.error("Erro ao compartilhar foto no WhatsApp:", err);
@@ -864,12 +889,19 @@ export function Movimentacoes() {
     }
 
     const url = `https://wa.me/?text=${encodeURIComponent(mensagem)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
+    if (janelaPreAberta && !janelaPreAberta.closed) {
+      janelaPreAberta.location.href = url;
+    } else {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
   };
 
   const enviarUltimaMensagemSalva = async () => {
+    const janelaPreAberta = abrirJanelaWhatsapp();
+
     const mensagem = localStorage.getItem(CHAVE_ULTIMA_MENSAGEM_WHATSAPP);
     if (!mensagem) {
+      if (janelaPreAberta && !janelaPreAberta.closed) janelaPreAberta.close();
       setError("Nenhuma mensagem de movimentação salva para reenviar.");
       return;
     }
@@ -891,9 +923,11 @@ export function Movimentacoes() {
           text: mensagem,
           files: [foto],
         });
+        if (janelaPreAberta && !janelaPreAberta.closed) janelaPreAberta.close();
         return;
       } catch (err) {
         if (err?.name === "AbortError") {
+          if (janelaPreAberta && !janelaPreAberta.closed) janelaPreAberta.close();
           return;
         }
         console.error("Erro ao compartilhar foto salva no WhatsApp:", err);
@@ -907,7 +941,11 @@ export function Movimentacoes() {
     }
 
     const url = `https://wa.me/?text=${encodeURIComponent(mensagem)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
+    if (janelaPreAberta && !janelaPreAberta.closed) {
+      janelaPreAberta.location.href = url;
+    } else {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
   };
 
   const resetFluxoWhatsappBypass = () => {
@@ -928,6 +966,11 @@ export function Movimentacoes() {
   const confirmarEnvioBypassWhatsapp = async () => {
     if (!obsAlerta.trim() || enviandoAlerta) return;
 
+    // Precisa ser aberta aqui, de forma síncrona, para não ser bloqueada
+    // pelo Safari/iOS quando o envio ao WhatsApp acontecer mais tarde.
+    const janelaWhatsapp = abrirJanelaWhatsapp();
+    let janelaWhatsappUsada = false;
+
     setEnviandoAlerta(true);
     setError("");
     try {
@@ -935,7 +978,8 @@ export function Movimentacoes() {
         maquinaId: formData.maquina_id,
         observacao: obsAlerta.trim(),
       });
-      await enviarParaWhatsapp();
+      await enviarParaWhatsapp(janelaWhatsapp);
+      janelaWhatsappUsada = true;
       resetFluxoWhatsappBypass();
     } catch (err) {
       console.error("Erro ao registrar alerta de movimentação:", err);
@@ -944,6 +988,9 @@ export function Movimentacoes() {
           "Não foi possível registrar o alerta. O WhatsApp não foi aberto.",
       );
     } finally {
+      if (janelaWhatsapp && !janelaWhatsappUsada && !janelaWhatsapp.closed) {
+        janelaWhatsapp.close();
+      }
       setEnviandoAlerta(false);
     }
   };
