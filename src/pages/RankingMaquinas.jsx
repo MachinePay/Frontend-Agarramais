@@ -803,12 +803,14 @@ export function RankingMaquinas() {
                 valor={toN(totais.fichas).toLocaleString("pt-BR")}
                 icon="🎫"
                 cor="purple"
+                comparativo={comparativoTotalFichasNode}
               />
               <KpiCard
                 titulo="Prêmios Saídos"
                 valor={toN(totais.saidas).toLocaleString("pt-BR")}
                 icon="🧸"
                 cor="orange"
+                comparativo={comparativoPremiosSaidosNode}
               />
             </div>
 
