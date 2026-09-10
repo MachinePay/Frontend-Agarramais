@@ -185,9 +185,15 @@ export function BuscaTransportadoras() {
             </div>
           )}
 
-          <button type="submit" className="btn-primary" disabled={buscando}>
-            {buscando ? "Buscando..." : "🔎 Buscar transportadoras"}
-          </button>
+          <div className="pt-2 border-t border-gray-100">
+            <button
+              type="submit"
+              className="btn-primary mt-4"
+              disabled={buscando}
+            >
+              {buscando ? "Buscando..." : "🔎 Buscar transportadoras"}
+            </button>
+          </div>
         </form>
 
         {buscando && (
@@ -200,7 +206,7 @@ export function BuscaTransportadoras() {
           <div className="space-y-6">
             {resultado.resumo && (
               <div className="card-gradient">
-                <p className="text-white/95">{resultado.resumo}</p>
+                <p className="text-gray-800">{resultado.resumo}</p>
               </div>
             )}
 
