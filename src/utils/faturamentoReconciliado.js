@@ -115,3 +115,30 @@ export const somarFaturamentoReconciliado = (
     );
     return soma + valor;
   }, 0);
+
+// Soma "dinheiro de verdade" (Machine Pay > registrado), SEM cair para
+// fichas × valor da ficha. Útil pra comparar um mês já fechado — a Machine
+// Pay zera o valor dele, então olhar só o bruto da Machine Pay do mês
+// anterior não é representativo; olhando máquina por máquina, quando não
+// tem Machine Pay usamos o valor que a própria máquina teve registrado
+// manualmente (Registrar Dinheiro) naquele período.
+export const somarValorComRegistradoFallback = (
+  performanceList,
+  machinePayMapa,
+  registradoMapa,
+) =>
+  (performanceList || []).reduce((soma, item) => {
+    const maquinaId = String(item.maquina?.id);
+    const valorMachinePay = machinePayMapa.get(maquinaId);
+    const registrado = registradoMapa.get(maquinaId);
+
+    if (valorMachinePay !== undefined && valorMachinePay > 0) {
+      return soma + valorMachinePay;
+    }
+
+    if (registrado && registrado.valor > 0) {
+      return soma + registrado.valor;
+    }
+
+    return soma;
+  }, 0);

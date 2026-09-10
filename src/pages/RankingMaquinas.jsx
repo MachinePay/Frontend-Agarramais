@@ -8,6 +8,7 @@ import {
   construirMapaMachinePay,
   obterValorReconciliadoMaquina,
   somarFaturamentoReconciliado,
+  somarValorComRegistradoFallback,
 } from "../utils/faturamentoReconciliado";
 import {
   LineChart,
@@ -331,10 +332,25 @@ export function RankingMaquinas() {
   );
 
   // Valor "só Machine Pay": o que a Machine Pay realmente recebeu no
-  // período, sem cair para registrado/fichas em nenhuma máquina.
+  // período atual — mês em andamento, então o valor bruto da Machine Pay
+  // ainda é real. Para o mês anterior (já fechado, a Machine Pay zera o
+  // valor lá) usamos o fallback por máquina: Machine Pay > valor
+  // registrado manualmente — só as máquinas com Machine Pay têm Registrar
+  // Dinheiro lançado; as demais (só fichas) não entram aqui e não têm
+  // registrado, então contribuem 0 sem distorcer o total.
   const valorMachinePaySoAtual = toN(machinePayTotal?.totalBrutoComTaxasMp);
-  const valorMachinePaySoAnterior = toN(
-    machinePayTotalAnterior?.totalBrutoComTaxasMp,
+  const valorMachinePaySoAnterior = useMemo(
+    () =>
+      somarValorComRegistradoFallback(
+        performanceAnterior,
+        machinePayPorMaquinaAnterior,
+        valorRegistradoAnteriorPorMaquina,
+      ),
+    [
+      performanceAnterior,
+      machinePayPorMaquinaAnterior,
+      valorRegistradoAnteriorPorMaquina,
+    ],
   );
 
   // Valor "só fichas": fichas × valor da ficha vigente em cada coleta,
@@ -459,10 +475,12 @@ export function RankingMaquinas() {
     faturamentoTotalReconciliado,
     faturamentoTotalMesAnterior,
   );
+
   const comparativoMachinePayNode = construirComparativoNode(
     valorMachinePaySoAtual,
     valorMachinePaySoAnterior,
   );
+
   const comparativoFichasNode = construirComparativoNode(
     valorFichasSoAtual,
     valorFichasSoAnterior,
