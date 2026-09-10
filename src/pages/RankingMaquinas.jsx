@@ -87,6 +87,28 @@ const formatarMesInput = (data) => {
   return `${ano}-${mes}`;
 };
 
+// Prioridade do valor "de verdade" de cada máquina no período: Machine Pay
+// (dinheiro recebido de fato) > valor registrado manualmente no sistema >
+// fichas × valor da ficha (fallback histórico). Usada tanto no ranking do
+// mês atual quanto no comparativo com o mês anterior, para os dois números
+// saírem da mesma régua.
+const obterValorReconciliadoMaquina = (p, machinePayMapa, registradoMapa) => {
+  const maquinaId = String(p.maquina?.id);
+  const totalFaturamentoHistorico = toN(p.metricas?.totalFaturamento);
+  const valorMachinePay = machinePayMapa.get(maquinaId);
+  const registrado = registradoMapa.get(maquinaId);
+
+  if (valorMachinePay !== undefined && valorMachinePay > 0) {
+    return { fonte: "machinePay", valor: valorMachinePay };
+  }
+
+  if (registrado && registrado.valor > 0) {
+    return { fonte: "registrado", valor: registrado.valor };
+  }
+
+  return { fonte: "fichas", valor: totalFaturamentoHistorico };
+};
+
 const obterPeriodoDoMes = (mesTexto) => {
   if (!mesTexto) return null;
 
@@ -111,6 +133,48 @@ const obterPeriodoDoMes = (mesTexto) => {
   return {
     dataInicio: formatarDataISO(inicio),
     dataFim: formatarDataISO(fim),
+  };
+};
+
+// Calcula o período equivalente no mês anterior, para o comparativo do KPI.
+// Quando o período selecionado é um mês cheio (caso comum, vindo do seletor
+// "Mês"), usa o mês calendário anterior inteiro. Para um range customizado
+// (Data Inicial/Data Final editados manualmente), desloca cada ponta um mês
+// para trás mantendo o mesmo dia (melhor esforço).
+const obterPeriodoMesAnterior = (dataInicioTexto, dataFimTexto) => {
+  if (!dataInicioTexto || !dataFimTexto) return null;
+
+  const [anoI, mesI, diaI] = dataInicioTexto.split("-").map(Number);
+  const [anoF, mesF, diaF] = dataFimTexto.split("-").map(Number);
+
+  if (!anoI || !mesI || !diaI || !anoF || !mesF || !diaF) return null;
+
+  const ultimoDiaDoMesInicio = new Date(anoI, mesI, 0).getDate();
+  const ehMesCheio =
+    diaI === 1 &&
+    anoI === anoF &&
+    mesI === mesF &&
+    diaF === ultimoDiaDoMesInicio;
+
+  if (ehMesCheio) {
+    const mesAnteriorData = new Date(anoI, mesI - 2, 1);
+    const mesAnteriorTexto = `${mesAnteriorData.getFullYear()}-${String(
+      mesAnteriorData.getMonth() + 1,
+    ).padStart(2, "0")}`;
+    return obterPeriodoDoMes(mesAnteriorTexto);
+  }
+
+  const deslocarUmMes = (ano, mes, dia) => {
+    const data = new Date(ano, mes - 2, dia);
+    const anoData = data.getFullYear();
+    const mesData = String(data.getMonth() + 1).padStart(2, "0");
+    const diaData = String(data.getDate()).padStart(2, "0");
+    return `${anoData}-${mesData}-${diaData}`;
+  };
+
+  return {
+    dataInicio: deslocarUmMes(anoI, mesI, diaI),
+    dataFim: deslocarUmMes(anoF, mesF, diaF),
   };
 };
 
@@ -150,6 +214,15 @@ export function RankingMaquinas() {
     new Map(),
   );
 
+  // Comparativo "mês passado" do KPI de Faturamento Total
+  const [periodoAnterior, setPeriodoAnterior] = useState(null);
+  const [performanceAnterior, setPerformanceAnterior] = useState([]);
+  const [machinePayTotalAnterior, setMachinePayTotalAnterior] = useState(null);
+  const [
+    valorRegistradoAnteriorPorMaquina,
+    setValorRegistradoAnteriorPorMaquina,
+  ] = useState(new Map());
+
   const carregarDados = useCallback(async () => {
     if (!dataInicio || !dataFim) return;
 
@@ -159,23 +232,71 @@ export function RankingMaquinas() {
       const params = { dataInicio, dataFim };
       if (lojaSelecionada) params.lojaId = lojaSelecionada;
 
-      const [dashboardRes, performanceRes, machinePayRes, registrosRes] =
-        await Promise.all([
-          api.get("/relatorios/dashboard", { params }),
-          api.get("/relatorios/performance-maquinas", { params }),
-          api
-            .get("/registro-dinheiro/machine-pay-total", {
-              params: { inicio: dataInicio, fim: `${dataFim}T23:59` },
-            })
-            .catch(() => ({ data: { maquinas: [] } })),
-          api.get("/registro-dinheiro").catch(() => ({ data: [] })),
-        ]);
+      const periodoAnteriorCalculado = obterPeriodoMesAnterior(
+        dataInicio,
+        dataFim,
+      );
+      const paramsAnterior = periodoAnteriorCalculado
+        ? {
+            dataInicio: periodoAnteriorCalculado.dataInicio,
+            dataFim: periodoAnteriorCalculado.dataFim,
+            ...(lojaSelecionada ? { lojaId: lojaSelecionada } : {}),
+          }
+        : null;
+
+      const [
+        dashboardRes,
+        performanceRes,
+        machinePayRes,
+        registrosRes,
+        performanceAnteriorRes,
+        machinePayAnteriorRes,
+      ] = await Promise.all([
+        api.get("/relatorios/dashboard", { params }),
+        api.get("/relatorios/performance-maquinas", { params }),
+        api
+          .get("/registro-dinheiro/machine-pay-total", {
+            params: { inicio: dataInicio, fim: `${dataFim}T23:59` },
+          })
+          .catch(() => ({ data: { maquinas: [] } })),
+        api.get("/registro-dinheiro").catch(() => ({ data: [] })),
+        paramsAnterior
+          ? api
+              .get("/relatorios/performance-maquinas", {
+                params: paramsAnterior,
+              })
+              .catch(() => ({ data: { performance: [] } }))
+          : Promise.resolve({ data: { performance: [] } }),
+        paramsAnterior
+          ? api
+              .get("/registro-dinheiro/machine-pay-total", {
+                params: {
+                  inicio: paramsAnterior.dataInicio,
+                  fim: `${paramsAnterior.dataFim}T23:59`,
+                },
+              })
+              .catch(() => ({ data: { maquinas: [] } }))
+          : Promise.resolve({ data: { maquinas: [] } }),
+      ]);
 
       setDados(dashboardRes.data);
       setPerformance(performanceRes.data?.performance || []);
       setMachinePayTotal(machinePayRes.data || null);
       setValorRegistradoPorMaquina(
         construirMapaValorRegistrado(registrosRes.data, dataInicio, dataFim),
+      );
+
+      setPeriodoAnterior(periodoAnteriorCalculado);
+      setPerformanceAnterior(performanceAnteriorRes.data?.performance || []);
+      setMachinePayTotalAnterior(machinePayAnteriorRes.data || null);
+      setValorRegistradoAnteriorPorMaquina(
+        periodoAnteriorCalculado
+          ? construirMapaValorRegistrado(
+              registrosRes.data,
+              periodoAnteriorCalculado.dataInicio,
+              periodoAnteriorCalculado.dataFim,
+            )
+          : new Map(),
       );
     } catch (err) {
       console.error("[RankingMaquinas] Erro ao carregar dados:", err);
@@ -184,6 +305,10 @@ export function RankingMaquinas() {
       setPerformance([]);
       setMachinePayTotal(null);
       setValorRegistradoPorMaquina(new Map());
+      setPeriodoAnterior(null);
+      setPerformanceAnterior([]);
+      setMachinePayTotalAnterior(null);
+      setValorRegistradoAnteriorPorMaquina(new Map());
     } finally {
       setLoading(false);
     }
@@ -201,20 +326,37 @@ export function RankingMaquinas() {
     return mapa;
   }, [machinePayTotal]);
 
+  const machinePayPorMaquinaAnterior = useMemo(() => {
+    const mapa = new Map();
+    (machinePayTotalAnterior?.maquinas || []).forEach((item) => {
+      mapa.set(String(item.maquinaId), toN(item.brutoComTaxasMp));
+    });
+    return mapa;
+  }, [machinePayTotalAnterior]);
+
+  const faturamentoTotalMesAnterior = useMemo(
+    () =>
+      performanceAnterior.reduce((soma, p) => {
+        const { valor } = obterValorReconciliadoMaquina(
+          p,
+          machinePayPorMaquinaAnterior,
+          valorRegistradoAnteriorPorMaquina,
+        );
+        return soma + valor;
+      }, 0),
+    [
+      performanceAnterior,
+      machinePayPorMaquinaAnterior,
+      valorRegistradoAnteriorPorMaquina,
+    ],
+  );
+
   const [mostrarTodasMaquinas, setMostrarTodasMaquinas] = useState(false);
 
   const maquinasRanking = useMemo(() => {
     const itens = performance.map((p) => {
       const maquinaId = String(p.maquina?.id);
       const fichas = toN(p.metricas?.totalFichas);
-      // totalFaturamento já vem do backend somado a partir do valor
-      // registrado em cada movimentação (valorFaturado), calculado com o
-      // valorFicha vigente na época de cada coleta — por isso é seguro
-      // mesmo depois que o valor da ficha muda, ao contrário de recalcular
-      // aqui "fichas × valor atual da loja/máquina".
-      const totalFaturamentoHistorico = toN(p.metricas?.totalFaturamento);
-      const valorMachinePay = machinePayPorMaquina.get(maquinaId);
-      const registrado = valorRegistradoPorMaquina.get(maquinaId);
 
       const base = {
         maquinaId,
@@ -227,15 +369,13 @@ export function RankingMaquinas() {
         produtoPrincipal: p.produtoPrincipal || null,
       };
 
-      if (valorMachinePay !== undefined && valorMachinePay > 0) {
-        return { ...base, fonte: "machinePay", valor: valorMachinePay };
-      }
+      const { fonte, valor } = obterValorReconciliadoMaquina(
+        p,
+        machinePayPorMaquina,
+        valorRegistradoPorMaquina,
+      );
 
-      if (registrado && registrado.valor > 0) {
-        return { ...base, fonte: "registrado", valor: registrado.valor };
-      }
-
-      return { ...base, fonte: "fichas", valor: totalFaturamentoHistorico };
+      return { ...base, fonte, valor };
     });
 
     return itens.sort((a, b) => b.valor - a.valor);
@@ -266,6 +406,67 @@ export function RankingMaquinas() {
       style: "currency",
       currency: "BRL",
     }).format(val || 0);
+
+  // Comparativo do Faturamento Total com o mês anterior
+  const nomeMesAnteriorTexto = periodoAnterior?.dataInicio
+    ? new Date(`${periodoAnterior.dataInicio}T00:00:00`).toLocaleDateString(
+        "pt-BR",
+        { month: "long", year: "numeric" },
+      )
+    : "";
+
+  const temDadosMesAnterior =
+    !!periodoAnterior && performanceAnterior.length > 0;
+
+  const diferencaFaturamentoMensal =
+    faturamentoTotalReconciliado - faturamentoTotalMesAnterior;
+
+  const percentualFaturamentoMensal =
+    temDadosMesAnterior && Math.abs(faturamentoTotalMesAnterior) > 0
+      ? (diferencaFaturamentoMensal / Math.abs(faturamentoTotalMesAnterior)) *
+        100
+      : null;
+
+  const statusComparativoFaturamento = !temDadosMesAnterior
+    ? null
+    : diferencaFaturamentoMensal > 0
+      ? "acima"
+      : diferencaFaturamentoMensal < 0
+        ? "abaixo"
+        : "igual";
+
+  const badgeComparativoFaturamentoClass =
+    statusComparativoFaturamento === "acima"
+      ? "bg-green-100 text-green-700"
+      : statusComparativoFaturamento === "abaixo"
+        ? "bg-red-100 text-red-700"
+        : "bg-gray-100 text-gray-600";
+
+  const comparativoFaturamentoNode = periodoAnterior ? (
+    temDadosMesAnterior ? (
+      <div
+        className={`mt-2 inline-flex flex-wrap items-center gap-1 rounded-full px-2 py-1 text-[11px] font-bold ${badgeComparativoFaturamentoClass}`}
+      >
+        <span>
+          {statusComparativoFaturamento === "acima"
+            ? "▲"
+            : statusComparativoFaturamento === "abaixo"
+              ? "▼"
+              : "="}
+        </span>
+        <span>
+          {percentualFaturamentoMensal !== null
+            ? `${Math.abs(percentualFaturamentoMensal).toFixed(1)}%`
+            : "N/A"}{" "}
+          vs {nomeMesAnteriorTexto} ({formatMoney(faturamentoTotalMesAnterior)})
+        </span>
+      </div>
+    ) : (
+      <p className="mt-2 text-[11px] font-semibold text-gray-400">
+        Sem dados em {nomeMesAnteriorTexto} para comparar
+      </p>
+    )
+  ) : null;
 
   // ─── Evolução mensal (máquinas e produtos) ─────────────────────────────
   const anoAtual = new Date().getFullYear();
@@ -520,6 +721,7 @@ export function RankingMaquinas() {
                 valor={formatMoney(faturamentoTotalReconciliado)}
                 icon="💰"
                 cor="green"
+                comparativo={comparativoFaturamentoNode}
               />
               <KpiCard
                 titulo="Lucro Líquido"
@@ -953,11 +1155,11 @@ const COR_MAP = {
   orange: "border-orange-500 bg-orange-100 text-orange-600",
 };
 
-function KpiCard({ titulo, valor, icon, cor }) {
+function KpiCard({ titulo, valor, icon, cor, comparativo }) {
   const [border, bg, text] = (COR_MAP[cor] || COR_MAP.blue).split(" ");
   return (
     <div
-      className={`bg-white p-6 rounded-lg shadow-md border-l-4 ${border} flex-1 min-w-[180px]`}
+      className={`bg-white p-6 rounded-lg shadow-md border-l-4 ${border} flex-1 min-w-45`}
     >
       <div className="flex justify-between items-start">
         <div>
@@ -965,6 +1167,7 @@ function KpiCard({ titulo, valor, icon, cor }) {
             {titulo}
           </p>
           <h3 className="text-2xl font-bold text-gray-900 mt-1">{valor}</h3>
+          {comparativo}
         </div>
         <span className={`p-2 ${bg} ${text} rounded-lg text-xl`}>{icon}</span>
       </div>
