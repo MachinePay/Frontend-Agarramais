@@ -332,13 +332,22 @@ export function RankingMaquinas() {
   );
 
   // Valor "só Machine Pay": o que a Machine Pay realmente recebeu no
-  // período atual — mês em andamento, então o valor bruto da Machine Pay
-  // ainda é real. Para o mês anterior (já fechado, a Machine Pay zera o
-  // valor lá) usamos o fallback por máquina: Machine Pay > valor
-  // registrado manualmente — só as máquinas com Machine Pay têm Registrar
-  // Dinheiro lançado; as demais (só fichas) não entram aqui e não têm
-  // registrado, então contribuem 0 sem distorcer o total.
-  const valorMachinePaySoAtual = toN(machinePayTotal?.totalBrutoComTaxasMp);
+  // período, com fallback pro valor registrado manualmente quando a
+  // Machine Pay está zerada — o que acontece sempre que o período
+  // selecionado é um mês já fechado, seja ele o "atual" (o usuário pode
+  // filtrar por qualquer mês passado, não só o em andamento) ou o
+  // anterior usado na comparação. Só as máquinas com Machine Pay têm
+  // Registrar Dinheiro lançado; as demais (só fichas) não entram aqui e
+  // não têm registrado, então contribuem 0 sem distorcer o total.
+  const valorMachinePaySoAtual = useMemo(
+    () =>
+      somarValorComRegistradoFallback(
+        performance,
+        machinePayPorMaquina,
+        valorRegistradoPorMaquina,
+      ),
+    [performance, machinePayPorMaquina, valorRegistradoPorMaquina],
+  );
   const valorMachinePaySoAnterior = useMemo(
     () =>
       somarValorComRegistradoFallback(
