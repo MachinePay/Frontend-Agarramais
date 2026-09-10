@@ -10,6 +10,11 @@ import { Badge } from "../components/UIComponents";
 import AlertAdmin from "../components/AlertAdmin";
 import LancarGastoVariavel from "../components/LancarGastoVariavel";
 import { useAuth } from "../contexts/AuthContext";
+import {
+  construirMapaValorRegistrado,
+  construirMapaMachinePay,
+  somarFaturamentoReconciliado,
+} from "../utils/faturamentoReconciliado";
 
 import Swal from "sweetalert2";
 
@@ -266,6 +271,7 @@ export function Dashboard() {
     balanco: null,
     comparativoLucroMensal: null,
     gastoVariavelMes: 0,
+    valorFichasSoMes: 0,
     loading: true,
   });
   const [manutencoesPendentes, setManutencoesPendentes] = useState([]);
@@ -816,34 +822,6 @@ export function Dashboard() {
         };
 
         requisicoes.unshift(
-          api
-            .get("/relatorios/dashboard", {
-              params: {
-                dataInicio: periodoComparacaoMensal.inicioMesAtual,
-                dataFim: periodoComparacaoMensal.fimMesAtual,
-              },
-            })
-            .catch((err) => {
-              console.error(
-                "Erro ao carregar faturamento do mês atual para comparação:",
-                err.message,
-              );
-              return { data: null };
-            }),
-          api
-            .get("/relatorios/dashboard", {
-              params: {
-                dataInicio: periodoComparacaoMensal.inicioMesAnterior,
-                dataFim: periodoComparacaoMensal.fimMesAnterior,
-              },
-            })
-            .catch((err) => {
-              console.error(
-                "Erro ao carregar faturamento do mês anterior para comparação:",
-                err.message,
-              );
-              return { data: null };
-            }),
           api.get("/relatorios/alertas-estoque").catch((err) => {
             console.error("Erro ao carregar alertas de máquinas:", err.message);
             return { data: { alertas: [] } };
@@ -916,31 +894,66 @@ export function Dashboard() {
             );
             return { data: [] };
           }),
+          api
+            .get("/relatorios/performance-maquinas", {
+              params: {
+                dataInicio: periodoComparacaoMensal.inicioMesAnterior,
+                dataFim: periodoComparacaoMensal.fimMesAnterior,
+              },
+            })
+            .catch((err) => {
+              console.error(
+                "Erro ao carregar performance de máquinas do mês anterior:",
+                err.message,
+              );
+              return { data: { performance: [] } };
+            }),
+          api
+            .get("/registro-dinheiro/machine-pay-total", {
+              params: {
+                inicio: periodoComparacaoMensal.inicioMesAnterior,
+                fim: `${periodoComparacaoMensal.fimMesAnterior}T23:59`,
+              },
+            })
+            .catch((err) => {
+              console.error(
+                "Erro ao carregar total Machine Pay do mês anterior:",
+                err.message,
+              );
+              return {
+                data: {
+                  totalBrutoComTaxasMp: 0,
+                  totalPix: 0,
+                  totalCartao: 0,
+                  totalLiquido: 0,
+                  maquinaCount: 0,
+                },
+              };
+            }),
         );
       }
 
       const resultados = await Promise.all(requisicoes);
 
-      let faturamentoMesAtualRes,
-        faturamentoMesAnteriorRes,
-        alertasRes,
+      let alertasRes,
         alertasBomDesempenhoRes,
         balancoRes,
         machinePayTotalRes,
         gastoVariavelMesRes,
         performanceMaquinasRes,
         registrosDinheiroRes,
+        performanceMaquinasAnteriorRes,
+        machinePayTotalAnteriorRes,
         lojasRes,
         maquinasRes,
         produtosRes;
 
       let comparativoLucroMensal = null;
       let gastoVariavelMes = 0;
+      let valorFichasSoMes = 0;
 
       if (isAdmin) {
         [
-          faturamentoMesAtualRes,
-          faturamentoMesAnteriorRes,
           alertasRes,
           alertasBomDesempenhoRes,
           balancoRes,
@@ -948,6 +961,8 @@ export function Dashboard() {
           gastoVariavelMesRes,
           performanceMaquinasRes,
           registrosDinheiroRes,
+          performanceMaquinasAnteriorRes,
+          machinePayTotalAnteriorRes,
           lojasRes,
           maquinasRes,
           produtosRes,
@@ -958,12 +973,47 @@ export function Dashboard() {
           0,
         );
 
-        const faturamentoMesAtual = Number(
-          faturamentoMesAtualRes?.data?.totais?.faturamento || 0,
+        const performanceAtualLista = performanceMaquinasRes?.data?.performance || [];
+        const performanceAnteriorLista =
+          performanceMaquinasAnteriorRes?.data?.performance || [];
+        const registrosDinheiroTodos = registrosDinheiroRes?.data || [];
+
+        const machinePayMapaAtual = construirMapaMachinePay(
+          machinePayTotalRes?.data,
         );
-        const faturamentoMesAnterior = Number(
-          faturamentoMesAnteriorRes?.data?.totais?.faturamento || 0,
+        const machinePayMapaAnterior = construirMapaMachinePay(
+          machinePayTotalAnteriorRes?.data,
         );
+        const registradoMapaAtual = construirMapaValorRegistrado(
+          registrosDinheiroTodos,
+          periodoComparacaoMensal.inicioMesAtual,
+          periodoComparacaoMensal.fimMesAtual,
+        );
+        const registradoMapaAnterior = construirMapaValorRegistrado(
+          registrosDinheiroTodos,
+          periodoComparacaoMensal.inicioMesAnterior,
+          periodoComparacaoMensal.fimMesAnterior,
+        );
+
+        // Faturamento reconciliado (Machine Pay > valor registrado no
+        // sistema, quando a Machine Pay já fechou o mês e zerou > fichas ×
+        // valor da ficha), a mesma régua usada no Ranking de Máquinas.
+        const faturamentoMesAtual = somarFaturamentoReconciliado(
+          performanceAtualLista,
+          machinePayMapaAtual,
+          registradoMapaAtual,
+        );
+        const faturamentoMesAnterior = somarFaturamentoReconciliado(
+          performanceAnteriorLista,
+          machinePayMapaAnterior,
+          registradoMapaAnterior,
+        );
+
+        valorFichasSoMes = performanceAtualLista.reduce(
+          (acc, p) => acc + Number(p.metricas?.totalFaturamento || 0),
+          0,
+        );
+
         const diferencaFaturamento =
           faturamentoMesAtual - faturamentoMesAnterior;
         const percentualVariacao =
@@ -1004,6 +1054,7 @@ export function Dashboard() {
         balanco: balancoRes.data,
         comparativoLucroMensal,
         gastoVariavelMes,
+        valorFichasSoMes,
         loading: false,
       });
       setLojas(lojasRes.data || []);
@@ -1035,6 +1086,7 @@ export function Dashboard() {
         balanco: null,
         comparativoLucroMensal: null,
         gastoVariavelMes: 0,
+        valorFichasSoMes: 0,
         loading: false,
       });
       setLojas([]);
@@ -2547,7 +2599,9 @@ export function Dashboard() {
                   <p className="text-3xl font-bold">
                     R${" "}
                     {formatarMoeda(
-                      stats.balanco?.totais?.totalFaturamento || 0,
+                      comparativoLucroMensal?.valorMesAtual ??
+                        stats.balanco?.totais?.totalFaturamento ??
+                        0,
                     )}
                   </p>
                   {comparativoLucroMensal ? (
@@ -2693,6 +2747,23 @@ export function Dashboard() {
                     {machinePayTotal
                       ? `${machinePayTotal.maquinaCount || 0} máquinas com ID MP`
                       : "Carregando valores reais..."}
+                  </p>
+                </div>
+              </div>
+              {/* Valor por Fichas */}
+              <div className="stat-card bg-linear-to-br from-pink-500 to-rose-600 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30">
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-medium opacity-90">
+                      Valor por Fichas
+                    </h3>
+                    <span className="text-2xl opacity-90">🎟️</span>
+                  </div>
+                  <p className="text-3xl font-bold">
+                    R$ {formatarMoeda(stats.valorFichasSoMes)}
+                  </p>
+                  <p className="text-xs opacity-75 mt-1">
+                    Fichas × valor da ficha no mês, sem Machine Pay/registrado
                   </p>
                 </div>
               </div>

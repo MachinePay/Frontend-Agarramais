@@ -4,6 +4,12 @@ import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { PageHeader } from "../components/UIComponents";
 import {
+  construirMapaValorRegistrado,
+  construirMapaMachinePay,
+  obterValorReconciliadoMaquina,
+  somarFaturamentoReconciliado,
+} from "../utils/faturamentoReconciliado";
+import {
   LineChart,
   Line,
   CartesianGrid,
@@ -33,80 +39,12 @@ const MESES_NOMES = [
 
 // Quando a Machine Pay já fez o fechamento do mês, o valor lá fica zerado.
 // Nesse caso usamos o último valor registrado no nosso sistema (Registrar
-// Dinheiro) para aquela máquina no período, em vez de mostrar R$ 0,00.
-const parseDataSegura = (valor) => {
-  if (!valor) return null;
-  const data = new Date(valor);
-  return Number.isNaN(data.getTime()) ? null : data;
-};
-
-const temIntersecaoPeriodo = (inicioA, fimA, inicioB, fimB) => {
-  if (!inicioA || !fimA || !inicioB || !fimB) return false;
-  return inicioA <= fimB && fimA >= inicioB;
-};
-
-const construirMapaValorRegistrado = (registros, periodoInicio, periodoFim) => {
-  const mapa = new Map();
-  const periodoInicioData = new Date(`${periodoInicio}T00:00:00`);
-  const periodoFimData = new Date(`${periodoFim}T23:59:59`);
-
-  (registros || []).forEach((registro) => {
-    if (!registro.maquinaId) return;
-
-    const inicioRegistro = parseDataSegura(registro.inicio);
-    const fimRegistro = parseDataSegura(registro.fim);
-    if (
-      !temIntersecaoPeriodo(
-        inicioRegistro,
-        fimRegistro,
-        periodoInicioData,
-        periodoFimData,
-      )
-    ) {
-      return;
-    }
-
-    const valor =
-      Number(registro.valorDinheiro || 0) + Number(registro.valorCartaoPix || 0);
-    const criadoEm = parseDataSegura(registro.createdAt)?.getTime() || 0;
-
-    const chave = String(registro.maquinaId);
-    const atual = mapa.get(chave);
-    mapa.set(chave, {
-      valor: (atual?.valor || 0) + valor,
-      criadoEm: Math.max(atual?.criadoEm || 0, criadoEm),
-    });
-  });
-
-  return mapa;
-};
-
+// Dinheiro) para aquela máquina no período, em vez de mostrar R$ 0,00 (ver
+// obterValorReconciliadoMaquina em utils/faturamentoReconciliado.js).
 const formatarMesInput = (data) => {
   const ano = data.getFullYear();
   const mes = String(data.getMonth() + 1).padStart(2, "0");
   return `${ano}-${mes}`;
-};
-
-// Prioridade do valor "de verdade" de cada máquina no período: Machine Pay
-// (dinheiro recebido de fato) > valor registrado manualmente no sistema >
-// fichas × valor da ficha (fallback histórico). Usada tanto no ranking do
-// mês atual quanto no comparativo com o mês anterior, para os dois números
-// saírem da mesma régua.
-const obterValorReconciliadoMaquina = (p, machinePayMapa, registradoMapa) => {
-  const maquinaId = String(p.maquina?.id);
-  const totalFaturamentoHistorico = toN(p.metricas?.totalFaturamento);
-  const valorMachinePay = machinePayMapa.get(maquinaId);
-  const registrado = registradoMapa.get(maquinaId);
-
-  if (valorMachinePay !== undefined && valorMachinePay > 0) {
-    return { fonte: "machinePay", valor: valorMachinePay };
-  }
-
-  if (registrado && registrado.valor > 0) {
-    return { fonte: "registrado", valor: registrado.valor };
-  }
-
-  return { fonte: "fichas", valor: totalFaturamentoHistorico };
 };
 
 const obterPeriodoDoMes = (mesTexto) => {
@@ -318,32 +256,23 @@ export function RankingMaquinas() {
     if (dataInicio && dataFim) carregarDados();
   }, [dataInicio, dataFim, carregarDados]);
 
-  const machinePayPorMaquina = useMemo(() => {
-    const mapa = new Map();
-    (machinePayTotal?.maquinas || []).forEach((item) => {
-      mapa.set(String(item.maquinaId), toN(item.brutoComTaxasMp));
-    });
-    return mapa;
-  }, [machinePayTotal]);
+  const machinePayPorMaquina = useMemo(
+    () => construirMapaMachinePay(machinePayTotal),
+    [machinePayTotal],
+  );
 
-  const machinePayPorMaquinaAnterior = useMemo(() => {
-    const mapa = new Map();
-    (machinePayTotalAnterior?.maquinas || []).forEach((item) => {
-      mapa.set(String(item.maquinaId), toN(item.brutoComTaxasMp));
-    });
-    return mapa;
-  }, [machinePayTotalAnterior]);
+  const machinePayPorMaquinaAnterior = useMemo(
+    () => construirMapaMachinePay(machinePayTotalAnterior),
+    [machinePayTotalAnterior],
+  );
 
   const faturamentoTotalMesAnterior = useMemo(
     () =>
-      performanceAnterior.reduce((soma, p) => {
-        const { valor } = obterValorReconciliadoMaquina(
-          p,
-          machinePayPorMaquinaAnterior,
-          valorRegistradoAnteriorPorMaquina,
-        );
-        return soma + valor;
-      }, 0),
+      somarFaturamentoReconciliado(
+        performanceAnterior,
+        machinePayPorMaquinaAnterior,
+        valorRegistradoAnteriorPorMaquina,
+      ),
     [
       performanceAnterior,
       machinePayPorMaquinaAnterior,
@@ -401,13 +330,45 @@ export function RankingMaquinas() {
     [maquinasRanking],
   );
 
+  // Valor "só Machine Pay": o que a Machine Pay realmente recebeu no
+  // período, sem cair para registrado/fichas em nenhuma máquina.
+  const valorMachinePaySoAtual = toN(machinePayTotal?.totalBrutoComTaxasMp);
+  const valorMachinePaySoAnterior = toN(
+    machinePayTotalAnterior?.totalBrutoComTaxasMp,
+  );
+
+  // Valor "só fichas": fichas × valor da ficha vigente em cada coleta,
+  // ignorando Machine Pay e valor registrado manualmente.
+  const valorFichasSoAtual = useMemo(
+    () =>
+      performance.reduce(
+        (soma, p) => soma + toN(p.metricas?.totalFaturamento),
+        0,
+      ),
+    [performance],
+  );
+  const valorFichasSoAnterior = useMemo(
+    () =>
+      performanceAnterior.reduce(
+        (soma, p) => soma + toN(p.metricas?.totalFaturamento),
+        0,
+      ),
+    [performanceAnterior],
+  );
+
   const formatMoney = (val) =>
     new Intl.NumberFormat("pt-BR", {
       style: "currency",
       currency: "BRL",
     }).format(val || 0);
 
-  // Comparativo do Faturamento Total com o mês anterior
+  // Comparativo com o mês anterior, normalizado por média diária: mês cheio
+  // de 31 dias vs mês em andamento com só 10 dias (ou vs fevereiro com 28)
+  // não pode ser comparado ponta a ponta, senão o percentual não reflete a
+  // realidade. Em vez disso: pega a média diária do mês anterior inteiro
+  // (total ÷ dias daquele mês) e projeta essa média para a mesma
+  // quantidade de dias já cobertos no período atual. Reaproveitado pelos
+  // três KPIs (Faturamento Total, só Machine Pay, só Fichas).
   const nomeMesAnteriorTexto = periodoAnterior?.dataInicio
     ? new Date(`${periodoAnterior.dataInicio}T00:00:00`).toLocaleDateString(
         "pt-BR",
@@ -415,58 +376,97 @@ export function RankingMaquinas() {
       )
     : "";
 
+  const diasNoMesAnterior = periodoAnterior
+    ? (() => {
+        const [ano, mes] = periodoAnterior.dataInicio.split("-").map(Number);
+        return new Date(ano, mes, 0).getDate();
+      })()
+    : 0;
+
+  const diasConsideradosMesAtual = (() => {
+    if (!dataInicio || !dataFim) return 0;
+    const hoje = new Date();
+    const hojeSemHora = new Date(
+      hoje.getFullYear(),
+      hoje.getMonth(),
+      hoje.getDate(),
+    );
+    const inicioAtual = new Date(`${dataInicio}T00:00:00`);
+    const fimSelecionado = new Date(`${dataFim}T00:00:00`);
+    const fimEfetivo =
+      fimSelecionado < hojeSemHora ? fimSelecionado : hojeSemHora;
+    const diff =
+      Math.round((fimEfetivo - inicioAtual) / (1000 * 60 * 60 * 24)) + 1;
+    return Math.max(0, diff);
+  })();
+
+  const temPeriodoValidoParaComparar =
+    !!periodoAnterior && diasNoMesAnterior > 0 && diasConsideradosMesAtual > 0;
+
   const temDadosMesAnterior =
-    !!periodoAnterior && performanceAnterior.length > 0;
+    temPeriodoValidoParaComparar && performanceAnterior.length > 0;
 
-  const diferencaFaturamentoMensal =
-    faturamentoTotalReconciliado - faturamentoTotalMesAnterior;
+  const construirComparativoNode = (valorAtual, valorTotalMesAnterior) => {
+    if (!periodoAnterior) return null;
 
-  const percentualFaturamentoMensal =
-    temDadosMesAnterior && Math.abs(faturamentoTotalMesAnterior) > 0
-      ? (diferencaFaturamentoMensal / Math.abs(faturamentoTotalMesAnterior)) *
-        100
-      : null;
+    if (!temDadosMesAnterior) {
+      return (
+        <p className="mt-2 text-[11px] font-semibold text-gray-400">
+          Sem dados suficientes em {nomeMesAnteriorTexto || "mês anterior"}{" "}
+          para comparar
+        </p>
+      );
+    }
 
-  const statusComparativoFaturamento = !temDadosMesAnterior
-    ? null
-    : diferencaFaturamentoMensal > 0
-      ? "acima"
-      : diferencaFaturamentoMensal < 0
-        ? "abaixo"
-        : "igual";
+    const mediaDiariaMesAnterior = valorTotalMesAnterior / diasNoMesAnterior;
+    // Valor que o mês anterior teria feito nos mesmos N dias já cobertos
+    // pelo período atual, usando a média diária real dele.
+    const valorEquivalenteMesAnterior =
+      mediaDiariaMesAnterior * diasConsideradosMesAtual;
+    const diferenca = valorAtual - valorEquivalenteMesAnterior;
+    const percentual =
+      valorEquivalenteMesAnterior > 0
+        ? (diferenca / valorEquivalenteMesAnterior) * 100
+        : null;
+    const status =
+      diferenca > 0 ? "acima" : diferenca < 0 ? "abaixo" : "igual";
+    const badgeClass =
+      status === "acima"
+        ? "bg-green-100 text-green-700"
+        : status === "abaixo"
+          ? "bg-red-100 text-red-700"
+          : "bg-gray-100 text-gray-600";
 
-  const badgeComparativoFaturamentoClass =
-    statusComparativoFaturamento === "acima"
-      ? "bg-green-100 text-green-700"
-      : statusComparativoFaturamento === "abaixo"
-        ? "bg-red-100 text-red-700"
-        : "bg-gray-100 text-gray-600";
-
-  const comparativoFaturamentoNode = periodoAnterior ? (
-    temDadosMesAnterior ? (
+    return (
       <div
-        className={`mt-2 inline-flex flex-wrap items-center gap-1 rounded-full px-2 py-1 text-[11px] font-bold ${badgeComparativoFaturamentoClass}`}
+        className={`mt-2 inline-flex flex-wrap items-center gap-1 rounded-full px-2 py-1 text-[11px] font-bold ${badgeClass}`}
       >
         <span>
-          {statusComparativoFaturamento === "acima"
-            ? "▲"
-            : statusComparativoFaturamento === "abaixo"
-              ? "▼"
-              : "="}
+          {status === "acima" ? "▲" : status === "abaixo" ? "▼" : "="}
         </span>
         <span>
-          {percentualFaturamentoMensal !== null
-            ? `${Math.abs(percentualFaturamentoMensal).toFixed(1)}%`
+          {percentual !== null
+            ? `${Math.abs(percentual).toFixed(1)}%`
             : "N/A"}{" "}
-          vs {nomeMesAnteriorTexto} ({formatMoney(faturamentoTotalMesAnterior)})
+          vs mesmos {diasConsideradosMesAtual} dias em {nomeMesAnteriorTexto} (
+          {formatMoney(valorEquivalenteMesAnterior)})
         </span>
       </div>
-    ) : (
-      <p className="mt-2 text-[11px] font-semibold text-gray-400">
-        Sem dados em {nomeMesAnteriorTexto} para comparar
-      </p>
-    )
-  ) : null;
+    );
+  };
+
+  const comparativoFaturamentoNode = construirComparativoNode(
+    faturamentoTotalReconciliado,
+    faturamentoTotalMesAnterior,
+  );
+  const comparativoMachinePayNode = construirComparativoNode(
+    valorMachinePaySoAtual,
+    valorMachinePaySoAnterior,
+  );
+  const comparativoFichasNode = construirComparativoNode(
+    valorFichasSoAtual,
+    valorFichasSoAnterior,
+  );
 
   // ─── Evolução mensal (máquinas e produtos) ─────────────────────────────
   const anoAtual = new Date().getFullYear();
@@ -722,6 +722,20 @@ export function RankingMaquinas() {
                 icon="💰"
                 cor="green"
                 comparativo={comparativoFaturamentoNode}
+              />
+              <KpiCard
+                titulo="Valor Machine Pay"
+                valor={formatMoney(valorMachinePaySoAtual)}
+                icon="💳"
+                cor="blue"
+                comparativo={comparativoMachinePayNode}
+              />
+              <KpiCard
+                titulo="Valor por Fichas"
+                valor={formatMoney(valorFichasSoAtual)}
+                icon="🎟️"
+                cor="purple"
+                comparativo={comparativoFichasNode}
               />
               <KpiCard
                 titulo="Lucro Líquido"
