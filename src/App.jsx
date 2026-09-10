@@ -23,6 +23,7 @@ import { Graficos } from "./pages/Graficos";
 import { RankingMaquinas } from "./pages/RankingMaquinas";
 import { Relatorios } from "./pages/Relatorios";
 import { MachinePay } from "./pages/MachinePay";
+import { BuscaTransportadoras } from "./pages/BuscaTransportadoras";
 import { Sangrias } from "./pages/Sangrias";
 import { GastosVariaveis } from "./pages/GastosVariaveis";
 import { StyleGuide } from "./pages/StyleGuide";
@@ -238,6 +239,14 @@ function App() {
             element={
               <PrivateRoute roles={["ADMIN", "MACHINEPAY"]}>
                 <MachinePay />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/transportadoras"
+            element={
+              <PrivateRoute roles={["ADMIN", "COMERCIAL"]}>
+                <BuscaTransportadoras />
               </PrivateRoute>
             }
           />

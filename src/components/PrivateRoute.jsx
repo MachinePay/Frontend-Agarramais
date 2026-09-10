@@ -2,7 +2,7 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
 export function PrivateRoute({ children, adminOnly = false, roles = [] }) {
-  const { signed, loading, isAdmin, hasRole } = useAuth();
+  const { signed, loading, isAdmin, hasRole, usuario } = useAuth();
 
   if (loading) {
     return (
@@ -22,6 +22,11 @@ export function PrivateRoute({ children, adminOnly = false, roles = [] }) {
 
   if (roles.length > 0 && !hasRole(...roles)) {
     return <Navigate to="/" />;
+  }
+
+  // Funcionário comercial tem acesso apenas às rotas que explicitamente permitem o role COMERCIAL
+  if (usuario?.role === "COMERCIAL" && !roles.includes("COMERCIAL")) {
+    return <Navigate to="/transportadoras" />;
   }
 
   return children;

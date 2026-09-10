@@ -290,12 +290,15 @@ export function UsuarioForm() {
                   <option value="FUNCIONARIO">Funcionário</option>
                   <option value="ADMIN">Administrador</option>
                   <option value="MACHINEPAY">Funcionário Machine</option>
+                  <option value="COMERCIAL">Funcionário Comercial</option>
                 </select>
                 <p className="mt-2 text-sm text-gray-500">
                   {formData.role === "ADMIN"
                     ? "Administradores têm acesso total ao sistema"
                     : formData.role === "MACHINEPAY"
                     ? "Funcionários Machine têm acesso apenas às funcionalidades da Machine Pay"
+                    : formData.role === "COMERCIAL"
+                    ? "Funcionários Comerciais têm acesso apenas à busca de transportadoras"
                     : "Funcionários têm acesso limitado às lojas autorizadas"}
                 </p>
               </div>
