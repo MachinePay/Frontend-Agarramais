@@ -7,8 +7,9 @@ import {
   construirMapaValorRegistrado,
   construirMapaMachinePay,
   obterValorReconciliadoMaquina,
-  somarFaturamentoReconciliado,
   somarValorComRegistradoFallback,
+  somarValorRegistradoConsolidado,
+  ehMesAtualReal,
 } from "../utils/faturamentoReconciliado";
 import {
   LineChart,
@@ -152,6 +153,11 @@ export function RankingMaquinas() {
   const [valorRegistradoPorMaquina, setValorRegistradoPorMaquina] = useState(
     new Map(),
   );
+  // Lista bruta de /registro-dinheiro (todas as lojas/máquinas, sem filtro
+  // de data) — usada por somarValorRegistradoConsolidado para meses já
+  // fechados, que soma diretamente sobre os registros brutos em vez de um
+  // Map por máquina.
+  const [registrosDinheiroTodos, setRegistrosDinheiroTodos] = useState([]);
 
   // Comparativo "mês passado" do KPI de Faturamento Total
   const [periodoAnterior, setPeriodoAnterior] = useState(null);
@@ -224,6 +230,9 @@ export function RankingMaquinas() {
       setValorRegistradoPorMaquina(
         construirMapaValorRegistrado(registrosRes.data, dataInicio, dataFim),
       );
+      setRegistrosDinheiroTodos(
+        Array.isArray(registrosRes.data) ? registrosRes.data : [],
+      );
 
       setPeriodoAnterior(periodoAnteriorCalculado);
       setPerformanceAnterior(performanceAnteriorRes.data?.performance || []);
@@ -244,6 +253,7 @@ export function RankingMaquinas() {
       setPerformance([]);
       setMachinePayTotal(null);
       setValorRegistradoPorMaquina(new Map());
+      setRegistrosDinheiroTodos([]);
       setPeriodoAnterior(null);
       setPerformanceAnterior([]);
       setMachinePayTotalAnterior(null);
@@ -267,18 +277,20 @@ export function RankingMaquinas() {
     [machinePayTotalAnterior],
   );
 
+  // O mês anterior (comparação) é sempre um mês já fechado, então usa a
+  // mesma fórmula do Relatório (dinheiro + cartão/pix registrados, por
+  // máquina e total da loja) em vez de reconciliar com Machine Pay/fichas.
   const faturamentoTotalMesAnterior = useMemo(
     () =>
-      somarFaturamentoReconciliado(
-        performanceAnterior,
-        machinePayPorMaquinaAnterior,
-        valorRegistradoAnteriorPorMaquina,
-      ),
-    [
-      performanceAnterior,
-      machinePayPorMaquinaAnterior,
-      valorRegistradoAnteriorPorMaquina,
-    ],
+      periodoAnterior
+        ? somarValorRegistradoConsolidado(
+            registrosDinheiroTodos,
+            periodoAnterior.dataInicio,
+            periodoAnterior.dataFim,
+            lojaSelecionada,
+          )
+        : 0,
+    [registrosDinheiroTodos, periodoAnterior, lojaSelecionada],
   );
 
   const [mostrarTodasMaquinas, setMostrarTodasMaquinas] = useState(false);
@@ -322,14 +334,30 @@ export function RankingMaquinas() {
 
   const totais = dados?.totais || {};
 
-  // Faturamento Total do KPI reconciliado com a mesma lógica do ranking
-  // abaixo (Machine Pay > valor registrado no sistema > fichas × valor da
-  // ficha), em vez do bruto vindo do dashboard, que ignora os valores
-  // recebidos na Machine Pay.
-  const faturamentoTotalReconciliado = useMemo(
-    () => maquinasRanking.reduce((soma, m) => soma + toN(m.valor), 0),
-    [maquinasRanking],
-  );
+  // Faturamento Total do KPI: se o período selecionado é o mês em
+  // andamento de verdade, reconcilia por máquina (Machine Pay > registrado
+  // > fichas), igual ao ranking abaixo. Se é um mês já fechado (o usuário
+  // pode filtrar qualquer mês passado, não só o atual), usa a fórmula do
+  // Relatório — dinheiro/cartão registrado, por máquina e total da loja —
+  // porque a Machine Pay já zerou nesse caso.
+  const faturamentoTotalReconciliado = useMemo(() => {
+    if (ehMesAtualReal(dataInicio)) {
+      return maquinasRanking.reduce((soma, m) => soma + toN(m.valor), 0);
+    }
+
+    return somarValorRegistradoConsolidado(
+      registrosDinheiroTodos,
+      dataInicio,
+      dataFim,
+      lojaSelecionada,
+    );
+  }, [
+    dataInicio,
+    dataFim,
+    maquinasRanking,
+    registrosDinheiroTodos,
+    lojaSelecionada,
+  ]);
 
   // Valor "só Machine Pay": o que a Machine Pay realmente recebeu no
   // período, com fallback pro valor registrado manualmente quando a

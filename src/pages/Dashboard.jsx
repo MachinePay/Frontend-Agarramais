@@ -14,6 +14,7 @@ import {
   construirMapaValorRegistrado,
   construirMapaMachinePay,
   somarFaturamentoReconciliado,
+  somarValorRegistradoConsolidado,
 } from "../utils/faturamentoReconciliado";
 
 import Swal from "sweetalert2";
@@ -904,42 +905,6 @@ export function Dashboard() {
             );
             return { data: [] };
           }),
-          api
-            .get("/relatorios/performance-maquinas", {
-              params: {
-                dataInicio: periodoComparacaoMensal.inicioMesAnterior,
-                dataFim: periodoComparacaoMensal.fimMesAnterior,
-              },
-            })
-            .catch((err) => {
-              console.error(
-                "Erro ao carregar performance de máquinas do mês anterior:",
-                err.message,
-              );
-              return { data: { performance: [] } };
-            }),
-          api
-            .get("/registro-dinheiro/machine-pay-total", {
-              params: {
-                inicio: periodoComparacaoMensal.inicioMesAnterior,
-                fim: `${periodoComparacaoMensal.fimMesAnterior}T23:59`,
-              },
-            })
-            .catch((err) => {
-              console.error(
-                "Erro ao carregar total Machine Pay do mês anterior:",
-                err.message,
-              );
-              return {
-                data: {
-                  totalBrutoComTaxasMp: 0,
-                  totalPix: 0,
-                  totalCartao: 0,
-                  totalLiquido: 0,
-                  maquinaCount: 0,
-                },
-              };
-            }),
         );
       }
 
@@ -952,8 +917,6 @@ export function Dashboard() {
         gastoVariavelMesRes,
         performanceMaquinasRes,
         registrosDinheiroRes,
-        performanceMaquinasAnteriorRes,
-        machinePayTotalAnteriorRes,
         lojasRes,
         maquinasRes,
         produtosRes;
@@ -971,8 +934,6 @@ export function Dashboard() {
           gastoVariavelMesRes,
           performanceMaquinasRes,
           registrosDinheiroRes,
-          performanceMaquinasAnteriorRes,
-          machinePayTotalAnteriorRes,
           lojasRes,
           maquinasRes,
           produtosRes,
@@ -984,25 +945,15 @@ export function Dashboard() {
         );
 
         const performanceAtualLista = performanceMaquinasRes?.data?.performance || [];
-        const performanceAnteriorLista =
-          performanceMaquinasAnteriorRes?.data?.performance || [];
         const registrosDinheiroTodos = registrosDinheiroRes?.data || [];
 
         const machinePayMapaAtual = construirMapaMachinePay(
           machinePayTotalRes?.data,
         );
-        const machinePayMapaAnterior = construirMapaMachinePay(
-          machinePayTotalAnteriorRes?.data,
-        );
         const registradoMapaAtual = construirMapaValorRegistrado(
           registrosDinheiroTodos,
           periodoComparacaoMensal.inicioMesAtual,
           periodoComparacaoMensal.fimMesAtual,
-        );
-        const registradoMapaAnterior = construirMapaValorRegistrado(
-          registrosDinheiroTodos,
-          periodoComparacaoMensal.inicioMesAnterior,
-          periodoComparacaoMensal.fimMesAnterior,
         );
 
         // Faturamento reconciliado (Machine Pay > valor registrado no
@@ -1013,14 +964,20 @@ export function Dashboard() {
           machinePayMapaAtual,
           registradoMapaAtual,
         );
-        // Total do mês anterior INTEIRO (não só até diaComparacao) — buscado
-        // assim para o valor registrado manualmente não ser cortado pela
+        // O mês anterior é sempre um mês já fechado, então usa a mesma
+        // fórmula do Relatório (dinheiro + cartão/pix registrados, por
+        // máquina e total da loja) em vez de Machine Pay/fichas — a
+        // Machine Pay já zerou esse mês e o fallback por fichas é só
+        // estimativa; o valor registrado é o que foi realmente conferido.
+        // Validado direto contra o Relatório para julho/2026 e agosto/2026
+        // (bateu exato nos dois). Busca o mês INTEIRO (não só até
+        // diaComparacao) para o valor registrado não ser cortado pela
         // interseção de período (ver comentário acima, na montagem de
         // periodoComparacaoMensal).
-        const faturamentoMesAnteriorCompleto = somarFaturamentoReconciliado(
-          performanceAnteriorLista,
-          machinePayMapaAnterior,
-          registradoMapaAnterior,
+        const faturamentoMesAnteriorCompleto = somarValorRegistradoConsolidado(
+          registrosDinheiroTodos,
+          periodoComparacaoMensal.inicioMesAnterior,
+          periodoComparacaoMensal.fimMesAnterior,
         );
 
         valorFichasSoMes = performanceAtualLista.reduce(

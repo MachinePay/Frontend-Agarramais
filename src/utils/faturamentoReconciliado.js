@@ -142,3 +142,65 @@ export const somarValorComRegistradoFallback = (
 
     return soma;
   }, 0);
+
+// Faturamento "estilo Relatório" (mesma fórmula de valorBrutoConsolidado-
+// LojaMaquinas em relatorioController.js): soma dinheiro + cartão/pix
+// BRUTO de todos os registros de "Registrar Dinheiro" que se sobrepõem ao
+// período — tanto os por máquina quanto os marcados como "total da loja"
+// (fechamento de caixa da loja inteira, sem máquina associada). Não usa
+// Machine Pay nem fallback de fichas: é o dinheiro fisicamente registrado.
+// Validado direto no banco contra o Relatório para julho/2026 (R$
+// 364.344,60) e agosto/2026 (R$ 362.106,45) — bateu exato nos dois.
+//
+// Só faz sentido pra um mês JÁ FECHADO: a Machine Pay zera meses passados
+// e o fallback por fichas é só estimativa, mas o valor registrado
+// manualmente reflete o que foi conferido no caixa. Para o mês em
+// andamento, o registro ainda está incompleto, então continue usando
+// somarFaturamentoReconciliado/somarValorComRegistradoFallback.
+export const somarValorRegistradoConsolidado = (
+  registros,
+  periodoInicio,
+  periodoFim,
+  lojaId,
+) => {
+  const periodoInicioData = new Date(`${periodoInicio}T00:00:00`);
+  const periodoFimData = new Date(`${periodoFim}T23:59:59`);
+
+  return (registros || []).reduce((soma, registro) => {
+    if (lojaId && String(registro.lojaId) !== String(lojaId)) {
+      return soma;
+    }
+
+    const inicioRegistro = parseDataSegura(registro.inicio);
+    const fimRegistro = parseDataSegura(registro.fim);
+    if (
+      !temIntersecaoPeriodo(
+        inicioRegistro,
+        fimRegistro,
+        periodoInicioData,
+        periodoFimData,
+      )
+    ) {
+      return soma;
+    }
+
+    return (
+      soma +
+      Number(registro.valorDinheiro || 0) +
+      Number(registro.valorCartaoPix || 0)
+    );
+  }, 0);
+};
+
+// Um período (dataInicio "YYYY-MM-DD") é o mês corrente de verdade quando
+// cai no mesmo mês/ano de hoje. Usado para decidir qual fórmula de
+// faturamento usar: mês em andamento -> reconciliado (Machine Pay/
+// registrado/fichas); mês já fechado -> registrado consolidado (estilo
+// Relatório).
+export const ehMesAtualReal = (dataInicioISO) => {
+  if (!dataInicioISO) return false;
+  const [ano, mes] = String(dataInicioISO).split("-").map(Number);
+  if (!ano || !mes) return false;
+  const hoje = new Date();
+  return ano === hoje.getFullYear() && mes === hoje.getMonth() + 1;
+};
