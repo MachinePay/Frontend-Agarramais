@@ -41,6 +41,57 @@ const formatarMoeda = (valor) =>
     currency: "BRL",
   });
 
+function OpcaoEmbalagem({ opcao }) {
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="text-lg font-bold text-gray-900">
+          {opcao.nomeOpcao || "Opção"}
+        </h3>
+        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+          {(opcao.caixas || []).length} volume
+          {(opcao.caixas || []).length === 1 ? "" : "s"}
+        </span>
+      </div>
+      {opcao.resumoOpcao && (
+        <p className="text-sm text-gray-500 mb-4">{opcao.resumoOpcao}</p>
+      )}
+
+      <div className="space-y-3">
+        {(opcao.caixas || []).map((caixa, index) => (
+          <div
+            key={index}
+            className="rounded-xl border border-gray-100 bg-gray-50 p-3"
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-semibold text-gray-900">
+                📐 {caixa.dimensoes}
+              </span>
+              <span
+                className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                  caixa.tipo === "padrao"
+                    ? "bg-emerald-100 text-emerald-800"
+                    : "bg-amber-100 text-amber-800"
+                }`}
+              >
+                {caixa.tipo === "padrao" ? "Caixa padrão" : "Caixa nova"}
+              </span>
+            </div>
+            {caixa.itensAlocados && (
+              <p className="text-sm text-gray-700">{caixa.itensAlocados}</p>
+            )}
+            {caixa.justificativa && (
+              <p className="text-xs text-gray-500 mt-1">
+                {caixa.justificativa}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function CalculadoraPedidos() {
   const [quantidades, setQuantidades] = useState(quantidadesVazias());
   const [produtosPersonalizados, setProdutosPersonalizados] = useState([]);
@@ -301,19 +352,24 @@ export function CalculadoraPedidos() {
         {resultado && !calculando && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              <div className="stat-card bg-gradient-to-br from-primary to-accent-yellow">
+              <div
+                className="stat-card"
+                style={{
+                  background: "linear-gradient(to bottom right, #F2A20C, #F2B705)",
+                }}
+              >
                 <p className="text-sm opacity-90 mb-1">Valor da nota</p>
                 <p className="text-2xl font-bold">
                   {formatarMoeda(resultado.nfTotal)}
                 </p>
               </div>
-              <div className="stat-card bg-gradient-to-br from-slate-600 to-slate-800">
+              <div className="stat-card bg-linear-to-br from-slate-600 to-slate-800">
                 <p className="text-sm opacity-90 mb-1">Peso total</p>
                 <p className="text-2xl font-bold">
                   {resultado.pesoTotal.toFixed(2)} kg
                 </p>
               </div>
-              <div className="stat-card bg-gradient-to-br from-emerald-500 to-emerald-700">
+              <div className="stat-card bg-linear-to-br from-emerald-500 to-emerald-700">
                 <p className="text-sm opacity-90 mb-1">Caixa sugerida</p>
                 <p className="text-xl font-bold">{resultado.caixaLegado}</p>
               </div>
@@ -356,37 +412,12 @@ export function CalculadoraPedidos() {
                     <p className="text-gray-800">{analiseIA.resumo}</p>
                   </div>
                 )}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {(analiseIA.caixasSugeridas || []).map((caixa, index) => (
-                    <div key={index} className="card">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-lg font-bold text-gray-900">
-                          📐 {caixa.dimensoes}
-                        </h3>
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            caixa.tipo === "padrao"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-amber-100 text-amber-800"
-                          }`}
-                        >
-                          {caixa.tipo === "padrao"
-                            ? "Caixa padrão"
-                            : "Caixa nova"}
-                        </span>
-                      </div>
-                      {caixa.itensAlocados && (
-                        <p className="text-sm text-gray-700 mb-2">
-                          {caixa.itensAlocados}
-                        </p>
-                      )}
-                      {caixa.justificativa && (
-                        <p className="text-sm text-gray-500 border-t border-gray-100 pt-2">
-                          {caixa.justificativa}
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                  {[analiseIA.opcao1, analiseIA.opcao2]
+                    .filter(Boolean)
+                    .map((opcao, index) => (
+                      <OpcaoEmbalagem key={index} opcao={opcao} />
+                    ))}
                 </div>
               </div>
             )}
