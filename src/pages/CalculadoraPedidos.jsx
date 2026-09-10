@@ -23,8 +23,32 @@ const CAMPOS_PRODUTO = [
   { chave: "pedestalRedondo", label: "Pedestal Redondo" },
 ];
 
+// Itens sem tamanho físico conhecido no sistema (só têm fórmula de preço/peso,
+// nunca dimensão) - o usuário precisa descrever o tamanho antes de calcular.
+const CAMPOS_SEM_TAMANHO_CONHECIDO = [
+  "caps1pol",
+  "caps2pol",
+  "squareGlobinho",
+  "gvTodas",
+  "pedestalX",
+  "hack",
+  "cuba",
+  "pelucia",
+  "chiclete",
+  "pedestalRedondo",
+];
+
 const quantidadesVazias = () =>
   CAMPOS_PRODUTO.reduce((acc, { chave }) => ({ ...acc, [chave]: "" }), {});
+
+const dimensoesPecasVazias = () =>
+  CAMPOS_SEM_TAMANHO_CONHECIDO.reduce(
+    (acc, chave) => ({
+      ...acc,
+      [chave]: { altura: "", largura: "", comprimento: "" },
+    }),
+    {},
+  );
 
 const novoProdutoPersonalizado = () => ({
   nome: "",
@@ -41,8 +65,60 @@ const formatarMoeda = (valor) =>
     currency: "BRL",
   });
 
+function OpcaoEmbalagem({ opcao }) {
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="text-lg font-bold text-gray-900">
+          {opcao.nomeOpcao || "Opção"}
+        </h3>
+        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+          {(opcao.caixas || []).length} volume
+          {(opcao.caixas || []).length === 1 ? "" : "s"}
+        </span>
+      </div>
+      {opcao.resumoOpcao && (
+        <p className="text-sm text-gray-500 mb-4">{opcao.resumoOpcao}</p>
+      )}
+
+      <div className="space-y-3">
+        {(opcao.caixas || []).map((caixa, index) => (
+          <div
+            key={index}
+            className="rounded-xl border border-gray-100 bg-gray-50 p-3"
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-semibold text-gray-900">
+                📐 {caixa.dimensoes}
+              </span>
+              <span
+                className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                  caixa.tipo === "padrao"
+                    ? "bg-emerald-100 text-emerald-800"
+                    : "bg-amber-100 text-amber-800"
+                }`}
+              >
+                {caixa.tipo === "padrao" ? "Caixa padrão" : "Caixa nova"}
+              </span>
+            </div>
+            {caixa.itensAlocados && (
+              <p className="text-sm text-gray-700">{caixa.itensAlocados}</p>
+            )}
+            {caixa.justificativa && (
+              <p className="text-xs text-gray-500 mt-1">
+                {caixa.justificativa}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function CalculadoraPedidos() {
   const [quantidades, setQuantidades] = useState(quantidadesVazias());
+  const [dimensoesPecas, setDimensoesPecas] = useState(dimensoesPecasVazias());
   const [produtosPersonalizados, setProdutosPersonalizados] = useState([]);
 
   const [calculando, setCalculando] = useState(false);
@@ -53,6 +129,13 @@ export function CalculadoraPedidos() {
 
   const handleQuantidadeChange = (chave, valor) => {
     setQuantidades((atual) => ({ ...atual, [chave]: valor }));
+  };
+
+  const handleDimensaoPecaChange = (chave, campo, valor) => {
+    setDimensoesPecas((atual) => ({
+      ...atual,
+      [chave]: { ...atual[chave], [campo]: valor },
+    }));
   };
 
   const handleAdicionarProduto = () => {
@@ -69,22 +152,57 @@ export function CalculadoraPedidos() {
     );
   };
 
+  const validarDimensoesAntesDeEnviar = () => {
+    const pecasFaltando = CAMPOS_SEM_TAMANHO_CONHECIDO.filter((chave) => {
+      if (!(Number(quantidades[chave]) > 0)) return false;
+      const dim = dimensoesPecas[chave];
+      return !dim?.altura || !dim?.largura || !dim?.comprimento;
+    }).map((chave) => CAMPOS_PRODUTO.find((c) => c.chave === chave)?.label);
+
+    if (pecasFaltando.length > 0) {
+      return `Descreva o tamanho (Altura x Largura x Comprimento) de: ${pecasFaltando.join(", ")}.`;
+    }
+
+    const produtoFaltando = produtosPersonalizados.find(
+      (p) => p.nome && Number(p.quantidade) > 0 && (!p.altura || !p.largura || !p.comprimento),
+    );
+    if (produtoFaltando) {
+      return `Descreva o tamanho (Altura x Largura x Comprimento) do produto personalizado "${produtoFaltando.nome}".`;
+    }
+
+    return "";
+  };
+
   const handleCalcular = async (e) => {
     e.preventDefault();
     setErro("");
     setResultado(null);
     setAnaliseIA(null);
+
+    const erroValidacao = validarDimensoesAntesDeEnviar();
+    if (erroValidacao) {
+      setErro(erroValidacao);
+      return;
+    }
+
     setCalculando(true);
 
     try {
       const response = await api.post("/calculadora-pedidos/calcular", {
         quantidades,
+        dimensoesPecas,
         produtosPersonalizados,
       });
       setResultado(response.data);
     } catch (err) {
+      const dados = err.response?.data;
+      const detalhes =
+        dados?.pecasSemDescricao?.join(", ") ||
+        dados?.produtosSemDescricao?.join(", ");
       setErro(
-        err.response?.data?.error || "Não foi possível calcular o pedido.",
+        detalhes
+          ? `${dados.error} (${detalhes})`
+          : dados?.error || "Não foi possível calcular o pedido.",
       );
     } finally {
       setCalculando(false);
@@ -99,8 +217,10 @@ export function CalculadoraPedidos() {
     try {
       const response = await api.post("/calculadora-pedidos/analisar-ia", {
         quantidades: resultado.quantidades,
+        dimensoesPecas: resultado.dimensoesPecas,
         produtosPersonalizados: resultado.produtosPersonalizados,
-        caixaLegado: resultado.caixaLegado,
+        volumeTotalLitros: resultado.volumeTotalLitros,
+        empacotamentoVolumetrico: resultado.empacotamentoVolumetrico,
         pesoTotal: resultado.pesoTotal,
       });
       setAnaliseIA(response.data);
@@ -125,9 +245,8 @@ export function CalculadoraPedidos() {
             <span className="text-gradient">Calculadora de Pedidos</span>
           </h1>
           <p className="text-gray-600 text-lg">
-            Calcule valor de nota, peso e a caixa ideal para o pedido. Use a
-            análise da IA para produtos fora do catálogo ou quando nenhuma
-            regra conhecida se encaixar.
+            Calcule valor de nota e peso do pedido, depois use a IA para
+            descobrir as melhores opções de caixa para embalar tudo.
           </p>
         </div>
 
@@ -142,21 +261,84 @@ export function CalculadoraPedidos() {
             Itens do catálogo
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {CAMPOS_PRODUTO.map(({ chave, label }) => (
-              <div key={chave}>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">
-                  {label}
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={quantidades[chave]}
-                  onChange={(e) => handleQuantidadeChange(chave, e.target.value)}
-                  className="input-field"
-                  placeholder="0"
-                />
-              </div>
-            ))}
+            {CAMPOS_PRODUTO.map(({ chave, label }) => {
+              const semTamanhoConhecido =
+                CAMPOS_SEM_TAMANHO_CONHECIDO.includes(chave);
+              const precisaDescrever =
+                semTamanhoConhecido && Number(quantidades[chave]) > 0;
+
+              return (
+                <div key={chave}>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    {label}
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={quantidades[chave]}
+                    onChange={(e) =>
+                      handleQuantidadeChange(chave, e.target.value)
+                    }
+                    className="input-field"
+                    placeholder="0"
+                  />
+                  {precisaDescrever && (
+                    <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                      <p className="text-[11px] text-amber-800 mb-1">
+                        Tamanho não cadastrado. Descreva A x L x C (cm):
+                      </p>
+                      <div className="flex gap-1">
+                        <input
+                          type="number"
+                          min="0"
+                          value={dimensoesPecas[chave]?.altura || ""}
+                          onChange={(e) =>
+                            handleDimensaoPecaChange(
+                              chave,
+                              "altura",
+                              e.target.value,
+                            )
+                          }
+                          className="input-field px-1 text-xs"
+                          placeholder="A"
+                          required
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          value={dimensoesPecas[chave]?.largura || ""}
+                          onChange={(e) =>
+                            handleDimensaoPecaChange(
+                              chave,
+                              "largura",
+                              e.target.value,
+                            )
+                          }
+                          className="input-field px-1 text-xs"
+                          placeholder="L"
+                          required
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          value={dimensoesPecas[chave]?.comprimento || ""}
+                          onChange={(e) =>
+                            handleDimensaoPecaChange(
+                              chave,
+                              "comprimento",
+                              e.target.value,
+                            )
+                          }
+                          className="input-field px-1 text-xs"
+                          placeholder="C"
+                          required
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           <div className="mt-8 pt-6 border-t border-gray-100">
@@ -232,7 +414,7 @@ export function CalculadoraPedidos() {
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1">
-                      A x L x C (cm)
+                      A x L x C (cm) *
                     </label>
                     <div className="flex gap-1">
                       <input
@@ -244,6 +426,7 @@ export function CalculadoraPedidos() {
                         }
                         className="input-field px-2"
                         placeholder="A"
+                        required
                       />
                       <input
                         type="number"
@@ -254,6 +437,7 @@ export function CalculadoraPedidos() {
                         }
                         className="input-field px-2"
                         placeholder="L"
+                        required
                       />
                       <input
                         type="number"
@@ -268,6 +452,7 @@ export function CalculadoraPedidos() {
                         }
                         className="input-field px-2"
                         placeholder="C"
+                        required
                       />
                     </div>
                   </div>
@@ -300,34 +485,35 @@ export function CalculadoraPedidos() {
 
         {resultado && !calculando && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              <div className="stat-card bg-gradient-to-br from-primary to-accent-yellow">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div
+                className="stat-card"
+                style={{
+                  background: "linear-gradient(to bottom right, #F2A20C, #F2B705)",
+                }}
+              >
                 <p className="text-sm opacity-90 mb-1">Valor da nota</p>
                 <p className="text-2xl font-bold">
                   {formatarMoeda(resultado.nfTotal)}
                 </p>
               </div>
-              <div className="stat-card bg-gradient-to-br from-slate-600 to-slate-800">
+              <div className="stat-card bg-linear-to-br from-slate-600 to-slate-800">
                 <p className="text-sm opacity-90 mb-1">Peso total</p>
                 <p className="text-2xl font-bold">
                   {resultado.pesoTotal.toFixed(2)} kg
                 </p>
               </div>
-              <div className="stat-card bg-gradient-to-br from-emerald-500 to-emerald-700">
-                <p className="text-sm opacity-90 mb-1">Caixa sugerida</p>
-                <p className="text-xl font-bold">{resultado.caixaLegado}</p>
-              </div>
             </div>
 
-            {resultado.precisaAnaliseIA && !analiseIA && (
+            {!analiseIA && (
               <div className="card-gradient flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <p className="font-semibold text-gray-800">
-                    Essa combinação não bate 100% com as regras conhecidas ou
-                    tem produtos fora do catálogo.
+                    Descubra a caixa ideal para esse pedido.
                   </p>
                   <p className="text-sm text-gray-600">
-                    A IA pode analisar as dimensões e sugerir a melhor caixa.
+                    A IA analisa os itens do pedido e sugere as melhores
+                    opções de embalagem.
                   </p>
                 </div>
                 <button
@@ -335,7 +521,7 @@ export function CalculadoraPedidos() {
                   className="btn-primary whitespace-nowrap"
                   disabled={analisando}
                 >
-                  {analisando ? "Analisando..." : "🤖 Analisar com IA"}
+                  {analisando ? "Calculando..." : "🤖 Calcular caixa com IA"}
                 </button>
               </div>
             )}
@@ -356,37 +542,12 @@ export function CalculadoraPedidos() {
                     <p className="text-gray-800">{analiseIA.resumo}</p>
                   </div>
                 )}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {(analiseIA.caixasSugeridas || []).map((caixa, index) => (
-                    <div key={index} className="card">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-lg font-bold text-gray-900">
-                          📐 {caixa.dimensoes}
-                        </h3>
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            caixa.tipo === "padrao"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-amber-100 text-amber-800"
-                          }`}
-                        >
-                          {caixa.tipo === "padrao"
-                            ? "Caixa padrão"
-                            : "Caixa nova"}
-                        </span>
-                      </div>
-                      {caixa.itensAlocados && (
-                        <p className="text-sm text-gray-700 mb-2">
-                          {caixa.itensAlocados}
-                        </p>
-                      )}
-                      {caixa.justificativa && (
-                        <p className="text-sm text-gray-500 border-t border-gray-100 pt-2">
-                          {caixa.justificativa}
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                  {[analiseIA.opcao1, analiseIA.opcao2]
+                    .filter(Boolean)
+                    .map((opcao, index) => (
+                      <OpcaoEmbalagem key={index} opcao={opcao} />
+                    ))}
                 </div>
               </div>
             )}

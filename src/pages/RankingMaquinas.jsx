@@ -252,6 +252,15 @@ export function RankingMaquinas() {
 
   const totais = dados?.totais || {};
 
+  // Faturamento Total do KPI reconciliado com a mesma lógica do ranking
+  // abaixo (Machine Pay > valor registrado no sistema > fichas × valor da
+  // ficha), em vez do bruto vindo do dashboard, que ignora os valores
+  // recebidos na Machine Pay.
+  const faturamentoTotalReconciliado = useMemo(
+    () => maquinasRanking.reduce((soma, m) => soma + toN(m.valor), 0),
+    [maquinasRanking],
+  );
+
   const formatMoney = (val) =>
     new Intl.NumberFormat("pt-BR", {
       style: "currency",
@@ -508,7 +517,7 @@ export function RankingMaquinas() {
             <div className="flex flex-wrap gap-6">
               <KpiCard
                 titulo="Faturamento Total"
-                valor={formatMoney(totais.faturamento)}
+                valor={formatMoney(faturamentoTotalReconciliado)}
                 icon="💰"
                 cor="green"
               />
