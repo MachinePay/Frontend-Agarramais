@@ -184,7 +184,7 @@ export function Navbar() {
                     )}
                   </>
                 )}
-                {hasRole("ADMIN", "COMERCIAL") && (
+                {hasRole("COMERCIAL") && (
                   <>
                     <Link
                       to="/transportadoras"
@@ -450,7 +450,7 @@ export function Navbar() {
                 )}
               </>
             )}
-            {hasRole("ADMIN", "COMERCIAL") && (
+            {hasRole("COMERCIAL") && (
               <>
                 <Link
                   to="/transportadoras"

@@ -246,7 +246,7 @@ function App() {
           <Route
             path="/transportadoras"
             element={
-              <PrivateRoute roles={["ADMIN", "COMERCIAL"]}>
+              <PrivateRoute roles={["COMERCIAL"]}>
                 <BuscaTransportadoras />
               </PrivateRoute>
             }
@@ -254,7 +254,7 @@ function App() {
           <Route
             path="/calculadora-pedidos"
             element={
-              <PrivateRoute roles={["ADMIN", "COMERCIAL"]}>
+              <PrivateRoute roles={["COMERCIAL"]}>
                 <CalculadoraPedidos />
               </PrivateRoute>
             }
