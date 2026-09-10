@@ -78,6 +78,7 @@ export function Movimentacoes() {
   const movimentacaoEmEnvioRef = useRef(false);
   const [movimentacaoAssistentePendente, setMovimentacaoAssistentePendente] =
     useState(null);
+  const [alertaOrigemId, setAlertaOrigemId] = useState(null);
   const [naoVaiRegistrar, setNaoVaiRegistrar] = useState(false);
   const [mostrarObsAlerta, setMostrarObsAlerta] = useState(false);
   const [obsAlerta, setObsAlerta] = useState("");
@@ -152,6 +153,24 @@ export function Movimentacoes() {
       maquinaId: state.maquinaId ?? params.get("maquinaId") ?? "",
       contadorIn: state.contadorIn ?? params.get("contadorIn") ?? "",
       contadorOut: state.contadorOut ?? params.get("contadorOut") ?? "",
+      produtoId: state.produtoId ?? params.get("produtoId") ?? "",
+      quantidadeAtualMaquina:
+        state.quantidadeAtualMaquina ??
+        params.get("quantidadeAtualMaquina") ??
+        "",
+      quantidadeAdicionada:
+        state.quantidadeAdicionada ?? params.get("quantidadeAdicionada") ?? "",
+      fichas: state.fichas ?? params.get("fichas") ?? "",
+      quantidade_notas_entrada:
+        state.quantidade_notas_entrada ??
+        params.get("quantidade_notas_entrada") ??
+        "",
+      valor_entrada_maquininha_pix:
+        state.valor_entrada_maquininha_pix ??
+        params.get("valor_entrada_maquininha_pix") ??
+        "",
+      observacao: state.observacao ?? params.get("observacao") ?? "",
+      alertaId: state.alertaId ?? params.get("alertaId") ?? null,
     });
   }, [location.search, location.state]);
 
@@ -176,16 +195,33 @@ export function Movimentacoes() {
       movimentacaoAssistentePendente.contadorOut !== null
         ? String(movimentacaoAssistentePendente.contadorOut)
         : "";
+    const campoOuVazio = (valor) =>
+      valor !== undefined && valor !== null ? String(valor) : "";
 
     setShowForm(true);
     setFiltroLojaForm(lojaId);
     setFormData((prev) => ({
       ...prev,
       maquina_id: maquinaId,
-      produto_id: "",
+      produto_id: campoOuVazio(movimentacaoAssistentePendente.produtoId),
       contadorIn,
       contadorOut,
+      quantidadeAtualMaquina: campoOuVazio(
+        movimentacaoAssistentePendente.quantidadeAtualMaquina,
+      ),
+      quantidadeAdicionada: campoOuVazio(
+        movimentacaoAssistentePendente.quantidadeAdicionada,
+      ),
+      fichas: campoOuVazio(movimentacaoAssistentePendente.fichas),
+      quantidade_notas_entrada: campoOuVazio(
+        movimentacaoAssistentePendente.quantidade_notas_entrada,
+      ),
+      valor_entrada_maquininha_pix: campoOuVazio(
+        movimentacaoAssistentePendente.valor_entrada_maquininha_pix,
+      ),
+      observacao: campoOuVazio(movimentacaoAssistentePendente.observacao),
     }));
+    setAlertaOrigemId(movimentacaoAssistentePendente.alertaId || null);
     setMovimentacaoAssistentePendente(null);
 
     queueMicrotask(() => {
@@ -606,6 +642,18 @@ export function Movimentacoes() {
 
       await api.post("/movimentacoes", data);
 
+      if (alertaOrigemId) {
+        try {
+          await api.patch(`/alertas-movimentacao/${alertaOrigemId}/resolver`);
+        } catch (erroResolverAlerta) {
+          console.error(
+            "Erro ao resolver alerta de movimentação de origem:",
+            erroResolverAlerta,
+          );
+        }
+        setAlertaOrigemId(null);
+      }
+
       // Movimentação registrada com sucesso: envia automaticamente para o WhatsApp
       await enviarParaWhatsapp(janelaWhatsapp);
       janelaWhatsappUsada = true;
@@ -977,6 +1025,17 @@ export function Movimentacoes() {
       await api.post("/alertas-movimentacao", {
         maquinaId: formData.maquina_id,
         observacao: obsAlerta.trim(),
+        dadosAbastecimento: {
+          produtoId: formData.produto_id || null,
+          quantidadeAtualMaquina: formData.quantidadeAtualMaquina || null,
+          quantidadeAdicionada: formData.quantidadeAdicionada || null,
+          fichas: formData.fichas || null,
+          contadorIn: formData.contadorIn || null,
+          contadorOut: formData.contadorOut || null,
+          quantidade_notas_entrada: formData.quantidade_notas_entrada || null,
+          valor_entrada_maquininha_pix:
+            formData.valor_entrada_maquininha_pix || null,
+        },
       });
       await enviarParaWhatsapp(janelaWhatsapp);
       janelaWhatsappUsada = true;
@@ -1210,7 +1269,10 @@ export function Movimentacoes() {
           <div className="flex flex-wrap gap-3">
             <button
               className="px-6 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 font-bold shadow text-base"
-              onClick={() => setShowForm((v) => !v)}
+              onClick={() => {
+                setShowForm((v) => !v);
+                setAlertaOrigemId(null);
+              }}
             >
               {showForm ? "Cancelar" : "Nova Movimentação"}
             </button>
@@ -1888,6 +1950,7 @@ export function Movimentacoes() {
                     setFiltroLojaForm("");
                     limparFotoContadores();
                     resetFluxoWhatsappBypass();
+                    setAlertaOrigemId(null);
                   }}
                   className="btn-secondary w-full sm:w-auto"
                   disabled={salvandoMovimentacao}

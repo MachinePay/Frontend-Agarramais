@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
 import { Navbar } from "../components/Navbar";
@@ -12,10 +13,12 @@ export default function ManutencaoPage() {
     loading: authLoading,
     atualizarAlertasManutencaoCount,
   } = useAuth();
+  const navigate = useNavigate();
   const [manutencoes, setManutencoes] = useState([]);
   const [funcionarios, setFuncionarios] = useState([]);
   const [usuariosFiltro, setUsuariosFiltro] = useState([]);
   const [lojas, setLojas] = useState([]);
+  const [produtos, setProdutos] = useState([]);
   const [alertasMovimentacao, setAlertasMovimentacao] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -74,27 +77,32 @@ export default function ManutencaoPage() {
           funcionariosResponse,
           lojasResponse,
           usuariosResponse,
+          produtosResponse,
           alertasResponse,
         ] = await Promise.all([
           api.get("/manutencoes/funcionarios"),
           api.get("/lojas"),
           api.get("/usuarios"),
+          api.get("/produtos"),
           api.get("/alertas-movimentacao"),
         ]);
         const funcionariosData = funcionariosResponse.data;
         const lojasData = lojasResponse.data;
         const usuariosData = usuariosResponse.data;
+        const produtosData = produtosResponse.data;
         const alertasData = alertasResponse.data;
         setFuncionarios(
           Array.isArray(funcionariosData) ? funcionariosData : [],
         );
         setLojas(Array.isArray(lojasData) ? lojasData : []);
         setUsuariosFiltro(Array.isArray(usuariosData) ? usuariosData : []);
+        setProdutos(Array.isArray(produtosData) ? produtosData : []);
         setAlertasMovimentacao(Array.isArray(alertasData) ? alertasData : []);
       } else {
         setFuncionarios([]);
         setLojas([]);
         setUsuariosFiltro([]);
+        setProdutos([]);
         setAlertasMovimentacao([]);
       }
     } catch (err) {
@@ -218,6 +226,35 @@ export default function ManutencaoPage() {
     return data.toLocaleString("pt-BR");
   };
 
+  const nomeProduto = (produtoId) => {
+    if (!produtoId) return null;
+    const produto = produtos.find((p) => String(p.id) === String(produtoId));
+    return produto ? `${produto.emoji || "🧸"} ${produto.nome}` : null;
+  };
+
+  const lancarMovimentacaoDoAlerta = (alerta) => {
+    const dados = alerta.dadosAbastecimento || {};
+    navigate("/movimentacoes?abrirFormulario=true&modo=nova_movimentacao", {
+      state: {
+        abrirFormulario: true,
+        modo: "nova_movimentacao",
+        lojaId: alerta.loja?.id,
+        maquinaId: alerta.maquina?.id,
+        contadorIn: dados.contadorIn,
+        contadorOut: dados.contadorOut,
+        produtoId: dados.produtoId,
+        quantidadeAtualMaquina: dados.quantidadeAtualMaquina,
+        quantidadeAdicionada: dados.quantidadeAdicionada,
+        fichas: dados.fichas,
+        quantidade_notas_entrada: dados.quantidade_notas_entrada,
+        valor_entrada_maquininha_pix: dados.valor_entrada_maquininha_pix,
+        observacao: alerta.observacao,
+        alertaId: alerta.id,
+        origem: "AlertaMovimentacao",
+      },
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
       <Navbar />
@@ -243,46 +280,144 @@ export default function ManutencaoPage() {
               <p className="text-sm text-gray-600">Nenhum alerta pendente.</p>
             ) : (
               <div className="space-y-3">
-                {alertasMovimentacao.map((alerta) => (
-                  <div
-                    key={alerta.id}
-                    className="rounded-lg border border-amber-200 bg-amber-50 p-4"
-                  >
-                    <div className="space-y-1 text-sm text-gray-800">
-                      <p>
-                        <span className="font-semibold">Loja:</span>{" "}
-                        {alerta.loja?.nome || "-"}
-                      </p>
-                      <p>
-                        <span className="font-semibold">Máquina:</span>{" "}
-                        {alerta.maquina
-                          ? `${alerta.maquina.nome || ""} - ${alerta.maquina.codigo || ""}`
-                          : "-"}
-                      </p>
-                      <p>
-                        <span className="font-semibold">Usuário:</span>{" "}
-                        {alerta.usuario?.nome || "-"}
-                      </p>
-                      <p>
-                        <span className="font-semibold">Data/Hora:</span>{" "}
-                        {formatarDataHora(alerta.createdAt)}
-                      </p>
-                      <p>
-                        <span className="font-semibold">Motivo:</span>{" "}
-                        {alerta.observacao}
-                      </p>
+                {alertasMovimentacao.map((alerta) => {
+                  const dados = alerta.dadosAbastecimento || null;
+                  const produto = dados ? nomeProduto(dados.produtoId) : null;
+
+                  return (
+                    <div
+                      key={alerta.id}
+                      className="rounded-lg border border-amber-200 bg-amber-50 p-4"
+                    >
+                      <div className="space-y-1 text-sm text-gray-800">
+                        <p>
+                          <span className="font-semibold">Loja:</span>{" "}
+                          {alerta.loja?.nome || "-"}
+                        </p>
+                        <p>
+                          <span className="font-semibold">Máquina:</span>{" "}
+                          {alerta.maquina
+                            ? `${alerta.maquina.nome || ""} - ${alerta.maquina.codigo || ""}`
+                            : "-"}
+                        </p>
+                        <p>
+                          <span className="font-semibold">Usuário:</span>{" "}
+                          {alerta.usuario?.nome || "-"}
+                        </p>
+                        <p>
+                          <span className="font-semibold">Data/Hora:</span>{" "}
+                          {formatarDataHora(alerta.createdAt)}
+                        </p>
+                        <p>
+                          <span className="font-semibold">Motivo:</span>{" "}
+                          {alerta.observacao}
+                        </p>
+                      </div>
+
+                      {dados && (
+                        <div className="mt-3 rounded-lg border border-amber-300 bg-white/70 p-3">
+                          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-amber-700">
+                            Abastecimento informado
+                          </p>
+                          <div className="grid grid-cols-2 gap-2 text-xs text-gray-700 sm:grid-cols-3">
+                            {produto && (
+                              <p>
+                                <span className="font-semibold">Produto:</span>{" "}
+                                {produto}
+                              </p>
+                            )}
+                            {dados.quantidadeAtualMaquina !== null &&
+                              dados.quantidadeAtualMaquina !== undefined &&
+                              dados.quantidadeAtualMaquina !== "" && (
+                                <p>
+                                  <span className="font-semibold">
+                                    Total antes:
+                                  </span>{" "}
+                                  {dados.quantidadeAtualMaquina}
+                                </p>
+                              )}
+                            {dados.quantidadeAdicionada !== null &&
+                              dados.quantidadeAdicionada !== undefined &&
+                              dados.quantidadeAdicionada !== "" && (
+                                <p>
+                                  <span className="font-semibold">
+                                    Abastecido:
+                                  </span>{" "}
+                                  {dados.quantidadeAdicionada}
+                                </p>
+                              )}
+                            {dados.fichas !== null &&
+                              dados.fichas !== undefined &&
+                              dados.fichas !== "" && (
+                                <p>
+                                  <span className="font-semibold">Fichas:</span>{" "}
+                                  {dados.fichas}
+                                </p>
+                              )}
+                            {dados.contadorIn !== null &&
+                              dados.contadorIn !== undefined &&
+                              dados.contadorIn !== "" && (
+                                <p>
+                                  <span className="font-semibold">
+                                    Contador IN:
+                                  </span>{" "}
+                                  {dados.contadorIn}
+                                </p>
+                              )}
+                            {dados.contadorOut !== null &&
+                              dados.contadorOut !== undefined &&
+                              dados.contadorOut !== "" && (
+                                <p>
+                                  <span className="font-semibold">
+                                    Contador OUT:
+                                  </span>{" "}
+                                  {dados.contadorOut}
+                                </p>
+                              )}
+                            {dados.quantidade_notas_entrada !== null &&
+                              dados.quantidade_notas_entrada !== undefined &&
+                              dados.quantidade_notas_entrada !== "" && (
+                                <p>
+                                  <span className="font-semibold">
+                                    Notas (R$):
+                                  </span>{" "}
+                                  {dados.quantidade_notas_entrada}
+                                </p>
+                              )}
+                            {dados.valor_entrada_maquininha_pix !== null &&
+                              dados.valor_entrada_maquininha_pix !==
+                                undefined &&
+                              dados.valor_entrada_maquininha_pix !== "" && (
+                                <p>
+                                  <span className="font-semibold">
+                                    Pix/Maquininha (R$):
+                                  </span>{" "}
+                                  {dados.valor_entrada_maquininha_pix}
+                                </p>
+                              )}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => lancarMovimentacaoDoAlerta(alerta)}
+                          className="btn-secondary"
+                        >
+                          Lançar Movimentação
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleResolverAlerta(alerta.id)}
+                          className="btn-primary"
+                        >
+                          Corrigido
+                        </button>
+                      </div>
                     </div>
-                    <div className="mt-3">
-                      <button
-                        type="button"
-                        onClick={() => handleResolverAlerta(alerta.id)}
-                        className="btn-primary"
-                      >
-                        Corrigido
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
