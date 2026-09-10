@@ -797,6 +797,15 @@ export function Dashboard() {
           hoje.getMonth(),
           0,
         ).getDate();
+        // diaComparacao = quantos dias do mês atual já se passaram, usado só
+        // como multiplicador da média diária do mês anterior (ver mais
+        // abaixo, mesma lógica do Ranking de Máquinas). Não é mais usado
+        // para limitar a busca do mês anterior — aí buscamos o mês
+        // anterior INTEIRO para calcular a média diária real dele; buscar só
+        // os primeiros diaComparacao dias super-contava valores registrados
+        // manualmente que cobrem o mês inteiro (a checagem de interseção do
+        // período pegava o valor cheio do registro mesmo comparando com uma
+        // janela parcial).
         const diaComparacao = Math.min(hoje.getDate(), ultimoDiaMesAnterior);
         const inicioMesAnterior = new Date(
           hoje.getFullYear(),
@@ -805,12 +814,13 @@ export function Dashboard() {
         );
         const fimMesAnterior = new Date(
           hoje.getFullYear(),
-          hoje.getMonth() - 1,
-          diaComparacao,
+          hoje.getMonth(),
+          0,
         );
 
         periodoComparacaoMensal = {
           diaComparacao,
+          diasNoMesAnterior: ultimoDiaMesAnterior,
           inicioMesAtual: formatarDataParametro(inicioMesAtual),
           fimMesAtual: formatarDataParametro(hoje),
           fimMesMachinePay: formatarDataParametro(fimMesAtual),
@@ -1003,7 +1013,11 @@ export function Dashboard() {
           machinePayMapaAtual,
           registradoMapaAtual,
         );
-        const faturamentoMesAnterior = somarFaturamentoReconciliado(
+        // Total do mês anterior INTEIRO (não só até diaComparacao) — buscado
+        // assim para o valor registrado manualmente não ser cortado pela
+        // interseção de período (ver comentário acima, na montagem de
+        // periodoComparacaoMensal).
+        const faturamentoMesAnteriorCompleto = somarFaturamentoReconciliado(
           performanceAnteriorLista,
           machinePayMapaAnterior,
           registradoMapaAnterior,
@@ -1014,11 +1028,23 @@ export function Dashboard() {
           0,
         );
 
+        // Mesmo cálculo do Ranking de Máquinas: mês cheio (31 dias) vs mês
+        // em andamento (10 dias) não pode ser comparado ponta a ponta. Pega
+        // a média diária real do mês anterior inteiro e projeta pra mesma
+        // quantidade de dias já cobertos no mês atual.
+        const diasNoMesAnterior = periodoComparacaoMensal.diasNoMesAnterior || 0;
+        const mediaDiariaMesAnterior =
+          diasNoMesAnterior > 0
+            ? faturamentoMesAnteriorCompleto / diasNoMesAnterior
+            : 0;
+        const faturamentoMesAnterior =
+          mediaDiariaMesAnterior * (periodoComparacaoMensal.diaComparacao || 0);
+
         const diferencaFaturamento =
           faturamentoMesAtual - faturamentoMesAnterior;
         const percentualVariacao =
-          Math.abs(faturamentoMesAnterior) > 0
-            ? (diferencaFaturamento / Math.abs(faturamentoMesAnterior)) * 100
+          faturamentoMesAnterior > 0
+            ? (diferencaFaturamento / faturamentoMesAnterior) * 100
             : null;
 
         comparativoLucroMensal = {
@@ -2619,12 +2645,11 @@ export function Dashboard() {
                         <span>{textoPercentualComparativoLucro}</span>
                       </span>
                       <p className="text-xs opacity-90 mt-2">
-                        Até o dia {comparativoLucroMensal.diaComparacao}:
-                        faturamento atual R${" "}
-                        {formatarMoeda(comparativoLucroMensal.valorMesAtual)} vs
-                        R${" "}
-                        {formatarMoeda(comparativoLucroMensal.valorMesAnterior)}{" "}
-                        em {mesAnteriorComparacao}.
+                        R$ {formatarMoeda(comparativoLucroMensal.valorMesAtual)}{" "}
+                        vs mesmos {comparativoLucroMensal.diaComparacao} dias em{" "}
+                        {mesAnteriorComparacao} (R${" "}
+                        {formatarMoeda(comparativoLucroMensal.valorMesAnterior)}
+                        , média diária projetada).
                       </p>
                       <p
                         className={`text-xs font-semibold mt-1 ${classeTextoDiferencaLucro}`}
