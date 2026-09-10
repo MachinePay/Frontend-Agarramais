@@ -372,11 +372,32 @@ export function RankingMaquinas() {
     [performanceAnterior],
   );
 
+  // Contagem de fichas e de prêmios saídos do mês anterior (para o
+  // comparativo de "Total de Fichas" e "Prêmios Saídos").
+  const totalFichasMesAnterior = useMemo(
+    () =>
+      performanceAnterior.reduce(
+        (soma, p) => soma + toN(p.metricas?.totalFichas),
+        0,
+      ),
+    [performanceAnterior],
+  );
+  const totalSaidasMesAnterior = useMemo(
+    () =>
+      performanceAnterior.reduce(
+        (soma, p) => soma + toN(p.metricas?.totalSairam),
+        0,
+      ),
+    [performanceAnterior],
+  );
+
   const formatMoney = (val) =>
     new Intl.NumberFormat("pt-BR", {
       style: "currency",
       currency: "BRL",
     }).format(val || 0);
+
+  const formatNumero = (val) => Math.round(toN(val)).toLocaleString("pt-BR");
 
   // Comparativo com o mês anterior, normalizado por média diária: mês cheio
   // de 31 dias vs mês em andamento com só 10 dias (ou vs fevereiro com 28)
@@ -422,7 +443,11 @@ export function RankingMaquinas() {
   const temDadosMesAnterior =
     temPeriodoValidoParaComparar && performanceAnterior.length > 0;
 
-  const construirComparativoNode = (valorAtual, valorTotalMesAnterior) => {
+  const construirComparativoNode = (
+    valorAtual,
+    valorTotalMesAnterior,
+    formatarValor = formatMoney,
+  ) => {
     if (!periodoAnterior) return null;
 
     if (!temDadosMesAnterior) {
@@ -465,7 +490,7 @@ export function RankingMaquinas() {
             ? `${Math.abs(percentual).toFixed(1)}%`
             : "N/A"}{" "}
           vs mesmos {diasConsideradosMesAtual} dias em {nomeMesAnteriorTexto} (
-          {formatMoney(valorEquivalenteMesAnterior)})
+          {formatarValor(valorEquivalenteMesAnterior)})
         </span>
       </div>
     );
@@ -484,6 +509,18 @@ export function RankingMaquinas() {
   const comparativoFichasNode = construirComparativoNode(
     valorFichasSoAtual,
     valorFichasSoAnterior,
+  );
+
+  const comparativoTotalFichasNode = construirComparativoNode(
+    toN(totais.fichas),
+    totalFichasMesAnterior,
+    formatNumero,
+  );
+
+  const comparativoPremiosSaidosNode = construirComparativoNode(
+    toN(totais.saidas),
+    totalSaidasMesAnterior,
+    formatNumero,
   );
 
   // ─── Evolução mensal (máquinas e produtos) ─────────────────────────────
