@@ -185,16 +185,28 @@ export function Navbar() {
                   </>
                 )}
                 {hasRole("ADMIN", "COMERCIAL") && (
-                  <Link
-                    to="/transportadoras"
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                      isActive("/transportadoras")
-                        ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
-                        : "text-gray-300 hover:bg-white/10 hover:text-white"
-                    }`}
-                  >
-                    🚚 Transportadoras
-                  </Link>
+                  <>
+                    <Link
+                      to="/transportadoras"
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        isActive("/transportadoras")
+                          ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
+                          : "text-gray-300 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      🚚 Transportadoras
+                    </Link>
+                    <Link
+                      to="/calculadora-pedidos"
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        isActive("/calculadora-pedidos")
+                          ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg scale-105"
+                          : "text-gray-300 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      📦 Calculadora de Pedidos
+                    </Link>
+                  </>
                 )}
               </div>
             </div>
@@ -439,17 +451,30 @@ export function Navbar() {
               </>
             )}
             {hasRole("ADMIN", "COMERCIAL") && (
-              <Link
-                to="/transportadoras"
-                onClick={closeMenu}
-                className={`block px-4 py-3 rounded-lg text-sm font-medium transition-all ${
-                  isActive("/transportadoras")
-                    ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg"
-                    : "text-gray-300 hover:bg-white/10 hover:text-white"
-                }`}
-              >
-                🚚 Transportadoras
-              </Link>
+              <>
+                <Link
+                  to="/transportadoras"
+                  onClick={closeMenu}
+                  className={`block px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                    isActive("/transportadoras")
+                      ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg"
+                      : "text-gray-300 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  🚚 Transportadoras
+                </Link>
+                <Link
+                  to="/calculadora-pedidos"
+                  onClick={closeMenu}
+                  className={`block px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                    isActive("/calculadora-pedidos")
+                      ? "bg-linear-to-r from-primary to-accent-yellow text-white shadow-lg"
+                      : "text-gray-300 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  📦 Calculadora de Pedidos
+                </Link>
+              </>
             )}
 
             {/* User Info Mobile */}

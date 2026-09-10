@@ -24,6 +24,7 @@ import { RankingMaquinas } from "./pages/RankingMaquinas";
 import { Relatorios } from "./pages/Relatorios";
 import { MachinePay } from "./pages/MachinePay";
 import { BuscaTransportadoras } from "./pages/BuscaTransportadoras";
+import { CalculadoraPedidos } from "./pages/CalculadoraPedidos";
 import { Sangrias } from "./pages/Sangrias";
 import { GastosVariaveis } from "./pages/GastosVariaveis";
 import { StyleGuide } from "./pages/StyleGuide";
@@ -247,6 +248,14 @@ function App() {
             element={
               <PrivateRoute roles={["ADMIN", "COMERCIAL"]}>
                 <BuscaTransportadoras />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/calculadora-pedidos"
+            element={
+              <PrivateRoute roles={["ADMIN", "COMERCIAL"]}>
+                <CalculadoraPedidos />
               </PrivateRoute>
             }
           />
