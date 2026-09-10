@@ -245,9 +245,8 @@ export function CalculadoraPedidos() {
             <span className="text-gradient">Calculadora de Pedidos</span>
           </h1>
           <p className="text-gray-600 text-lg">
-            Calcule valor de nota, peso e a caixa ideal para o pedido. Use a
-            análise da IA para produtos fora do catálogo ou quando nenhuma
-            regra conhecida se encaixar.
+            Calcule valor de nota e peso do pedido, depois use a IA para
+            descobrir as melhores opções de caixa para embalar tudo.
           </p>
         </div>
 
@@ -486,7 +485,7 @@ export function CalculadoraPedidos() {
 
         {resultado && !calculando && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div
                 className="stat-card"
                 style={{
@@ -504,27 +503,17 @@ export function CalculadoraPedidos() {
                   {resultado.pesoTotal.toFixed(2)} kg
                 </p>
               </div>
-              <div className="stat-card bg-linear-to-br from-emerald-500 to-emerald-700">
-                <p className="text-sm opacity-90 mb-1">Caixa sugerida</p>
-                <p className="text-xl font-bold">{resultado.caixaSugerida}</p>
-                {resultado.calculadaPorVolume && (
-                  <p className="text-xs opacity-80 mt-1">
-                    calculada pelo volume real (~
-                    {resultado.volumeTotalLitros.toFixed(1)} L úteis)
-                  </p>
-                )}
-              </div>
             </div>
 
-            {resultado.podeRefinarComIA && !analiseIA && (
+            {!analiseIA && (
               <div className="card-gradient flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <p className="font-semibold text-gray-800">
-                    Essa caixa já foi calculada pelo volume real dos itens.
+                    Descubra a caixa ideal para esse pedido.
                   </p>
                   <p className="text-sm text-gray-600">
-                    Quer ver outras opções de embalagem (ex: dividir em mais
-                    volumes) sugeridas pela IA com base nesse mesmo cálculo?
+                    A IA analisa os itens do pedido e sugere as melhores
+                    opções de embalagem.
                   </p>
                 </div>
                 <button
@@ -532,7 +521,7 @@ export function CalculadoraPedidos() {
                   className="btn-primary whitespace-nowrap"
                   disabled={analisando}
                 >
-                  {analisando ? "Analisando..." : "🤖 Ver opções da IA"}
+                  {analisando ? "Calculando..." : "🤖 Calcular caixa com IA"}
                 </button>
               </div>
             )}
