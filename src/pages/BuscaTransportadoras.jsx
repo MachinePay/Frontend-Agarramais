@@ -44,6 +44,59 @@ const linkWhatsapp = (whatsapp) => {
   return `https://wa.me/${numero}`;
 };
 
+function CardTransportadora({ transportadora }) {
+  return (
+    <div className="card">
+      <h3 className="text-lg font-bold text-gray-900 mb-1">
+        {transportadora.nome}
+      </h3>
+      {transportadora.cidadeBase && (
+        <p className="text-sm text-gray-500 mb-3">
+          📍 {transportadora.cidadeBase}
+        </p>
+      )}
+
+      <div className="space-y-2 mb-3">
+        {transportadora.telefone && (
+          <a
+            href={`tel:${apenasDigitos(transportadora.telefone)}`}
+            className="flex items-center gap-2 text-sm text-gray-700 hover:text-primary"
+          >
+            📞 {transportadora.telefone}
+          </a>
+        )}
+        {transportadora.whatsapp && (
+          <a
+            href={linkWhatsapp(transportadora.whatsapp)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700"
+          >
+            💬 WhatsApp: {transportadora.whatsapp}
+          </a>
+        )}
+        {!transportadora.telefone && !transportadora.whatsapp && (
+          <p className="text-sm text-gray-400">
+            Contato não encontrado pela IA.
+          </p>
+        )}
+      </div>
+
+      {transportadora.motivoRelevancia && (
+        <p className="text-sm text-gray-600 border-t border-gray-100 pt-3">
+          {transportadora.motivoRelevancia}
+        </p>
+      )}
+
+      {transportadora.fonte && (
+        <p className="text-xs text-gray-400 mt-2">
+          Fonte: {transportadora.fonte}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function BuscaTransportadoras() {
   const [estadoDestino, setEstadoDestino] = useState("");
   const [cidadeDestino, setCidadeDestino] = useState("");
@@ -54,6 +107,14 @@ export function BuscaTransportadoras() {
   const [buscando, setBuscando] = useState(false);
   const [erro, setErro] = useState("");
   const [resultado, setResultado] = useState(null);
+
+  const todasTransportadoras = resultado?.transportadoras || [];
+  const transportadorasPlanilha = todasTransportadoras.filter(
+    (t) => t.origem === "planilha",
+  );
+  const transportadorasWeb = todasTransportadoras.filter(
+    (t) => t.origem !== "planilha",
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -219,58 +280,45 @@ export function BuscaTransportadoras() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {(resultado.transportadoras || []).map((transportadora, index) => (
-                <div key={index} className="card">
-                  <h3 className="text-lg font-bold text-gray-900 mb-1">
-                    {transportadora.nome}
-                  </h3>
-                  {transportadora.cidadeBase && (
-                    <p className="text-sm text-gray-500 mb-3">
-                      📍 {transportadora.cidadeBase}
-                    </p>
-                  )}
-
-                  <div className="space-y-2 mb-3">
-                    {transportadora.telefone && (
-                      <a
-                        href={`tel:${apenasDigitos(transportadora.telefone)}`}
-                        className="flex items-center gap-2 text-sm text-gray-700 hover:text-primary"
-                      >
-                        📞 {transportadora.telefone}
-                      </a>
-                    )}
-                    {transportadora.whatsapp && (
-                      <a
-                        href={linkWhatsapp(transportadora.whatsapp)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700"
-                      >
-                        💬 WhatsApp: {transportadora.whatsapp}
-                      </a>
-                    )}
-                    {!transportadora.telefone && !transportadora.whatsapp && (
-                      <p className="text-sm text-gray-400">
-                        Contato não encontrado pela IA.
-                      </p>
-                    )}
-                  </div>
-
-                  {transportadora.motivoRelevancia && (
-                    <p className="text-sm text-gray-600 border-t border-gray-100 pt-3">
-                      {transportadora.motivoRelevancia}
-                    </p>
-                  )}
-
-                  {transportadora.fonte && (
-                    <p className="text-xs text-gray-400 mt-2">
-                      Fonte: {transportadora.fonte}
-                    </p>
-                  )}
+            {transportadorasPlanilha.length > 0 && (
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 mb-1 flex items-center gap-2">
+                  📋 Verificadas da nossa planilha
+                </h2>
+                <p className="text-sm text-gray-500 mb-4">
+                  Transportadoras que já usamos antes e que a IA confirmou
+                  como ativas na web antes de recomendar.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {transportadorasPlanilha.map((transportadora, index) => (
+                    <CardTransportadora
+                      key={`planilha-${index}`}
+                      transportadora={transportadora}
+                    />
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+
+            {transportadorasWeb.length > 0 && (
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 mb-1 flex items-center gap-2">
+                  🌐 Encontradas na web
+                </h2>
+                <p className="text-sm text-gray-500 mb-4">
+                  Novas transportadoras encontradas pela IA fora da nossa
+                  planilha.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {transportadorasWeb.map((transportadora, index) => (
+                    <CardTransportadora
+                      key={`web-${index}`}
+                      transportadora={transportadora}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>
