@@ -733,7 +733,7 @@ export function RankingMaquinas() {
         ) : (
           <div className="space-y-8">
             {/* KPIs */}
-            <div className="flex flex-wrap gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               <KpiCard
                 titulo="Faturamento Total"
                 valor={formatMoney(faturamentoTotalReconciliado)}
@@ -1191,7 +1191,7 @@ function KpiCard({ titulo, valor, icon, cor, comparativo }) {
   const [border, bg, text] = (COR_MAP[cor] || COR_MAP.blue).split(" ");
   return (
     <div
-      className={`bg-white p-6 rounded-lg shadow-md border-l-4 ${border} flex-1 min-w-45`}
+      className={`bg-white p-6 rounded-lg shadow-md border-l-4 ${border} h-full`}
     >
       <div className="flex justify-between items-start">
         <div>
