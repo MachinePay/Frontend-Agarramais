@@ -23,6 +23,7 @@ export default function Alertas() {
             <AlertAdmin />
           </div>
         )}
+        {/* dsadas */}
       </div>
     </div>
   );
