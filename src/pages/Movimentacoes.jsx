@@ -24,17 +24,42 @@ import {
 
 const CHAVE_ULTIMA_MENSAGEM_WHATSAPP = "ultimaMensagemMovimentacaoWhatsapp";
 
-// Safari/iOS só permite abrir uma nova aba (ou usar navigator.share) de forma
-// síncrona, dentro do mesmo gesto de clique. Como o envio ao WhatsApp só
-// acontece depois de um `await` (chamada à API), a permissão do gesto já
-// expirou quando chegamos lá e o navegador bloqueia silenciosamente a aba.
-// Por isso a aba é aberta em branco aqui, ainda de forma síncrona, e só
-// recebe a URL final (ou é fechada) depois que o envio termina.
+// Em celular (onde os funcionários realmente usam isso, no chão de loja),
+// abrir uma aba em branco e só depois redirecioná-la pra wa.me é frágil: em
+// vários navegadores/WebViews Android essa aba fica presa em "about:blank"
+// e nunca navega, deixando quem tá coletando sem conseguir mandar a
+// mensagem. Por isso, em celular, nem abrimos aba nova — navegamos a
+// própria aba pra wa.me (nunca é bloqueado por popup blocker, já que não é
+// popup). Em desktop mantemos o truque de abrir em branco: Safari/iOS só
+// permite abrir uma nova aba (ou usar navigator.share) de forma síncrona,
+// dentro do mesmo gesto de clique, e como o envio ao WhatsApp só acontece
+// depois de um `await` (chamada à API) essa permissão já expirou quando
+// chegamos lá.
+const ehDispositivoMovel = () =>
+  /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || "");
+
 function abrirJanelaWhatsapp() {
+  if (ehDispositivoMovel()) return null;
   try {
     return window.open("", "_blank");
   } catch {
     return null;
+  }
+}
+
+// Navega pra URL do WhatsApp usando a janela pré-aberta (desktop) ou a
+// própria aba (celular). Ver abrirJanelaWhatsapp() acima pro porquê.
+function navegarParaWhatsapp(janelaPreAberta, url) {
+  if (ehDispositivoMovel()) {
+    if (janelaPreAberta && !janelaPreAberta.closed) janelaPreAberta.close();
+    window.location.href = url;
+    return;
+  }
+
+  if (janelaPreAberta && !janelaPreAberta.closed) {
+    janelaPreAberta.location.href = url;
+  } else {
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 }
 
@@ -937,11 +962,7 @@ export function Movimentacoes() {
     }
 
     const url = `https://wa.me/?text=${encodeURIComponent(mensagem)}`;
-    if (janelaPreAberta && !janelaPreAberta.closed) {
-      janelaPreAberta.location.href = url;
-    } else {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
+    navegarParaWhatsapp(janelaPreAberta, url);
   };
 
   const enviarUltimaMensagemSalva = async () => {
@@ -989,11 +1010,7 @@ export function Movimentacoes() {
     }
 
     const url = `https://wa.me/?text=${encodeURIComponent(mensagem)}`;
-    if (janelaPreAberta && !janelaPreAberta.closed) {
-      janelaPreAberta.location.href = url;
-    } else {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
+    navegarParaWhatsapp(janelaPreAberta, url);
   };
 
   const resetFluxoWhatsappBypass = () => {
