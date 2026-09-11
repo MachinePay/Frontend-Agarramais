@@ -352,6 +352,17 @@ export function RankingMaquinas() {
       dataFim,
       lojaSelecionada,
     );
+    const somaGeralSemFiltro = somarValorRegistradoConsolidado(
+      registrosDinheiroTodos,
+      "2000-01-01",
+      "2030-01-01",
+      "",
+    );
+    const somaBrutaDireta = registrosDinheiroTodos.reduce(
+      (soma, r) =>
+        soma + Number(r.valorDinheiro || 0) + Number(r.valorCartaoPix || 0),
+      0,
+    );
     console.log("[DEBUG faturamentoTotalReconciliado]", {
       dataInicio,
       dataFim,
@@ -361,6 +372,18 @@ export function RankingMaquinas() {
       registrosDinheiroTodosLength: registrosDinheiroTodos.length,
       resultadoAtual,
       resultadoConsolidado,
+      somaGeralSemFiltro,
+      somaBrutaDireta,
+      amostraPrimeiros3: registrosDinheiroTodos.slice(0, 3).map((r) => ({
+        id: r.id,
+        maquinaId: r.maquinaId,
+        lojaId: r.lojaId,
+        registrarTotalLoja: r.registrarTotalLoja,
+        inicio: r.inicio,
+        fim: r.fim,
+        valorDinheiro: r.valorDinheiro,
+        valorCartaoPix: r.valorCartaoPix,
+      })),
     });
     return usaMesAtual ? resultadoAtual : resultadoConsolidado;
   }, [
