@@ -363,6 +363,48 @@ export function RankingMaquinas() {
         soma + Number(r.valorDinheiro || 0) + Number(r.valorCartaoPix || 0),
       0,
     );
+    if (!usaMesAtual) {
+      const periodoInicioData = new Date(`${dataInicio}T00:00:00`);
+      const periodoFimData = new Date(`${dataFim}T23:59:59`);
+      const incluidos = registrosDinheiroTodos.filter((r) => {
+        const inicioRegistro = r.inicio ? new Date(r.inicio) : null;
+        const fimRegistro = r.fim ? new Date(r.fim) : null;
+        if (!inicioRegistro || !fimRegistro) return false;
+        return (
+          inicioRegistro <= periodoFimData && fimRegistro >= periodoInicioData
+        );
+      });
+      console.log(
+        "[DEBUG-TXT] periodoInicioData=" +
+          periodoInicioData.toString() +
+          " | periodoFimData=" +
+          periodoFimData.toString(),
+      );
+      console.log(
+        "[DEBUG-TXT] total incluidos=" +
+          incluidos.length +
+          " soma=" +
+          incluidos
+            .reduce(
+              (s, r) =>
+                s + Number(r.valorDinheiro || 0) + Number(r.valorCartaoPix || 0),
+              0,
+            )
+            .toFixed(2),
+      );
+      console.log(
+        "[DEBUG-JSON] " +
+          JSON.stringify(
+            incluidos.map((r) => ({
+              id: r.id,
+              inicio: r.inicio,
+              fim: r.fim,
+              valorDinheiro: r.valorDinheiro,
+              valorCartaoPix: r.valorCartaoPix,
+            })),
+          ),
+      );
+    }
     console.log("[DEBUG faturamentoTotalReconciliado]", {
       dataInicio,
       dataFim,
@@ -374,16 +416,6 @@ export function RankingMaquinas() {
       resultadoConsolidado,
       somaGeralSemFiltro,
       somaBrutaDireta,
-      amostraPrimeiros3: registrosDinheiroTodos.slice(0, 3).map((r) => ({
-        id: r.id,
-        maquinaId: r.maquinaId,
-        lojaId: r.lojaId,
-        registrarTotalLoja: r.registrarTotalLoja,
-        inicio: r.inicio,
-        fim: r.fim,
-        valorDinheiro: r.valorDinheiro,
-        valorCartaoPix: r.valorCartaoPix,
-      })),
     });
     return usaMesAtual ? resultadoAtual : resultadoConsolidado;
   }, [
