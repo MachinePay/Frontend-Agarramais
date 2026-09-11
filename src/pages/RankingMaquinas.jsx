@@ -341,16 +341,28 @@ export function RankingMaquinas() {
   // Relatório — dinheiro/cartão registrado, por máquina e total da loja —
   // porque a Machine Pay já zerou nesse caso.
   const faturamentoTotalReconciliado = useMemo(() => {
-    if (ehMesAtualReal(dataInicio)) {
-      return maquinasRanking.reduce((soma, m) => soma + toN(m.valor), 0);
-    }
-
-    return somarValorRegistradoConsolidado(
+    const usaMesAtual = ehMesAtualReal(dataInicio);
+    const resultadoAtual = maquinasRanking.reduce(
+      (soma, m) => soma + toN(m.valor),
+      0,
+    );
+    const resultadoConsolidado = somarValorRegistradoConsolidado(
       registrosDinheiroTodos,
       dataInicio,
       dataFim,
       lojaSelecionada,
     );
+    console.log("[DEBUG faturamentoTotalReconciliado]", {
+      dataInicio,
+      dataFim,
+      lojaSelecionada,
+      usaMesAtual,
+      hojeNoBrowser: new Date().toString(),
+      registrosDinheiroTodosLength: registrosDinheiroTodos.length,
+      resultadoAtual,
+      resultadoConsolidado,
+    });
+    return usaMesAtual ? resultadoAtual : resultadoConsolidado;
   }, [
     dataInicio,
     dataFim,
