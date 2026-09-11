@@ -8,6 +8,7 @@ export function Navbar() {
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
+  const menuButtonRef = useRef(null);
 
   const temAlertaManutencao = alertasManutencaoCount > 0;
 
@@ -23,7 +24,12 @@ export function Navbar() {
   useEffect(() => {
     if (!isMenuOpen) return;
     const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target) &&
+        menuButtonRef.current &&
+        !menuButtonRef.current.contains(event.target)
+      ) {
         setIsMenuOpen(false);
       }
     };
@@ -81,6 +87,7 @@ export function Navbar() {
         <div className="flex items-center justify-between h-20 gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <button
+              ref={menuButtonRef}
               onClick={() => setIsMenuOpen((v) => !v)}
               className="p-2 rounded-lg hover:bg-white/10 transition-colors shrink-0"
               aria-label="Abrir menu"
