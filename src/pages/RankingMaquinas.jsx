@@ -341,83 +341,16 @@ export function RankingMaquinas() {
   // Relatório — dinheiro/cartão registrado, por máquina e total da loja —
   // porque a Machine Pay já zerou nesse caso.
   const faturamentoTotalReconciliado = useMemo(() => {
-    const usaMesAtual = ehMesAtualReal(dataInicio);
-    const resultadoAtual = maquinasRanking.reduce(
-      (soma, m) => soma + toN(m.valor),
-      0,
-    );
-    const resultadoConsolidado = somarValorRegistradoConsolidado(
-      registrosDinheiroTodos,
-      dataInicio,
-      dataFim,
-      lojaSelecionada,
-    );
-    const somaGeralSemFiltro = somarValorRegistradoConsolidado(
-      registrosDinheiroTodos,
-      "2000-01-01",
-      "2030-01-01",
-      "",
-    );
-    const somaBrutaDireta = registrosDinheiroTodos.reduce(
-      (soma, r) =>
-        soma + Number(r.valorDinheiro || 0) + Number(r.valorCartaoPix || 0),
-      0,
-    );
-    if (!usaMesAtual) {
-      const periodoInicioData = new Date(`${dataInicio}T00:00:00`);
-      const periodoFimData = new Date(`${dataFim}T23:59:59`);
-      const incluidos = registrosDinheiroTodos.filter((r) => {
-        const inicioRegistro = r.inicio ? new Date(r.inicio) : null;
-        const fimRegistro = r.fim ? new Date(r.fim) : null;
-        if (!inicioRegistro || !fimRegistro) return false;
-        return (
-          inicioRegistro <= periodoFimData && fimRegistro >= periodoInicioData
-        );
-      });
-      console.log(
-        "[DEBUG-TXT] periodoInicioData=" +
-          periodoInicioData.toString() +
-          " | periodoFimData=" +
-          periodoFimData.toString(),
-      );
-      console.log(
-        "[DEBUG-TXT] total incluidos=" +
-          incluidos.length +
-          " soma=" +
-          incluidos
-            .reduce(
-              (s, r) =>
-                s + Number(r.valorDinheiro || 0) + Number(r.valorCartaoPix || 0),
-              0,
-            )
-            .toFixed(2),
-      );
-      console.log(
-        "[DEBUG-JSON] " +
-          JSON.stringify(
-            incluidos.map((r) => ({
-              id: r.id,
-              inicio: r.inicio,
-              fim: r.fim,
-              valorDinheiro: r.valorDinheiro,
-              valorCartaoPix: r.valorCartaoPix,
-            })),
-          ),
-      );
+    if (ehMesAtualReal(dataInicio)) {
+      return maquinasRanking.reduce((soma, m) => soma + toN(m.valor), 0);
     }
-    console.log("[DEBUG faturamentoTotalReconciliado]", {
+
+    return somarValorRegistradoConsolidado(
+      registrosDinheiroTodos,
       dataInicio,
       dataFim,
       lojaSelecionada,
-      usaMesAtual,
-      hojeNoBrowser: new Date().toString(),
-      registrosDinheiroTodosLength: registrosDinheiroTodos.length,
-      resultadoAtual,
-      resultadoConsolidado,
-      somaGeralSemFiltro,
-      somaBrutaDireta,
-    });
-    return usaMesAtual ? resultadoAtual : resultadoConsolidado;
+    );
   }, [
     dataInicio,
     dataFim,
