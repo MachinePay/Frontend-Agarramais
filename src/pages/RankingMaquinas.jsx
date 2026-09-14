@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
@@ -119,6 +120,10 @@ const obterPeriodoMesAnterior = (dataInicioTexto, dataFimTexto) => {
 };
 
 export function RankingMaquinas() {
+  const [searchParams] = useSearchParams();
+  const focoProdutos = searchParams.get("foco") === "produtos";
+  const produtosSectionRef = useRef(null);
+
   const [lojas, setLojas] = useState([]);
   const [lojaSelecionada, setLojaSelecionada] = useState("");
   const [mesReferencia, setMesReferencia] = useState("");
@@ -266,6 +271,15 @@ export function RankingMaquinas() {
   useEffect(() => {
     if (dataInicio && dataFim) carregarDados();
   }, [dataInicio, dataFim, carregarDados]);
+
+  useEffect(() => {
+    if (focoProdutos && !loading) {
+      produtosSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  }, [focoProdutos, loading]);
 
   const machinePayPorMaquina = useMemo(
     () => construirMapaMachinePay(machinePayTotal),
@@ -724,14 +738,187 @@ export function RankingMaquinas() {
         ?.nome || "Produto"
     : null;
 
+  const blocoRankingMaquinas =
+    maquinasRanking.length > 0 ? (
+      <div className="bg-white p-6 rounded-lg shadow">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <span className="text-2xl">🏆</span>
+            {mostrarTodasMaquinas
+              ? "Ranking Detalhado (Todas)"
+              : "Ranking Detalhado (Top 10)"}
+          </h3>
+          {maquinasRanking.length > 10 && (
+            <button
+              type="button"
+              onClick={() => setMostrarTodasMaquinas((atual) => !atual)}
+              className="text-sm font-semibold text-indigo-700 hover:text-indigo-900"
+            >
+              {mostrarTodasMaquinas
+                ? "Ver menos"
+                : `Ver tudo (${maquinasRanking.length})`}
+            </button>
+          )}
+        </div>
+        <p className="text-xs text-gray-500 mb-3">
+          Valor recebido na Machine Pay no período; quando o valor lá está
+          zerado (mês já fechado), usa o último valor registrado no sistema
+          para a máquina; se nenhum dos dois existir, usa a quantidade de
+          fichas vezes o valor da ficha cadastrado na loja.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  #
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  Máquina
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  Loja
+                </th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                  Valor
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  Fonte
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  Produto que mais saiu
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {maquinasExibidas.map((maquina, idx) => (
+                <tr key={maquina.maquinaId || idx} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 text-sm font-bold text-gray-900">
+                    {idx === 0
+                      ? "🥇"
+                      : idx === 1
+                        ? "🥈"
+                        : idx === 2
+                          ? "🥉"
+                          : idx + 1}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-900 font-medium">
+                    {maquina.nome}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-600">
+                    {maquina.loja}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-emerald-700 font-semibold text-right">
+                    {formatMoney(maquina.valor)}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-600">
+                    {maquina.fonte === "machinePay"
+                      ? "💳 Machine Pay"
+                      : maquina.fonte === "registrado"
+                        ? "🗄️ Registrado no sistema"
+                        : `🎟️ ${maquina.fichas.toLocaleString(
+                            "pt-BR",
+                          )} fichas × R$ ${maquina.valorFicha.toLocaleString(
+                            "pt-BR",
+                            { minimumFractionDigits: 2 },
+                          )}`}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-700">
+                    {maquina.produtoPrincipal ? (
+                      <>
+                        {maquina.produtoPrincipal.emoji || "📦"}{" "}
+                        {maquina.produtoPrincipal.nome}{" "}
+                        <span className="text-xs text-gray-500">
+                          (
+                          {Number(
+                            maquina.produtoPrincipal.quantidade || 0,
+                          ).toLocaleString("pt-BR")}{" "}
+                          saíram)
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-xs text-gray-400">-</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    ) : (
+      <div className="bg-white p-6 rounded-lg shadow text-center text-gray-400 text-sm">
+        Sem dados de máquinas para o período selecionado.
+      </div>
+    );
+
+  const blocoProdutosMaisSaidos = topProdutos.length > 0 && (
+    <div
+      ref={produtosSectionRef}
+      className="bg-white p-6 rounded-lg shadow scroll-mt-24"
+    >
+      <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <span className="text-2xl">🧸</span> Produtos Mais Saídos
+      </h3>
+      <div className="overflow-x-auto">
+        <table className="min-w-full">
+          <thead className="bg-gray-50 border-b">
+            <tr>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                Produto
+              </th>
+              <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                Qtd
+              </th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                Popularidade
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {topProdutos.map((produto, idx) => (
+              <tr key={idx} className="hover:bg-gray-50">
+                <td className="px-4 py-3 text-sm text-gray-900 font-medium">
+                  {idx + 1}. {produto.nome}
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 text-right">
+                  {toN(produto.quantidade).toLocaleString("pt-BR")}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-indigo-600 h-2 rounded-full"
+                      style={{
+                        width: `${Math.min(
+                          (toN(produto.quantidade) /
+                            toN(topProdutos[0]?.quantidade || 1)) *
+                            100,
+                          100,
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 bg-pattern teddy-pattern">
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <PageHeader
-          title="Ranking de Máquinas"
-          subtitle="Top 10 máquinas por faturamento, com fichas, saídas e produtos mais retirados"
-          icon="🏆"
+          title={focoProdutos ? "Ranking de Produtos" : "Ranking de Máquinas"}
+          subtitle={
+            focoProdutos
+              ? "Top 10 produtos mais retirados, com quantidade e popularidade"
+              : "Top 10 máquinas por faturamento, com fichas, saídas e produtos mais retirados"
+          }
+          icon={focoProdutos ? "🧸" : "🏆"}
         />
 
         {/* Filtros */}
@@ -851,174 +1038,16 @@ export function RankingMaquinas() {
               />
             </div>
 
-            {/* Ranking detalhado */}
-            {maquinasRanking.length > 0 ? (
-              <div className="bg-white p-6 rounded-lg shadow">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                    <span className="text-2xl">🏆</span>
-                    {mostrarTodasMaquinas
-                      ? "Ranking Detalhado (Todas)"
-                      : "Ranking Detalhado (Top 10)"}
-                  </h3>
-                  {maquinasRanking.length > 10 && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setMostrarTodasMaquinas((atual) => !atual)
-                      }
-                      className="text-sm font-semibold text-indigo-700 hover:text-indigo-900"
-                    >
-                      {mostrarTodasMaquinas
-                        ? "Ver menos"
-                        : `Ver tudo (${maquinasRanking.length})`}
-                    </button>
-                  )}
-                </div>
-                <p className="text-xs text-gray-500 mb-3">
-                  Valor recebido na Machine Pay no período; quando o valor lá
-                  está zerado (mês já fechado), usa o último valor
-                  registrado no sistema para a máquina; se nenhum dos dois
-                  existir, usa a quantidade de fichas vezes o valor da ficha
-                  cadastrado na loja.
-                </p>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full">
-                    <thead className="bg-gray-50 border-b">
-                      <tr>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                          #
-                        </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                          Máquina
-                        </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                          Loja
-                        </th>
-                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                          Valor
-                        </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                          Fonte
-                        </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                          Produto que mais saiu
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {maquinasExibidas.map((maquina, idx) => (
-                        <tr key={maquina.maquinaId || idx} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm font-bold text-gray-900">
-                            {idx === 0
-                              ? "🥇"
-                              : idx === 1
-                                ? "🥈"
-                                : idx === 2
-                                  ? "🥉"
-                                  : idx + 1}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900 font-medium">
-                            {maquina.nome}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
-                            {maquina.loja}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-emerald-700 font-semibold text-right">
-                            {formatMoney(maquina.valor)}
-                          </td>
-                          <td className="px-4 py-3 text-xs text-gray-600">
-                            {maquina.fonte === "machinePay"
-                              ? "💳 Machine Pay"
-                              : maquina.fonte === "registrado"
-                                ? "🗄️ Registrado no sistema"
-                                : `🎟️ ${maquina.fichas.toLocaleString(
-                                    "pt-BR",
-                                  )} fichas × R$ ${maquina.valorFicha.toLocaleString(
-                                    "pt-BR",
-                                    { minimumFractionDigits: 2 },
-                                  )}`}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700">
-                            {maquina.produtoPrincipal ? (
-                              <>
-                                {maquina.produtoPrincipal.emoji || "📦"}{" "}
-                                {maquina.produtoPrincipal.nome}{" "}
-                                <span className="text-xs text-gray-500">
-                                  (
-                                  {Number(
-                                    maquina.produtoPrincipal.quantidade || 0,
-                                  ).toLocaleString("pt-BR")}{" "}
-                                  saíram)
-                                </span>
-                              </>
-                            ) : (
-                              <span className="text-xs text-gray-400">-</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+            {focoProdutos ? (
+              <>
+                {blocoProdutosMaisSaidos}
+                {blocoRankingMaquinas}
+              </>
             ) : (
-              <div className="bg-white p-6 rounded-lg shadow text-center text-gray-400 text-sm">
-                Sem dados de máquinas para o período selecionado.
-              </div>
-            )}
-
-            {/* Produtos mais saídos */}
-            {topProdutos.length > 0 && (
-              <div className="bg-white p-6 rounded-lg shadow">
-                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <span className="text-2xl">🧸</span> Produtos Mais Saídos
-                </h3>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full">
-                    <thead className="bg-gray-50 border-b">
-                      <tr>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                          Produto
-                        </th>
-                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                          Qtd
-                        </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                          Popularidade
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {topProdutos.map((produto, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm text-gray-900 font-medium">
-                            {idx + 1}. {produto.nome}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600 text-right">
-                            {toN(produto.quantidade).toLocaleString("pt-BR")}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="w-full bg-gray-200 rounded-full h-2">
-                              <div
-                                className="bg-indigo-600 h-2 rounded-full"
-                                style={{
-                                  width: `${Math.min(
-                                    (toN(produto.quantidade) /
-                                      toN(topProdutos[0]?.quantidade || 1)) *
-                                      100,
-                                    100,
-                                  )}%`,
-                                }}
-                              />
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              <>
+                {blocoRankingMaquinas}
+                {blocoProdutosMaisSaidos}
+              </>
             )}
 
             {/* Evolução Mensal — Máquinas (financeiro) */}

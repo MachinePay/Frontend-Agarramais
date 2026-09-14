@@ -2663,7 +2663,7 @@ export function Dashboard() {
               {/* Top 10 Produtos */}
               <div
                 className="stat-card bg-linear-to-br from-green-500 to-green-600 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 cursor-pointer"
-                onClick={() => navigate("/ranking-maquinas")}
+                onClick={() => navigate("/ranking-maquinas?foco=produtos")}
               >
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-2">
