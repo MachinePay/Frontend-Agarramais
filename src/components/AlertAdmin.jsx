@@ -610,6 +610,19 @@ export default function AlertAdmin() {
                         <strong>{mov.sairam ?? "-"}</strong>
                       </p>
                     </div>
+                    {mov.detalhesProdutos?.[0]?.produto?.nome && (
+                      <p className="mt-2 text-sm text-slate-700">
+                        Produto:{" "}
+                        <strong>
+                          {mov.detalhesProdutos[0].produto.nome}
+                        </strong>
+                      </p>
+                    )}
+                    {mov.observacoes && (
+                      <p className="mt-1 text-xs italic text-slate-600">
+                        Obs: {mov.observacoes}
+                      </p>
+                    )}
                     <p className="mt-2 text-sm text-slate-700">
                       Usuário: <strong>{obterNomeUsuario(mov) || "-"}</strong>
                     </p>
