@@ -1643,6 +1643,111 @@ export function Movimentacoes() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Loja *
+                  </label>
+                  <select
+                    value={filtroLojaForm}
+                    onChange={(e) => {
+                      setFiltroLojaForm(e.target.value);
+                      setFormData({
+                        ...formData,
+                        maquina_id: "",
+                        produto_id: "",
+                      });
+                    }}
+                    className="select-field"
+                    required
+                  >
+                    <option value="">Selecione uma loja...</option>
+                    {lojas
+                      .filter((l) => l.ativo)
+                      .map((loja) => (
+                        <option key={loja.id} value={loja.id}>
+                          {loja.nome}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Máquina *
+                  </label>
+                  <select
+                    name="maquina_id"
+                    value={formData.maquina_id}
+                    onChange={handleChange}
+                    className="select-field"
+                    required
+                    disabled={!filtroLojaForm}
+                  >
+                    <option value="">
+                      {filtroLojaForm
+                        ? "Selecione uma máquina..."
+                        : "Primeiro selecione uma loja"}
+                    </option>
+                    {maquinas
+                      .filter(
+                        (m) =>
+                          !filtroLojaForm ||
+                          String(m.lojaId) === String(filtroLojaForm),
+                      )
+                      .map((maquina) => (
+                        <option key={maquina.id} value={maquina.id}>
+                          {maquina.nome} - {maquina.codigo}
+                        </option>
+                      ))}
+                  </select>
+                  {filtroLojaForm && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      💡 Mostrando apenas máquinas da loja selecionada
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Produto *
+                  </label>
+                  <select
+                    name="produto_id"
+                    value={formData.produto_id}
+                    onChange={handleChange}
+                    className={`select-field ${formData.produto_id ? "border-blue-500 bg-blue-50" : ""}`}
+                    required
+                  >
+                    <option value="">Nenhum produto</option>
+                    {produtos.map((produto) => (
+                      <option key={produto.id} value={produto.id}>
+                        {produto.emoji || "🧸"} {produto.nome}
+                      </option>
+                    ))}
+                  </select>
+                  {formData.maquina_id && formData.produto_id && (
+                    <p className="text-[10px] text-blue-600 mt-1 animate-pulse">
+                      ✨ Produto sugerido com base na última visita
+                    </p>
+                  )}
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Observação
+                  </label>
+                  <textarea
+                    name="observacao"
+                    value={formData.observacao}
+                    onChange={handleChange}
+                    className="input-field"
+                    rows="2"
+                    placeholder="Informações adicionais sobre a movimentação..."
+                  />
+                </div>
+              </div>
+
               <div className="p-4 bg-white border border-blue-100 rounded-lg">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Foto dos contadores
@@ -1999,111 +2104,6 @@ export function Movimentacoes() {
                     </p>
                   </div>
                 </label>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Loja *
-                  </label>
-                  <select
-                    value={filtroLojaForm}
-                    onChange={(e) => {
-                      setFiltroLojaForm(e.target.value);
-                      setFormData({
-                        ...formData,
-                        maquina_id: "",
-                        produto_id: "",
-                      });
-                    }}
-                    className="select-field"
-                    required
-                  >
-                    <option value="">Selecione uma loja...</option>
-                    {lojas
-                      .filter((l) => l.ativo)
-                      .map((loja) => (
-                        <option key={loja.id} value={loja.id}>
-                          {loja.nome}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Máquina *
-                  </label>
-                  <select
-                    name="maquina_id"
-                    value={formData.maquina_id}
-                    onChange={handleChange}
-                    className="select-field"
-                    required
-                    disabled={!filtroLojaForm}
-                  >
-                    <option value="">
-                      {filtroLojaForm
-                        ? "Selecione uma máquina..."
-                        : "Primeiro selecione uma loja"}
-                    </option>
-                    {maquinas
-                      .filter(
-                        (m) =>
-                          !filtroLojaForm ||
-                          String(m.lojaId) === String(filtroLojaForm),
-                      )
-                      .map((maquina) => (
-                        <option key={maquina.id} value={maquina.id}>
-                          {maquina.nome} - {maquina.codigo}
-                        </option>
-                      ))}
-                  </select>
-                  {filtroLojaForm && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      💡 Mostrando apenas máquinas da loja selecionada
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Produto *
-                  </label>
-                  <select
-                    name="produto_id"
-                    value={formData.produto_id}
-                    onChange={handleChange}
-                    className={`select-field ${formData.produto_id ? "border-blue-500 bg-blue-50" : ""}`}
-                    required
-                  >
-                    <option value="">Nenhum produto</option>
-                    {produtos.map((produto) => (
-                      <option key={produto.id} value={produto.id}>
-                        {produto.emoji || "🧸"} {produto.nome}
-                      </option>
-                    ))}
-                  </select>
-                  {formData.maquina_id && formData.produto_id && (
-                    <p className="text-[10px] text-blue-600 mt-1 animate-pulse">
-                      ✨ Produto sugerido com base na última visita
-                    </p>
-                  )}
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Observação
-                  </label>
-                  <textarea
-                    name="observacao"
-                    value={formData.observacao}
-                    onChange={handleChange}
-                    className="input-field"
-                    rows="2"
-                    placeholder="Informações adicionais sobre a movimentação..."
-                  />
-                </div>
               </div>
 
               <div className="flex items-start gap-2 pt-4 border-t border-gray-200 bg-amber-50 border border-amber-200 rounded-lg p-3">
