@@ -9,6 +9,7 @@ import {
   DataTable,
   Badge,
   AlertBox,
+  ConfirmDialog,
 } from "../components/UIComponents";
 import RegistrarDinheiro from "../components/RegistrarDinheiro";
 import LancarGastoVariavel from "../components/LancarGastoVariavel";
@@ -23,6 +24,13 @@ import {
 } from "../services/fotoUltimaMovimentacaoDb";
 
 const CHAVE_ULTIMA_MENSAGEM_WHATSAPP = "ultimaMensagemMovimentacaoWhatsapp";
+
+// Salto grande demais no contador de um registro pro outro costuma ser erro
+// de leitura/digitação (ex: trocar os dois contadores, ou digitar um dígito
+// a mais). Acima desses limites, exige confirmação explícita do operador
+// antes de deixar registrar.
+const LIMITE_DIFERENCA_CONTADOR_IN = 300;
+const LIMITE_DIFERENCA_CONTADOR_OUT = 40;
 
 // Em celular (onde os funcionários realmente usam isso, no chão de loja),
 // abrir uma aba em branco e só depois redirecioná-la pra wa.me é frágil: em
@@ -96,6 +104,8 @@ export function Movimentacoes() {
   const [success, setSuccess] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [salvandoMovimentacao, setSalvandoMovimentacao] = useState(false);
+  const [mostrarConfirmacaoMovimentacao, setMostrarConfirmacaoMovimentacao] =
+    useState(false);
   const [fotoContadores, setFotoContadores] = useState(null);
   const [fotoContadoresPreview, setFotoContadoresPreview] = useState("");
   const [lendoFotoContadores, setLendoFotoContadores] = useState(false);
@@ -145,6 +155,15 @@ export function Movimentacoes() {
   // Estados auxiliares
   const [estoqueAnterior, setEstoqueAnterior] = useState(0);
   const [alertaDivergencia, setAlertaDivergencia] = useState(null);
+
+  // Últimos contadores registrados da máquina selecionada, para detectar
+  // salto suspeito no IN/OUT (ver LIMITE_DIFERENCA_CONTADOR_IN/OUT acima).
+  const [ultimoContadorMaquina, setUltimoContadorMaquina] = useState({
+    contadorIn: null,
+    contadorOut: null,
+  });
+  const [confirmacaoContadorIn, setConfirmacaoContadorIn] = useState(false);
+  const [confirmacaoContadorOut, setConfirmacaoContadorOut] = useState(false);
 
   // --- EFEITOS ---
   useEffect(() => {
@@ -339,6 +358,48 @@ export function Movimentacoes() {
     formData.contadorOut,
     formData.quantidadeAtualMaquina,
   ]);
+
+  // Busca o último contador IN/OUT registrado da máquina selecionada, para
+  // comparar com o que o operador está digitando agora e detectar salto
+  // suspeito (ver LIMITE_DIFERENCA_CONTADOR_IN/OUT).
+  useEffect(() => {
+    if (!formData.maquina_id) {
+      setUltimoContadorMaquina({ contadorIn: null, contadorOut: null });
+      return;
+    }
+
+    let cancelado = false;
+
+    api
+      .get(`/movimentacoes?maquinaId=${formData.maquina_id}&limite=1`)
+      .then((response) => {
+        if (cancelado) return;
+        const ultimaMov = response.data?.[0];
+        setUltimoContadorMaquina({
+          contadorIn: ultimaMov?.contadorIn ?? null,
+          contadorOut: ultimaMov?.contadorOut ?? null,
+        });
+      })
+      .catch(() => {
+        if (!cancelado) {
+          setUltimoContadorMaquina({ contadorIn: null, contadorOut: null });
+        }
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [formData.maquina_id]);
+
+  // Cada vez que o operador muda o valor digitado, a confirmação de
+  // "certeza que está correto" anterior deixa de valer.
+  useEffect(() => {
+    setConfirmacaoContadorIn(false);
+  }, [formData.contadorIn, formData.maquina_id]);
+
+  useEffect(() => {
+    setConfirmacaoContadorOut(false);
+  }, [formData.contadorOut, formData.maquina_id]);
 
   // Sugere produto automaticamente ao escolher máquina, mas permite troca manual
   // Sugere produto via backend ao escolher máquina
@@ -546,9 +607,27 @@ export function Movimentacoes() {
   };
 
   // --- CORREÇÃO AQUI: Função handleSubmit recriada com o TRY ---
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
 
+    if (contadorInSuspeito && !confirmacaoContadorIn) {
+      setError(
+        "A diferença do Contador IN em relação ao último registro é muito grande (provável erro de leitura). Marque a confirmação de que o valor está correto antes de registrar.",
+      );
+      return;
+    }
+
+    if (contadorOutSuspeito && !confirmacaoContadorOut) {
+      setError(
+        "A diferença do Contador OUT em relação ao último registro é muito grande (provável erro de leitura). Marque a confirmação de que o valor está correto antes de registrar.",
+      );
+      return;
+    }
+
+    setMostrarConfirmacaoMovimentacao(true);
+  };
+
+  const confirmarRegistroMovimentacao = async () => {
     if (movimentacaoEmEnvioRef.current) {
       return;
     }
@@ -1270,6 +1349,80 @@ export function Movimentacoes() {
 
   if (loading) return <PageLoader />;
 
+  const contadorInAtualNum = parseInt(formData.contadorIn);
+  const diferencaContadorIn =
+    !formData.ignoreInOut &&
+    !isNaN(contadorInAtualNum) &&
+    ultimoContadorMaquina.contadorIn !== null
+      ? Math.abs(contadorInAtualNum - ultimoContadorMaquina.contadorIn)
+      : 0;
+  const contadorInSuspeito = diferencaContadorIn > LIMITE_DIFERENCA_CONTADOR_IN;
+
+  const contadorOutAtualNum = parseInt(formData.contadorOut);
+  const diferencaContadorOut =
+    !formData.ignoreInOut &&
+    !isNaN(contadorOutAtualNum) &&
+    ultimoContadorMaquina.contadorOut !== null
+      ? Math.abs(contadorOutAtualNum - ultimoContadorMaquina.contadorOut)
+      : 0;
+  const contadorOutSuspeito =
+    diferencaContadorOut > LIMITE_DIFERENCA_CONTADOR_OUT;
+
+  const lojaSelecionadaNoForm = lojas.find(
+    (l) => String(l.id) === String(filtroLojaForm),
+  );
+  const maquinaSelecionadaNoForm = maquinas.find(
+    (m) => String(m.id) === String(formData.maquina_id),
+  );
+  const produtoSelecionadoNoForm = produtos.find(
+    (p) => String(p.id) === String(formData.produto_id),
+  );
+  const quantidadeAdicionadaNoForm =
+    parseInt(formData.quantidadeAdicionada) || 0;
+  const retiradaProdutoNoForm = parseInt(formData.retiradaProduto) || 0;
+
+  const resumoConfirmacaoMovimentacao = (
+    <>
+      <span className="block">
+        <strong>Loja:</strong> {lojaSelecionadaNoForm?.nome || "-"}
+      </span>
+      <span className="block">
+        <strong>Máquina:</strong>{" "}
+        {maquinaSelecionadaNoForm
+          ? `${maquinaSelecionadaNoForm.nome} - ${maquinaSelecionadaNoForm.codigo}`
+          : "-"}
+      </span>
+      <span className="block">
+        <strong>Produto:</strong> {produtoSelecionadoNoForm?.nome || "-"}
+      </span>
+      {!formData.ignoreInOut && (
+        <>
+          <span className="block">
+            <strong>Contador IN:</strong> {formData.contadorIn || "0"}
+          </span>
+          <span className="block">
+            <strong>Contador OUT:</strong> {formData.contadorOut || "0"}
+          </span>
+        </>
+      )}
+      <span className="block">
+        <strong>Fichas coletadas:</strong> {formData.fichas || "0"}
+      </span>
+      <span className="block">
+        <strong>Quantidade atual na máquina:</strong>{" "}
+        {formData.quantidadeAtualMaquina || "0"}
+      </span>
+      <span className="block font-bold text-green-700">
+        <strong>Quantidade abastecida:</strong> {quantidadeAdicionadaNoForm}
+      </span>
+      {retiradaProdutoNoForm > 0 && (
+        <span className="block">
+          <strong>Retirada de produto:</strong> {retiradaProdutoNoForm}
+        </span>
+      )}
+    </>
+  );
+
   return (
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
       <Navbar />
@@ -1574,6 +1727,34 @@ export function Movimentacoes() {
                   <p className="text-xs text-gray-500 mt-1">
                     Número do contador IN da máquina
                   </p>
+                  {contadorInSuspeito && (
+                    <div className="mt-2 p-3 bg-red-50 border-l-4 border-red-500 rounded">
+                      <div className="flex items-start">
+                        <span className="text-red-600 text-lg mr-2">🚫</span>
+                        <div className="flex-1">
+                          <p className="text-xs font-bold text-red-800 mb-1">
+                            Diferença de {diferencaContadorIn} em relação ao
+                            último Contador IN registrado (
+                            {ultimoContadorMaquina.contadorIn}). Provavelmente
+                            há um erro de leitura ou digitação.
+                          </p>
+                          <label className="flex items-center gap-2 mt-2">
+                            <input
+                              type="checkbox"
+                              checked={confirmacaoContadorIn}
+                              onChange={(e) =>
+                                setConfirmacaoContadorIn(e.target.checked)
+                              }
+                              className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                            />
+                            <span className="text-xs font-semibold text-red-800">
+                              Tenho certeza que o Contador IN está correto
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -1594,6 +1775,34 @@ export function Movimentacoes() {
                   <p className="text-xs text-gray-500 mt-1">
                     Número do contador OUT da máquina
                   </p>
+                  {contadorOutSuspeito && (
+                    <div className="mt-2 p-3 bg-red-50 border-l-4 border-red-500 rounded">
+                      <div className="flex items-start">
+                        <span className="text-red-600 text-lg mr-2">🚫</span>
+                        <div className="flex-1">
+                          <p className="text-xs font-bold text-red-800 mb-1">
+                            Diferença de {diferencaContadorOut} em relação ao
+                            último Contador OUT registrado (
+                            {ultimoContadorMaquina.contadorOut}). Provavelmente
+                            há um erro de leitura ou digitação.
+                          </p>
+                          <label className="flex items-center gap-2 mt-2">
+                            <input
+                              type="checkbox"
+                              checked={confirmacaoContadorOut}
+                              onChange={(e) =>
+                                setConfirmacaoContadorOut(e.target.checked)
+                              }
+                              className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                            />
+                            <span className="text-xs font-semibold text-red-800">
+                              Tenho certeza que o Contador OUT está correto
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               {/* Checkbox para ignorar IN/OUT */}
@@ -2001,7 +2210,11 @@ export function Movimentacoes() {
                 <button
                   type="submit"
                   className="btn-primary w-full sm:w-auto"
-                  disabled={salvandoMovimentacao}
+                  disabled={
+                    salvandoMovimentacao ||
+                    (contadorInSuspeito && !confirmacaoContadorIn) ||
+                    (contadorOutSuspeito && !confirmacaoContadorOut)
+                  }
                 >
                   {salvandoMovimentacao ? (
                     <span className="flex items-center gap-2">
@@ -2463,6 +2676,18 @@ export function Movimentacoes() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={mostrarConfirmacaoMovimentacao}
+        onClose={() => setMostrarConfirmacaoMovimentacao(false)}
+        onConfirm={confirmarRegistroMovimentacao}
+        title="Confirmar Movimentação"
+        message={resumoConfirmacaoMovimentacao}
+        confirmText="Sim, registrar"
+        cancelText="Revisar"
+        type="primary"
+      />
+
       <Footer />
     </div>
   );
