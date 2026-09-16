@@ -155,6 +155,19 @@ export function Movimentacoes() {
   // Estados auxiliares
   const [estoqueAnterior, setEstoqueAnterior] = useState(0);
   const [alertaDivergencia, setAlertaDivergencia] = useState(null);
+  // Sugestão de Total Pré via Machine Pay (máquinas com desconto automático
+  // ativado), ver useEffect abaixo. modo "auto" trava o campo com o valor
+  // calculado; "forcar_manual" (a cada 15 dias sem conferência manual)
+  // libera o campo pro operador digitar, mas mantém o valor calculado pra
+  // comparação/alerta de divergência.
+  const [sugestaoTotalPreMachinePay, setSugestaoTotalPreMachinePay] =
+    useState(null);
+  const [carregandoSugestaoMachinePay, setCarregandoSugestaoMachinePay] =
+    useState(false);
+  const [
+    confirmacaoDivergenciaMachinePay,
+    setConfirmacaoDivergenciaMachinePay,
+  ] = useState(false);
 
   // Últimos contadores registrados da máquina selecionada, para detectar
   // salto suspeito no IN/OUT (ver LIMITE_DIFERENCA_CONTADOR_IN/OUT acima).
@@ -391,6 +404,54 @@ export function Movimentacoes() {
     };
   }, [formData.maquina_id]);
 
+  // Para máquinas com "desconto automático via Machine Pay" ativado, busca
+  // quanto já entrou na Machine Pay desde a última coleta e calcula o Total
+  // Pré esperado (totalPos anterior menos 1 pulso pra cada
+  // valorDescontoMachinePay recebido). Em modo "auto" trava o campo e
+  // preenche com o valor calculado; a cada 15 dias sem conferência manual o
+  // backend devolve modo "forcar_manual" — aí o campo fica liberado pro
+  // operador contar fisicamente, e o valor calculado só serve pra comparar
+  // e alertar se o que ele digitou não bater (ver alertaSubmit mais abaixo).
+  useEffect(() => {
+    setSugestaoTotalPreMachinePay(null);
+    setCarregandoSugestaoMachinePay(false);
+
+    if (!formData.maquina_id) return;
+
+    const maquina = maquinas.find(
+      (m) => String(m.id) === String(formData.maquina_id),
+    );
+    if (!maquina?.descontoAutomaticoMachinePay) return;
+
+    let cancelado = false;
+    setCarregandoSugestaoMachinePay(true);
+
+    api
+      .get(`/movimentacoes/sugestao-total-pre/${formData.maquina_id}`)
+      .then((response) => {
+        if (cancelado) return;
+        const dados = response.data;
+        setSugestaoTotalPreMachinePay(dados || null);
+
+        if (dados?.sugestaoDisponivel && dados.modo === "auto") {
+          setFormData((prev) => ({
+            ...prev,
+            quantidadeAtualMaquina: String(dados.sugestaoTotalPre),
+          }));
+        }
+      })
+      .catch(() => {
+        if (!cancelado) setSugestaoTotalPreMachinePay(null);
+      })
+      .finally(() => {
+        if (!cancelado) setCarregandoSugestaoMachinePay(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [formData.maquina_id, maquinas]);
+
   // Cada vez que o operador muda o valor digitado, a confirmação de
   // "certeza que está correto" anterior deixa de valer.
   useEffect(() => {
@@ -400,6 +461,10 @@ export function Movimentacoes() {
   useEffect(() => {
     setConfirmacaoContadorOut(false);
   }, [formData.contadorOut, formData.maquina_id]);
+
+  useEffect(() => {
+    setConfirmacaoDivergenciaMachinePay(false);
+  }, [formData.quantidadeAtualMaquina, formData.maquina_id]);
 
   // Sugere produto automaticamente ao escolher máquina, mas permite troca manual
   // Sugere produto via backend ao escolher máquina
@@ -610,6 +675,13 @@ export function Movimentacoes() {
   const handleSubmit = (e) => {
     e.preventDefault();
 
+    if (divergenciaMachinePaySuspeita && !confirmacaoDivergenciaMachinePay) {
+      setError(
+        "O valor esperado pela Machine Pay é diferente do que foi digitado. Reconte a máquina, ou marque a confirmação de que já recontou e o valor está correto.",
+      );
+      return;
+    }
+
     if (contadorInSuspeito && !confirmacaoContadorIn) {
       setError(
         "A diferença do Contador IN em relação ao último registro é muito grande (provável erro de leitura). Marque a confirmação de que o valor está correto antes de registrar.",
@@ -733,6 +805,11 @@ export function Movimentacoes() {
         retiradaEstoque: formData.retiradaEstoque,
         contadorMaquina: null,
         observacoes: observacaoFinal || null,
+        origemTotalPre: sugestaoTotalPreMachinePay?.sugestaoDisponivel
+          ? sugestaoTotalPreMachinePay.modo === "auto"
+            ? "automatico"
+            : "manual"
+          : null,
         produtos: [
           {
             produtoId: formData.produto_id,
@@ -745,6 +822,39 @@ export function Movimentacoes() {
       };
 
       await api.post("/movimentacoes", data);
+
+      // Conferência manual (a cada 15 dias) confirmada mesmo com divergência
+      // em relação ao esperado pela Machine Pay: avisa o admin com os
+      // números pra ele investigar (erro de contagem, pulso perdido, etc).
+      if (divergenciaMachinePaySuspeita && confirmacaoDivergenciaMachinePay) {
+        try {
+          const esperado = sugestaoTotalPreMachinePay.sugestaoTotalPre;
+          const diferenca = totalPre - esperado;
+          await api.post("/alertas-movimentacao", {
+            maquinaId: formData.maquina_id,
+            observacao:
+              `Divergência na conferência manual da Machine Pay: era pra ter ${esperado} ` +
+              `(calculado com base em R$ ${sugestaoTotalPreMachinePay.totalRecebidoDesdeUltimaMovimentacao.toFixed(2)} ` +
+              `recebidos na Machine Pay desde a movimentação anterior ÷ R$ ${Number(sugestaoTotalPreMachinePay.valorDesconto).toFixed(2)} por pulso ` +
+              `= ${sugestaoTotalPreMachinePay.pulsos} pulso(s)), mas o operador registrou ${totalPre} ` +
+              `mesmo após o aviso de recontagem. Diferença: ${diferenca > 0 ? "+" : ""}${diferenca}.`,
+            dadosAbastecimento: {
+              esperado,
+              informado: totalPre,
+              diferenca,
+              totalRecebidoMachinePay:
+                sugestaoTotalPreMachinePay.totalRecebidoDesdeUltimaMovimentacao,
+              pulsos: sugestaoTotalPreMachinePay.pulsos,
+              valorDesconto: sugestaoTotalPreMachinePay.valorDesconto,
+            },
+          });
+        } catch (erroAlertaDivergencia) {
+          console.error(
+            "Erro ao registrar alerta de divergência da Machine Pay:",
+            erroAlertaDivergencia,
+          );
+        }
+      }
 
       if (alertaOrigemId) {
         try {
@@ -1368,6 +1478,16 @@ export function Movimentacoes() {
   const contadorOutSuspeito =
     diferencaContadorOut > LIMITE_DIFERENCA_CONTADOR_OUT;
 
+  // Conferência manual forçada (a cada 15 dias, ver sugerirTotalPre no
+  // backend): o valor calculado pela Machine Pay não trava o campo, mas se
+  // o que o operador digitou não bater com ele, pede recontagem.
+  const totalPreDigitadoNum = parseInt(formData.quantidadeAtualMaquina);
+  const divergenciaMachinePaySuspeita =
+    sugestaoTotalPreMachinePay?.sugestaoDisponivel &&
+    sugestaoTotalPreMachinePay?.modo === "forcar_manual" &&
+    !isNaN(totalPreDigitadoNum) &&
+    totalPreDigitadoNum !== sugestaoTotalPreMachinePay.sugestaoTotalPre;
+
   const lojaSelecionadaNoForm = lojas.find(
     (l) => String(l.id) === String(filtroLojaForm),
   );
@@ -1935,12 +2055,76 @@ export function Movimentacoes() {
                     value={formData.quantidadeAtualMaquina}
                     onChange={handleChange}
                     className="input-field"
-                    placeholder="0"
+                    placeholder={
+                      carregandoSugestaoMachinePay
+                        ? "Buscando na Machine Pay..."
+                        : "0"
+                    }
                     min="0"
+                    disabled={
+                      carregandoSugestaoMachinePay ||
+                      (sugestaoTotalPreMachinePay?.sugestaoDisponivel &&
+                        sugestaoTotalPreMachinePay?.modo === "auto")
+                    }
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Quantos produtos tem agora
                   </p>
+                  {carregandoSugestaoMachinePay && (
+                    <p className="text-xs font-semibold text-blue-600 mt-1">
+                      💳 Buscando na Machine Pay...
+                    </p>
+                  )}
+                  {!carregandoSugestaoMachinePay &&
+                    sugestaoTotalPreMachinePay?.sugestaoDisponivel &&
+                    sugestaoTotalPreMachinePay.modo === "auto" && (
+                      <p className="text-xs font-semibold text-emerald-600 mt-1">
+                        💳 Sugestão via Machine Pay: R${" "}
+                        {sugestaoTotalPreMachinePay.totalRecebidoDesdeUltimaMovimentacao.toFixed(
+                          2,
+                        )}{" "}
+                        recebidos desde a última coleta ({sugestaoTotalPreMachinePay.pulsos}{" "}
+                        pulso{sugestaoTotalPreMachinePay.pulsos === 1 ? "" : "s"}) →
+                        Total Pré sugerido: {sugestaoTotalPreMachinePay.sugestaoTotalPre}
+                      </p>
+                    )}
+                  {!carregandoSugestaoMachinePay &&
+                    sugestaoTotalPreMachinePay?.sugestaoDisponivel &&
+                    sugestaoTotalPreMachinePay.modo === "forcar_manual" && (
+                      <p className="text-xs font-semibold text-purple-600 mt-1">
+                        🔍 Conferência manual (a cada 15 dias): conte
+                        fisicamente e digite o valor.
+                      </p>
+                    )}
+                  {divergenciaMachinePaySuspeita && (
+                    <div className="mt-2 p-3 bg-red-50 border-l-4 border-red-500 rounded">
+                      <div className="flex items-start">
+                        <span className="text-red-600 text-lg mr-2">🚫</span>
+                        <div className="flex-1">
+                          <p className="text-xs font-bold text-red-800 mb-1">
+                            O valor digitado não confere com o que a Machine
+                            Pay esperava. Reconte a máquina antes de
+                            confirmar.
+                          </p>
+                          <label className="flex items-center gap-2 mt-2">
+                            <input
+                              type="checkbox"
+                              checked={confirmacaoDivergenciaMachinePay}
+                              onChange={(e) =>
+                                setConfirmacaoDivergenciaMachinePay(
+                                  e.target.checked,
+                                )
+                              }
+                              className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                            />
+                            <span className="text-xs font-semibold text-red-800">
+                              Já recontei, o valor está correto mesmo assim
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   {formData.quantidadeAtualMaquina && estoqueAnterior > 0 && (
                     <p className="text-xs font-semibold text-red-600 mt-1">
                       🔻 Saíram:{" "}
@@ -2213,7 +2397,9 @@ export function Movimentacoes() {
                   disabled={
                     salvandoMovimentacao ||
                     (contadorInSuspeito && !confirmacaoContadorIn) ||
-                    (contadorOutSuspeito && !confirmacaoContadorOut)
+                    (contadorOutSuspeito && !confirmacaoContadorOut) ||
+                    (divergenciaMachinePaySuspeita &&
+                      !confirmacaoDivergenciaMachinePay)
                   }
                 >
                   {salvandoMovimentacao ? (

@@ -33,6 +33,8 @@ export function MaquinaForm() {
     nome: "",
     machinePayPosId: "",
     machinePayUsrId: "",
+    descontoAutomaticoMachinePay: false,
+    valorDescontoMachinePay: "",
     loja_id: "",
     tipo: "",
     capacidadePadrao: "",
@@ -85,6 +87,9 @@ export function MaquinaForm() {
         nome: response.data.nome || "",
         machinePayPosId: response.data.machinePayPosId || "",
         machinePayUsrId: response.data.machinePayUsrId || "",
+        descontoAutomaticoMachinePay:
+          response.data.descontoAutomaticoMachinePay || false,
+        valorDescontoMachinePay: response.data.valorDescontoMachinePay || "",
         loja_id: response.data.lojaId ? String(response.data.lojaId) : "",
         tipo: response.data.tipo || "",
         capacidadePadrao: response.data.capacidadePadrao || "",
@@ -150,6 +155,10 @@ export function MaquinaForm() {
         nome: formData.nome.trim(),
         machinePayPosId: formData.machinePayPosId?.trim() || null,
         machinePayUsrId: formData.machinePayUsrId?.trim() || null,
+        descontoAutomaticoMachinePay: formData.descontoAutomaticoMachinePay,
+        valorDescontoMachinePay: formData.descontoAutomaticoMachinePay
+          ? parseFloat(formData.valorDescontoMachinePay) || null
+          : null,
         lojaId: formData.loja_id,
         tipo: formData.tipo?.trim() || null,
         capacidadePadrao: parseInt(formData.capacidadePadrao, 10) || 0,
@@ -316,6 +325,41 @@ export function MaquinaForm() {
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     Preenchido automaticamente ao sair do campo POS ID.
+                  </p>
+                </div>
+
+                <div className="flex items-center">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      name="descontoAutomaticoMachinePay"
+                      checked={formData.descontoAutomaticoMachinePay}
+                      onChange={handleChange}
+                      className="w-5 h-5 text-primary rounded focus:ring-2 focus:ring-primary"
+                    />
+                    <span className="text-sm font-semibold text-gray-700">
+                      Descontar automático através da Machine Pay
+                    </span>
+                  </label>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Valor do desconto
+                  </label>
+                  <input
+                    type="number"
+                    name="valorDescontoMachinePay"
+                    value={formData.valorDescontoMachinePay}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="Ex: 30"
+                    step="0.01"
+                    min="0"
+                    disabled={!formData.descontoAutomaticoMachinePay}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    A cada esse valor pago na Machine Pay, a próxima coleta já vem com o Total Pré sugerido 1 a menos.
                   </p>
                 </div>
 
