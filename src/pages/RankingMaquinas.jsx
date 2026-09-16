@@ -10,6 +10,7 @@ import {
   obterValorReconciliadoMaquina,
   somarValorComRegistradoFallback,
   somarValorRegistradoConsolidado,
+  complementarPerformanceComMachinePay,
   ehMesAtualReal,
 } from "../utils/faturamentoReconciliado";
 import {
@@ -291,6 +292,36 @@ export function RankingMaquinas() {
     [machinePayTotalAnterior],
   );
 
+  // Inclui no cálculo as máquinas que faturaram na Machine Pay (ou têm
+  // valor registrado) mas ainda não têm nenhuma coleta no período — sem
+  // isso elas somem do Ranking e do KPI "Valor Machine Pay".
+  const performanceComExtras = useMemo(
+    () =>
+      complementarPerformanceComMachinePay(
+        performance,
+        machinePayTotal,
+        valorRegistradoPorMaquina,
+        lojaSelecionada,
+      ),
+    [performance, machinePayTotal, valorRegistradoPorMaquina, lojaSelecionada],
+  );
+
+  const performanceAnteriorComExtras = useMemo(
+    () =>
+      complementarPerformanceComMachinePay(
+        performanceAnterior,
+        machinePayTotalAnterior,
+        valorRegistradoAnteriorPorMaquina,
+        lojaSelecionada,
+      ),
+    [
+      performanceAnterior,
+      machinePayTotalAnterior,
+      valorRegistradoAnteriorPorMaquina,
+      lojaSelecionada,
+    ],
+  );
+
   // O mês anterior (comparação) é sempre um mês já fechado, então usa a
   // mesma fórmula do Relatório (dinheiro + cartão/pix registrados, por
   // máquina e total da loja) em vez de reconciliar com Machine Pay/fichas.
@@ -310,7 +341,7 @@ export function RankingMaquinas() {
   const [mostrarTodasMaquinas, setMostrarTodasMaquinas] = useState(false);
 
   const maquinasRanking = useMemo(() => {
-    const itens = performance.map((p) => {
+    const itens = performanceComExtras.map((p) => {
       const maquinaId = String(p.maquina?.id);
       const fichas = toN(p.metricas?.totalFichas);
 
@@ -335,7 +366,7 @@ export function RankingMaquinas() {
     });
 
     return itens.sort((a, b) => b.valor - a.valor);
-  }, [performance, machinePayPorMaquina, valorRegistradoPorMaquina]);
+  }, [performanceComExtras, machinePayPorMaquina, valorRegistradoPorMaquina]);
 
   const maquinasExibidas = mostrarTodasMaquinas
     ? maquinasRanking
@@ -384,21 +415,21 @@ export function RankingMaquinas() {
   const valorMachinePaySoAtual = useMemo(
     () =>
       somarValorComRegistradoFallback(
-        performance,
+        performanceComExtras,
         machinePayPorMaquina,
         valorRegistradoPorMaquina,
       ),
-    [performance, machinePayPorMaquina, valorRegistradoPorMaquina],
+    [performanceComExtras, machinePayPorMaquina, valorRegistradoPorMaquina],
   );
   const valorMachinePaySoAnterior = useMemo(
     () =>
       somarValorComRegistradoFallback(
-        performanceAnterior,
+        performanceAnteriorComExtras,
         machinePayPorMaquinaAnterior,
         valorRegistradoAnteriorPorMaquina,
       ),
     [
-      performanceAnterior,
+      performanceAnteriorComExtras,
       machinePayPorMaquinaAnterior,
       valorRegistradoAnteriorPorMaquina,
     ],

@@ -192,6 +192,54 @@ export const somarValorRegistradoConsolidado = (
   }, 0);
 };
 
+// Máquinas que têm faturamento real (Machine Pay ou registrado) no período
+// mas não aparecem em /relatorios/performance-maquinas por não terem
+// nenhuma coleta (Movimentação) registrada ainda — ex.: "poltronas" e
+// outras máquinas que só recebem por cartão/pix e não têm contagem manual
+// de fichas no período. Sem isso, o dinheiro delas some do Ranking e do
+// KPI "Valor Machine Pay", mesmo já tendo entrado de verdade na Machine
+// Pay. Devolve a lista de performance original + um item sintético (fichas
+// zeradas) para cada uma dessas máquinas, filtrado pela loja selecionada.
+export const complementarPerformanceComMachinePay = (
+  performanceList,
+  machinePayTotalData,
+  registradoMapa,
+  lojaId,
+) => {
+  const idsComPerformance = new Set(
+    (performanceList || []).map((p) => String(p.maquina?.id)),
+  );
+
+  const extras = (machinePayTotalData?.maquinas || [])
+    .filter((item) => !idsComPerformance.has(String(item.maquinaId)))
+    .filter((item) => !lojaId || String(item.lojaId) === String(lojaId))
+    .filter((item) => {
+      const valorMachinePay = toN(item.brutoComTaxasMp);
+      const registrado = registradoMapa?.get(String(item.maquinaId));
+      return valorMachinePay > 0 || (registrado && registrado.valor > 0);
+    })
+    .map((item) => ({
+      maquina: {
+        id: item.maquinaId,
+        codigo: item.codigo,
+        nome: item.nome || item.codigo,
+        valorFicha: toN(item.valorFicha),
+        loja: item.loja || "-",
+        lojaId: item.lojaId,
+      },
+      metricas: {
+        totalMovimentacoes: 0,
+        totalFichas: 0,
+        totalFaturamento: 0,
+        totalSairam: 0,
+        mediaFichasPremio: "0.00",
+      },
+      produtoPrincipal: null,
+    }));
+
+  return [...(performanceList || []), ...extras];
+};
+
 // Um período (dataInicio "YYYY-MM-DD") é o mês corrente de verdade quando
 // cai no mesmo mês/ano de hoje. Usado para decidir qual fórmula de
 // faturamento usar: mês em andamento -> reconciliado (Machine Pay/
