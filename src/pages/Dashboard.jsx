@@ -15,6 +15,7 @@ import {
   construirMapaMachinePay,
   somarFaturamentoReconciliado,
   somarValorRegistradoConsolidado,
+  complementarPerformanceComMachinePay,
 } from "../utils/faturamentoReconciliado";
 
 import Swal from "sweetalert2";
@@ -956,11 +957,21 @@ export function Dashboard() {
           periodoComparacaoMensal.fimMesAtual,
         );
 
+        // Inclui as máquinas que faturaram na Machine Pay (ou têm valor
+        // registrado) mas ainda não têm nenhuma coleta no mês — sem isso
+        // elas somem do Faturamento Mensal, mesmo já tendo faturado de
+        // verdade (mesmo ajuste feito no Ranking de Máquinas).
+        const performanceAtualComExtras = complementarPerformanceComMachinePay(
+          performanceAtualLista,
+          machinePayTotalRes?.data,
+          registradoMapaAtual,
+        );
+
         // Faturamento reconciliado (Machine Pay > valor registrado no
         // sistema, quando a Machine Pay já fechou o mês e zerou > fichas ×
         // valor da ficha), a mesma régua usada no Ranking de Máquinas.
         const faturamentoMesAtual = somarFaturamentoReconciliado(
-          performanceAtualLista,
+          performanceAtualComExtras,
           machinePayMapaAtual,
           registradoMapaAtual,
         );
