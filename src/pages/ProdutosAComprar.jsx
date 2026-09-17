@@ -226,7 +226,28 @@ export function ProdutosAComprar() {
                 api.get(`/maquinas/${maquina.id}/estoque`),
                 api.get(`/movimentacoes?maquinaId=${maquina.id}`),
               ]);
-              const estoqueAtual = estoqRes.data.estoqueAtual ?? 0;
+              let estoqueAtual = estoqRes.data.estoqueAtual ?? 0;
+
+              // Máquina com desconto automático via Machine Pay: o totalPos
+              // da última coleta fica desatualizado assim que alguém paga
+              // na maquininha (cada pulso libera 1 unidade sem gerar uma
+              // nova movimentação). Usa o valor real (totalPos menos os
+              // pulsos pagos desde a última coleta) em vez do estoque
+              // parado da última movimentação.
+              if (maquina.descontoAutomaticoMachinePay) {
+                try {
+                  const sugestaoRes = await api.get(
+                    `/movimentacoes/sugestao-total-pre/${maquina.id}`,
+                  );
+                  if (sugestaoRes.data?.sugestaoDisponivel) {
+                    estoqueAtual = sugestaoRes.data.sugestaoTotalPre;
+                  }
+                } catch {
+                  // Falha ao consultar a Machine Pay: mantém o estoque da
+                  // última movimentação como fallback.
+                }
+              }
+
               const capacidade = maquina.capacidadePadrao || 0;
               const deficit = Math.max(0, capacidade - estoqueAtual);
               if (deficit <= 0) return;
