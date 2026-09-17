@@ -57,11 +57,17 @@ const getProductKey = (produto, fallback = "") => {
 
 // Tenta associar um produto do estoque a uma entrada no mapa de déficit (por código ou nome)
 const takeCapacityForProduct = (capacidadePorProduto, produto, fallback) => {
+  const vazio = { faltaCapacidade: 0, faltaCapacidadeMachinePay: 0 };
   const primaryKey = getProductKey(produto, fallback);
   const primaryValue = capacidadePorProduto.get(primaryKey);
   if (primaryValue) {
     capacidadePorProduto.delete(primaryKey);
-    return toNumber(primaryValue.faltaCapacidade);
+    return {
+      faltaCapacidade: toNumber(primaryValue.faltaCapacidade),
+      faltaCapacidadeMachinePay: toNumber(
+        primaryValue.faltaCapacidadeMachinePay,
+      ),
+    };
   }
   const codigo = normalizeIdentifier(produto?.codigo);
   const nome = normalizeIdentifier(produto?.nome);
@@ -73,10 +79,13 @@ const takeCapacityForProduct = (capacidadePorProduto, produto, fallback) => {
     const nomeMatch = !!nome && (nome === nomeMap || nome === codigoMap);
     if (codigoMatch || nomeMatch) {
       capacidadePorProduto.delete(key);
-      return toNumber(value?.faltaCapacidade);
+      return {
+        faltaCapacidade: toNumber(value?.faltaCapacidade),
+        faltaCapacidadeMachinePay: toNumber(value?.faltaCapacidadeMachinePay),
+      };
     }
   }
-  return 0;
+  return vazio;
 };
 
 export function ProdutosAComprar() {
@@ -115,11 +124,12 @@ export function ProdutosAComprar() {
           const quantidadeAtual = Math.max(0, toNumber(item?.quantidade));
           const estoqueMinimo = Math.max(0, toNumber(item?.estoqueMinimo));
           const faltaMinimo = Math.max(0, estoqueMinimo - quantidadeAtual);
-          const faltaCapacidade = takeCapacityForProduct(
-            capacidadePorProduto,
-            produto,
-            `estoque-${index}`,
-          );
+          const { faltaCapacidade, faltaCapacidadeMachinePay } =
+            takeCapacityForProduct(
+              capacidadePorProduto,
+              produto,
+              `estoque-${index}`,
+            );
           const quantidadeComprar = faltaMinimo + faltaCapacidade;
           const levarKey = `${lojaId}:${key}`;
           const quantidadeLevar = Math.max(
@@ -133,6 +143,7 @@ export function ProdutosAComprar() {
             estoqueMinimo,
             faltaMinimo,
             faltaCapacidade,
+            faltaCapacidadeMachinePay,
             quantidadeComprar,
             quantidadeLevar,
           });
@@ -154,6 +165,10 @@ export function ProdutosAComprar() {
             estoqueMinimo: 0,
             faltaMinimo: 0,
             faltaCapacidade: quantidadeComprar,
+            faltaCapacidadeMachinePay: Math.max(
+              0,
+              toNumber(value?.faltaCapacidadeMachinePay),
+            ),
             quantidadeComprar,
             quantidadeLevar: Math.max(
               0,
@@ -227,6 +242,8 @@ export function ProdutosAComprar() {
                 api.get(`/movimentacoes?maquinaId=${maquina.id}`),
               ]);
               let estoqueAtual = estoqRes.data.estoqueAtual ?? 0;
+              const estoqueAtualBruto = estoqueAtual;
+              let consumidoMachinePay = 0;
 
               // Máquina com desconto automático via Machine Pay: o totalPos
               // da última coleta fica desatualizado assim que alguém paga
@@ -241,6 +258,10 @@ export function ProdutosAComprar() {
                   );
                   if (sugestaoRes.data?.sugestaoDisponivel) {
                     estoqueAtual = sugestaoRes.data.sugestaoTotalPre;
+                    consumidoMachinePay = Math.max(
+                      0,
+                      estoqueAtualBruto - estoqueAtual,
+                    );
                   }
                 } catch {
                   // Falha ao consultar a Machine Pay: mantém o estoque da
@@ -251,6 +272,12 @@ export function ProdutosAComprar() {
               const capacidade = maquina.capacidadePadrao || 0;
               const deficit = Math.max(0, capacidade - estoqueAtual);
               if (deficit <= 0) return;
+              // Quanto desse déficit é causado por consumo via Machine Pay
+              // desde a última coleta (limitado ao próprio déficit).
+              const deficitViaMachinePay = Math.min(
+                consumidoMachinePay,
+                deficit,
+              );
 
               // Produto da última movimentação
               const movs = (movRes.data || []).sort(
@@ -286,8 +313,10 @@ export function ProdutosAComprar() {
               const existing = deficitMap.get(pKey) || {
                 produto,
                 faltaCapacidade: 0,
+                faltaCapacidadeMachinePay: 0,
               };
               existing.faltaCapacidade += deficit;
+              existing.faltaCapacidadeMachinePay += deficitViaMachinePay;
               deficitMap.set(pKey, existing);
             } catch {
               // ignora falha individual de máquina
@@ -940,6 +969,11 @@ export function ProdutosAComprar() {
                               {item.faltaCapacidade > 0
                                 ? item.faltaCapacidade
                                 : "—"}
+                              {item.faltaCapacidadeMachinePay > 0 && (
+                                <div className="text-[11px] font-normal text-purple-600 mt-0.5">
+                                  💳 {item.faltaCapacidadeMachinePay} via Machine Pay
+                                </div>
+                              )}
                             </td>
                             <td className="px-4 py-3 text-center font-extrabold text-red-700 text-lg">
                               {item.quantidadeComprar}
