@@ -4692,6 +4692,12 @@ export function Dashboard() {
                       <p className="text-xs text-gray-600 mt-1 bg-white/60 px-2 py-1 rounded-full">
                         {alerta.estoqueAtual}/{alerta.capacidadePadrao} unidades
                       </p>
+                      {alerta.machinePay && (
+                        <p className="text-[11px] text-purple-700 mt-1 bg-purple-50 px-2 py-1 rounded-full">
+                          💳 Via Machine Pay · última mov.:{" "}
+                          {alerta.machinePay.estoqueRegistrado}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -4768,6 +4774,12 @@ export function Dashboard() {
                           {alerta.estoqueAtual}/{alerta.capacidadePadrao}{" "}
                           unidades
                         </p>
+                        {alerta.machinePay && (
+                          <p className="text-[11px] text-purple-700 mt-1 bg-purple-50 px-2 py-1 rounded-full">
+                            💳 Via Machine Pay · última mov.:{" "}
+                            {alerta.machinePay.estoqueRegistrado}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
