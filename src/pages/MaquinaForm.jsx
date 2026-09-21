@@ -35,6 +35,7 @@ export function MaquinaForm() {
     machinePayUsrId: "",
     descontoAutomaticoMachinePay: false,
     valorDescontoMachinePay: "",
+    recebimentoAParteMachinePay: false,
     loja_id: "",
     tipo: "",
     capacidadePadrao: "",
@@ -90,6 +91,8 @@ export function MaquinaForm() {
         descontoAutomaticoMachinePay:
           response.data.descontoAutomaticoMachinePay || false,
         valorDescontoMachinePay: response.data.valorDescontoMachinePay || "",
+        recebimentoAParteMachinePay:
+          response.data.recebimentoAParteMachinePay || false,
         loja_id: response.data.lojaId ? String(response.data.lojaId) : "",
         tipo: response.data.tipo || "",
         capacidadePadrao: response.data.capacidadePadrao || "",
@@ -159,6 +162,7 @@ export function MaquinaForm() {
         valorDescontoMachinePay: formData.descontoAutomaticoMachinePay
           ? parseFloat(formData.valorDescontoMachinePay) || null
           : null,
+        recebimentoAParteMachinePay: formData.recebimentoAParteMachinePay,
         lojaId: formData.loja_id,
         tipo: formData.tipo?.trim() || null,
         capacidadePadrao: parseInt(formData.capacidadePadrao, 10) || 0,
@@ -360,6 +364,24 @@ export function MaquinaForm() {
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     A cada esse valor pago na Machine Pay, a próxima coleta já vem com o Total Pré sugerido 1 a menos.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      name="recebimentoAParteMachinePay"
+                      checked={formData.recebimentoAParteMachinePay}
+                      onChange={handleChange}
+                      className="w-5 h-5 text-primary rounded focus:ring-2 focus:ring-primary"
+                    />
+                    <span className="text-sm font-semibold text-gray-700">
+                      Recebimento à parte
+                    </span>
+                  </label>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Recalcula o valor bruto da Machine Pay dessa máquina (tira 30% de repasse, divide o restante ao meio e soma com metade dos 30%) antes de aparecer em Registrar Dinheiro, Dashboard, Ranking e Relatórios.
                   </p>
                 </div>
 
