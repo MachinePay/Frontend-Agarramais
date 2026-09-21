@@ -1478,13 +1478,14 @@ export function Movimentacoes() {
   const contadorOutSuspeito =
     diferencaContadorOut > LIMITE_DIFERENCA_CONTADOR_OUT;
 
-  // Conferência manual forçada (a cada 15 dias, ver sugerirTotalPre no
-  // backend): o valor calculado pela Machine Pay não trava o campo, mas se
-  // o que o operador digitou não bater com ele, pede recontagem.
+  // O valor calculado pela Machine Pay (modo "auto" ou "forcar_manual") não
+  // trava o campo: o operador pode sempre ajustar. Mas se o que ele digitou
+  // não bater com o valor esperado, pede recontagem e confirmação explícita.
   const totalPreDigitadoNum = parseInt(formData.quantidadeAtualMaquina);
   const divergenciaMachinePaySuspeita =
     sugestaoTotalPreMachinePay?.sugestaoDisponivel &&
-    sugestaoTotalPreMachinePay?.modo === "forcar_manual" &&
+    (sugestaoTotalPreMachinePay?.modo === "forcar_manual" ||
+      sugestaoTotalPreMachinePay?.modo === "auto") &&
     !isNaN(totalPreDigitadoNum) &&
     totalPreDigitadoNum !== sugestaoTotalPreMachinePay.sugestaoTotalPre;
 
@@ -2061,11 +2062,7 @@ export function Movimentacoes() {
                         : "0"
                     }
                     min="0"
-                    disabled={
-                      carregandoSugestaoMachinePay ||
-                      (sugestaoTotalPreMachinePay?.sugestaoDisponivel &&
-                        sugestaoTotalPreMachinePay?.modo === "auto")
-                    }
+                    disabled={carregandoSugestaoMachinePay}
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Quantos produtos tem agora
@@ -2085,7 +2082,9 @@ export function Movimentacoes() {
                         )}{" "}
                         recebidos desde a última coleta ({sugestaoTotalPreMachinePay.pulsos}{" "}
                         pulso{sugestaoTotalPreMachinePay.pulsos === 1 ? "" : "s"}) →
-                        Total Pré sugerido: {sugestaoTotalPreMachinePay.sugestaoTotalPre}
+                        Total Pré sugerido: {sugestaoTotalPreMachinePay.sugestaoTotalPre}.
+                        Se o valor real for diferente, ajuste — vamos pedir
+                        para você confirmar que recontou.
                       </p>
                     )}
                   {!carregandoSugestaoMachinePay &&
