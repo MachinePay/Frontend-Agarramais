@@ -838,7 +838,11 @@ export function PedidosNotasFiscais() {
                 </thead>
                 <tbody>
                   {registrosExibidos.map((item) => (
-                    <tr key={item.id}>
+                    <tr
+                      key={item.id}
+                      className="cursor-pointer hover:bg-primary/10 transition-colors"
+                      onClick={() => handleEditar(item)}
+                    >
                       <td>{item.clienteNome}</td>
                       <td>{item.numeroPedido}</td>
                       <td>{formatDate(item.dataPedido)}</td>
@@ -864,14 +868,18 @@ export function PedidosNotasFiscais() {
                           <button
                             type="button"
                             className="px-3 py-1 bg-primary text-white rounded hover:opacity-90"
-                            onClick={() => handleEditar(item)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditar(item);
+                            }}
                           >
                             Editar
                           </button>
                           <button
                             type="button"
                             className="px-3 py-1 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-                            onClick={async () => {
+                            onClick={async (e) => {
+                              e.stopPropagation();
                               handleEditar(item);
                               await abrirPickerNFeMail(item.clienteNome || "");
                             }}
@@ -881,7 +889,10 @@ export function PedidosNotasFiscais() {
                           <button
                             type="button"
                             className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-60"
-                            onClick={() => excluirRegistro(item)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              excluirRegistro(item);
+                            }}
                             disabled={deletingId === item.id}
                           >
                             {deletingId === item.id ? "Excluindo..." : "Excluir"}
