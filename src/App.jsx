@@ -26,6 +26,7 @@ import { MachinePay } from "./pages/MachinePay";
 import { BuscaTransportadoras } from "./pages/BuscaTransportadoras";
 import { CalculadoraPedidos } from "./pages/CalculadoraPedidos";
 import { Sangrias } from "./pages/Sangrias";
+import { PedidosNotasFiscais } from "./pages/PedidosNotasFiscais";
 import { GastosVariaveis } from "./pages/GastosVariaveis";
 import { StyleGuide } from "./pages/StyleGuide";
 import { AnaliseEstoque } from "./pages/AnaliseEstoque";
@@ -256,6 +257,14 @@ function App() {
             element={
               <PrivateRoute roles={["COMERCIAL"]}>
                 <CalculadoraPedidos />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/pedidos-notas-fiscais"
+            element={
+              <PrivateRoute roles={["COMERCIAL"]}>
+                <PedidosNotasFiscais />
               </PrivateRoute>
             }
           />

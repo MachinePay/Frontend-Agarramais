@@ -79,6 +79,10 @@ export function Navbar() {
       to: "/calculadora-pedidos",
       label: "📦 Calculadora de Pedidos",
     });
+    links.push({
+      to: "/pedidos-notas-fiscais",
+      label: "📑 Pedidos e Notas Fiscais",
+    });
   }
 
   return (
