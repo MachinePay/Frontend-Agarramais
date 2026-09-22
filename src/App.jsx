@@ -247,7 +247,7 @@ function App() {
           <Route
             path="/transportadoras"
             element={
-              <PrivateRoute roles={["COMERCIAL"]}>
+              <PrivateRoute roles={["ADMIN", "COMERCIAL"]}>
                 <BuscaTransportadoras />
               </PrivateRoute>
             }
@@ -255,7 +255,7 @@ function App() {
           <Route
             path="/calculadora-pedidos"
             element={
-              <PrivateRoute roles={["COMERCIAL"]}>
+              <PrivateRoute roles={["ADMIN", "COMERCIAL"]}>
                 <CalculadoraPedidos />
               </PrivateRoute>
             }
@@ -263,7 +263,7 @@ function App() {
           <Route
             path="/pedidos-notas-fiscais"
             element={
-              <PrivateRoute roles={["COMERCIAL"]}>
+              <PrivateRoute roles={["ADMIN", "COMERCIAL"]}>
                 <PedidosNotasFiscais />
               </PrivateRoute>
             }

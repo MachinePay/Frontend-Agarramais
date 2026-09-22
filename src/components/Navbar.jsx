@@ -73,13 +73,14 @@ export function Navbar() {
       links.push({ to: "/machine-pay", label: "💳 Machine Pay" });
     }
   }
-  if (hasRole("COMERCIAL")) {
-    links.push({ to: "/transportadoras", label: "🚚 Transportadoras" });
-    links.push({
+  const comercialLinks = [];
+  if (hasRole("ADMIN", "COMERCIAL")) {
+    comercialLinks.push({ to: "/transportadoras", label: "🚚 Transportadoras" });
+    comercialLinks.push({
       to: "/calculadora-pedidos",
       label: "📦 Calculadora de Pedidos",
     });
-    links.push({
+    comercialLinks.push({
       to: "/pedidos-notas-fiscais",
       label: "📑 Pedidos e Notas Fiscais",
     });
@@ -213,6 +214,26 @@ export function Navbar() {
                 </Link>
               ))}
             </div>
+
+            {comercialLinks.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-white/10">
+                <p className="px-4 mb-2 text-xs font-semibold uppercase tracking-wider text-accent-cream">
+                  🛍️ Comercial
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {comercialLinks.map((link) => (
+                    <Link
+                      key={link.to}
+                      to={link.to}
+                      onClick={closeMenu}
+                      className={linkClass(link.to, link.alert)}
+                    >
+                      <span className="flex-1">{link.label}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* User Info Mobile */}
             <div className="md:hidden mt-4 pt-4 border-t border-white/10">
