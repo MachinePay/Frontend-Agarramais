@@ -16,8 +16,10 @@ const emptyForm = () => ({
   tipoFrete: "",
   transportadora: "",
   numeroColeta: "",
+  temNumeroColeta: true,
   teveCotacao: false,
   dataCotacao: "",
+  numeroCotacao: "",
   valorNota: "",
   observacoes: "",
   chaveAcessoNFe: "",
@@ -67,6 +69,7 @@ export function PedidosNotasFiscais() {
   const [pickerBusca, setPickerBusca] = useState("");
   const [abaAtiva, setAbaAtiva] = useState("cadastro");
   const [buscandoFrete, setBuscandoFrete] = useState(false);
+  const [mostrarPendentes, setMostrarPendentes] = useState(false);
 
   useEffect(() => {
     if (didInitRef.current) return;
@@ -116,13 +119,16 @@ export function PedidosNotasFiscais() {
       tipoFrete: registro.tipoFrete || "",
       transportadora: registro.transportadora || "",
       numeroColeta: registro.numeroColeta || "",
+      temNumeroColeta: !!registro.numeroColeta,
       teveCotacao: !!registro.teveCotacao,
       dataCotacao: registro.dataCotacao || "",
+      numeroCotacao: registro.numeroCotacao || "",
       valorNota: registro.valorNota ?? "",
       observacoes: registro.observacoes || "",
       chaveAcessoNFe: registro.chaveAcessoNFe || "",
       origemDados: registro.origemDados || "MANUAL",
     });
+    setAbaAtiva("cadastro");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -203,6 +209,10 @@ export function PedidosNotasFiscais() {
     }
   };
 
+  const registrosExibidos = mostrarPendentes
+    ? registros.filter((r) => !r.numeroColeta)
+    : registros;
+
   const pickerNotasFiltradas = pickerBusca.trim()
     ? pickerNotas.filter((nota) =>
         (nota.clienteNome || "")
@@ -232,9 +242,15 @@ export function PedidosNotasFiscais() {
         dataNota: formData.dataNota || null,
         tipoFrete: formData.tipoFrete || null,
         transportadora: formData.transportadora.trim() || null,
-        numeroColeta: formData.numeroColeta.trim() || null,
+        numeroColeta:
+          formData.temNumeroColeta && formData.numeroColeta.trim()
+            ? formData.numeroColeta.trim()
+            : null,
         teveCotacao: formData.teveCotacao,
         dataCotacao: formData.teveCotacao ? formData.dataCotacao || null : null,
+        numeroCotacao: formData.teveCotacao
+          ? formData.numeroCotacao.trim() || null
+          : null,
         valorNota: formData.valorNota !== "" ? Number(formData.valorNota) : null,
         observacoes: formData.observacoes.trim() || null,
         chaveAcessoNFe: formData.chaveAcessoNFe || null,
@@ -356,7 +372,7 @@ export function PedidosNotasFiscais() {
         )}
 
         {abaAtiva === "cadastro" && (
-        <div className="grid grid-cols-1 gap-6 max-w-3xl mx-auto">
+        <div className="grid grid-cols-1 gap-6">
           <div className="card">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-gray-900">
@@ -496,18 +512,58 @@ export function PedidosNotasFiscais() {
                   />
                 </div>
 
-                <div>
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    📦 Número da coleta
+                    📦 Já tem número da coleta?
                   </label>
-                  <input
-                    type="text"
-                    value={formData.numeroColeta}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, numeroColeta: e.target.value }))
-                    }
-                    className="input-field w-full"
-                  />
+                  <div className="flex gap-2 mb-2">
+                    <button
+                      type="button"
+                      className={`px-4 py-2 rounded-lg text-sm font-medium border ${
+                        formData.temNumeroColeta
+                          ? "bg-primary text-white border-primary"
+                          : "bg-white text-gray-700 border-gray-300"
+                      }`}
+                      onClick={() =>
+                        setFormData((prev) => ({ ...prev, temNumeroColeta: true }))
+                      }
+                    >
+                      Sim
+                    </button>
+                    <button
+                      type="button"
+                      className={`px-4 py-2 rounded-lg text-sm font-medium border ${
+                        !formData.temNumeroColeta
+                          ? "bg-primary text-white border-primary"
+                          : "bg-white text-gray-700 border-gray-300"
+                      }`}
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          temNumeroColeta: false,
+                          numeroColeta: "",
+                        }))
+                      }
+                    >
+                      Ainda não
+                    </button>
+                  </div>
+                  {formData.temNumeroColeta ? (
+                    <input
+                      type="text"
+                      value={formData.numeroColeta}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, numeroColeta: e.target.value }))
+                      }
+                      className="input-field w-full"
+                      placeholder="Número da coleta"
+                    />
+                  ) : (
+                    <p className="text-xs text-gray-500">
+                      Sem número de coleta o registro fica em "Pendentes" no
+                      histórico até você voltar aqui e preencher.
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -544,19 +600,37 @@ export function PedidosNotasFiscais() {
                 </div>
 
                 {formData.teveCotacao && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      📅 Data da cotação
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.dataCotacao}
-                      onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, dataCotacao: e.target.value }))
-                      }
-                      className="input-field w-full"
-                    />
-                  </div>
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        🔢 Número da cotação
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.numeroCotacao}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            numeroCotacao: e.target.value,
+                          }))
+                        }
+                        className="input-field w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        📅 Data da cotação
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.dataCotacao}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, dataCotacao: e.target.value }))
+                        }
+                        className="input-field w-full"
+                      />
+                    </div>
+                  </>
                 )}
               </div>
 
@@ -593,7 +667,7 @@ export function PedidosNotasFiscais() {
 
         {abaAtiva === "historico" && (
         <>
-        <div className="grid grid-cols-1 gap-6 max-w-3xl mx-auto">
+        <div className="grid grid-cols-1 gap-6">
           <div className="card">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Filtros</h2>
 
@@ -689,7 +763,7 @@ export function PedidosNotasFiscais() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
               <div className="p-3 rounded-lg border border-gray-200 bg-white">
                 <p className="text-xs text-gray-500">Registros</p>
                 <p className="text-xl font-bold text-gray-900">{registros.length}</p>
@@ -700,20 +774,49 @@ export function PedidosNotasFiscais() {
                   {registros.filter((r) => r.teveCotacao).length}
                 </p>
               </div>
+              <div className="p-3 rounded-lg border border-gray-200 bg-white">
+                <p className="text-xs text-gray-500">Pendentes de coleta</p>
+                <p className="text-xl font-bold text-amber-600">
+                  {registros.filter((r) => !r.numeroColeta).length}
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="card mt-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">
-            Histórico de Pedidos e Notas Fiscais
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h2 className="text-xl font-bold text-gray-900">
+              {mostrarPendentes
+                ? "📋 Pendentes de Coleta"
+                : "Histórico de Pedidos e Notas Fiscais"}
+            </h2>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setMostrarPendentes((prev) => !prev)}
+            >
+              {mostrarPendentes
+                ? "📜 Ver Histórico Completo"
+                : `📋 Pendentes (${registros.filter((r) => !r.numeroColeta).length})`}
+            </button>
+          </div>
+
+          {mostrarPendentes && (
+            <p className="text-xs text-gray-500 mb-4">
+              Registros sem número de coleta preenchido. Clique em "Editar"
+              para completar a coleta — depois de salvar, o registro volta
+              para o histórico normal.
+            </p>
+          )}
 
           {loading ? (
             <div className="py-8 text-center text-gray-600">Carregando registros...</div>
-          ) : registros.length === 0 ? (
+          ) : registrosExibidos.length === 0 ? (
             <div className="py-8 text-center text-gray-600">
-              Nenhum registro encontrado para os filtros selecionados.
+              {mostrarPendentes
+                ? "Nenhum pedido pendente de coleta. 🎉"
+                : "Nenhum registro encontrado para os filtros selecionados."}
             </div>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-gray-200">
@@ -734,7 +837,7 @@ export function PedidosNotasFiscais() {
                   </tr>
                 </thead>
                 <tbody>
-                  {registros.map((item) => (
+                  {registrosExibidos.map((item) => (
                     <tr key={item.id}>
                       <td>{item.clienteNome}</td>
                       <td>{item.numeroPedido}</td>
@@ -743,10 +846,16 @@ export function PedidosNotasFiscais() {
                       <td>{formatDate(item.dataNota)}</td>
                       <td>{item.tipoFrete || "-"}</td>
                       <td>{item.transportadora || "-"}</td>
-                      <td>{item.numeroColeta || "-"}</td>
+                      <td>
+                        {item.numeroColeta || (
+                          <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">
+                            Pendente
+                          </span>
+                        )}
+                      </td>
                       <td>
                         {item.teveCotacao
-                          ? `Sim (${formatDate(item.dataCotacao)})`
+                          ? `Sim${item.numeroCotacao ? ` (${item.numeroCotacao})` : ""} - ${formatDate(item.dataCotacao)}`
                           : "Não"}
                       </td>
                       <td>{formatCurrency(item.valorNota)}</td>
