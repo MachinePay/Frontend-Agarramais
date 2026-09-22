@@ -66,6 +66,7 @@ export function PedidosNotasFiscais() {
   const [pickerPage, setPickerPage] = useState(1);
   const [pickerBusca, setPickerBusca] = useState("");
   const [abaAtiva, setAbaAtiva] = useState("cadastro");
+  const [buscandoFrete, setBuscandoFrete] = useState(false);
 
   useEffect(() => {
     if (didInitRef.current) return;
@@ -159,7 +160,7 @@ export function PedidosNotasFiscais() {
     }
   };
 
-  const usarNotaNFeMail = (nota) => {
+  const usarNotaNFeMail = async (nota) => {
     setFormData((prev) => ({
       ...prev,
       clienteNome: prev.clienteNome || nota.clienteNome || "",
@@ -171,8 +172,35 @@ export function PedidosNotasFiscais() {
     }));
     setPickerOpen(false);
     setSuccess(
-      "Dados da nota aplicados ao formulário. Confira os campos e clique em Salvar/Registrar.",
+      "Dados da nota aplicados ao formulário. Buscando CIF/FOB e transportadora...",
     );
+
+    if (!nota.chaveAcessoNFe) return;
+
+    try {
+      setBuscandoFrete(true);
+      const response = await api.get("/pedidos-notas-fiscais/nfemail/detalhe-frete", {
+        params: { chave: nota.chaveAcessoNFe },
+      });
+      const { tipoFrete, transportadora } = response.data || {};
+      setFormData((prev) => ({
+        ...prev,
+        tipoFrete: tipoFrete || prev.tipoFrete,
+        transportadora: transportadora || prev.transportadora,
+      }));
+      setSuccess(
+        tipoFrete || transportadora
+          ? "Dados da nota aplicados, incluindo CIF/FOB e transportadora. Confira e clique em Salvar/Registrar."
+          : "Dados da nota aplicados. A NFeMail não retornou CIF/FOB nem transportadora para essa nota — preencha manualmente se necessário.",
+      );
+    } catch (err) {
+      console.error("Erro ao buscar frete/transportadora na NFeMail:", err);
+      setSuccess(
+        "Dados da nota aplicados. Não consegui buscar CIF/FOB e transportadora automaticamente — preencha manualmente se necessário.",
+      );
+    } finally {
+      setBuscandoFrete(false);
+    }
   };
 
   const pickerNotasFiltradas = pickerBusca.trim()
@@ -431,6 +459,11 @@ export function PedidosNotasFiscais() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     🚚 CIF ou FOB
+                    {buscandoFrete && (
+                      <span className="ml-2 text-xs font-normal text-gray-400">
+                        (buscando na NFeMail...)
+                      </span>
+                    )}
                   </label>
                   <select
                     value={formData.tipoFrete}
@@ -438,6 +471,7 @@ export function PedidosNotasFiscais() {
                       setFormData((prev) => ({ ...prev, tipoFrete: e.target.value }))
                     }
                     className="input-field w-full"
+                    disabled={buscandoFrete}
                   >
                     <option value="">Não informado</option>
                     {FRETE_OPTIONS.map((opt) => (
@@ -765,8 +799,9 @@ export function PedidosNotasFiscais() {
         <div className="space-y-4">
           <p className="text-sm text-gray-600">
             Notas mais recentes emitidas na NFeMail. Filtre pelo nome do
-            cliente e clique em "Usar esta nota" para preencher o formulário
-            (número, data, valor e chave de acesso).
+            cliente e clique na nota desejada para preencher o formulário
+            (número, data, valor, chave de acesso e, em seguida, CIF/FOB e
+            transportadora).
           </p>
 
           <input
@@ -796,7 +831,11 @@ export function PedidosNotasFiscais() {
               </thead>
               <tbody>
                 {pickerNotasFiltradas.map((nota, index) => (
-                  <tr key={`${nota.chaveAcessoNFe || nota.numeroNota}-${index}`}>
+                  <tr
+                    key={`${nota.chaveAcessoNFe || nota.numeroNota}-${index}`}
+                    className="cursor-pointer hover:bg-primary/10 transition-colors"
+                    onClick={() => usarNotaNFeMail(nota)}
+                  >
                     <td>{nota.numeroNota || "-"}</td>
                     <td>{nota.clienteNome || "-"}</td>
                     <td>{formatDate(nota.dataNota)}</td>
@@ -805,7 +844,10 @@ export function PedidosNotasFiscais() {
                       <button
                         type="button"
                         className="px-3 py-1 bg-primary text-white rounded hover:opacity-90 whitespace-nowrap"
-                        onClick={() => usarNotaNFeMail(nota)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          usarNotaNFeMail(nota);
+                        }}
                       >
                         Usar esta nota
                       </button>
