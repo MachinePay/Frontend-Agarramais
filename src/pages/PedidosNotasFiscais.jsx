@@ -65,6 +65,7 @@ export function PedidosNotasFiscais() {
   const [pickerError, setPickerError] = useState("");
   const [pickerPage, setPickerPage] = useState(1);
   const [pickerBusca, setPickerBusca] = useState("");
+  const [abaAtiva, setAbaAtiva] = useState("cadastro");
 
   useEffect(() => {
     if (didInitRef.current) return;
@@ -129,7 +130,9 @@ export function PedidosNotasFiscais() {
   const abrirPickerNFeMail = async (clienteNomeInicial) => {
     setPickerOpen(true);
     setPickerBusca(
-      clienteNomeInicial !== undefined ? clienteNomeInicial : formData.clienteNome || "",
+      typeof clienteNomeInicial === "string"
+        ? clienteNomeInicial
+        : formData.clienteNome || "",
     );
     setPickerNotas([]);
     setPickerPage(1);
@@ -304,7 +307,28 @@ export function PedidosNotasFiscais() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {abaAtiva === "cadastro" && (
+          <button
+            type="button"
+            className="btn-secondary mb-6"
+            onClick={() => setAbaAtiva("historico")}
+          >
+            📜 Ver Histórico de Pedidos e Notas Fiscais
+          </button>
+        )}
+
+        {abaAtiva === "historico" && (
+          <button
+            type="button"
+            className="btn-primary w-full mb-6 py-4 text-lg"
+            onClick={() => setAbaAtiva("cadastro")}
+          >
+            ⬅️ Voltar para o Registro de Novas Notas
+          </button>
+        )}
+
+        {abaAtiva === "cadastro" && (
+        <div className="grid grid-cols-1 gap-6 max-w-3xl mx-auto">
           <div className="card">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-gray-900">
@@ -324,7 +348,7 @@ export function PedidosNotasFiscais() {
             <button
               type="button"
               className="btn-secondary mb-4 w-full sm:w-auto"
-              onClick={abrirPickerNFeMail}
+              onClick={() => abrirPickerNFeMail()}
             >
               🔎 Buscar nota na NFeMail
             </button>
@@ -530,7 +554,12 @@ export function PedidosNotasFiscais() {
               </button>
             </form>
           </div>
+        </div>
+        )}
 
+        {abaAtiva === "historico" && (
+        <>
+        <div className="grid grid-cols-1 gap-6 max-w-3xl mx-auto">
           <div className="card">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Filtros</h2>
 
@@ -723,6 +752,8 @@ export function PedidosNotasFiscais() {
             </div>
           )}
         </div>
+        </>
+        )}
       </div>
 
       <Modal
