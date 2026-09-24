@@ -28,11 +28,38 @@ export function MaquinaForm() {
     }
   };
 
+  const [validandoCompactPay, setValidandoCompactPay] = useState(false);
+  const [validacaoCompactPay, setValidacaoCompactPay] = useState(null);
+
+  const validarCompactPayId = async (compactPayId) => {
+    if (!compactPayId?.trim()) {
+      setValidacaoCompactPay(null);
+      return;
+    }
+    try {
+      setValidandoCompactPay(true);
+      const res = await api.get(
+        `/compact-pay/validar/${encodeURIComponent(compactPayId.trim())}`,
+      );
+      setValidacaoCompactPay({ ok: true, ...res.data });
+    } catch (err) {
+      setValidacaoCompactPay({
+        ok: false,
+        erro:
+          err.response?.data?.error ||
+          "Nao foi possivel validar o ID na CompactPay.",
+      });
+    } finally {
+      setValidandoCompactPay(false);
+    }
+  };
+
   const [formData, setFormData] = useState({
     codigo: "",
     nome: "",
     machinePayPosId: "",
     machinePayUsrId: "",
+    compactPayId: "",
     descontoAutomaticoMachinePay: false,
     valorDescontoMachinePay: "",
     recebimentoAParteMachinePay: false,
@@ -88,6 +115,7 @@ export function MaquinaForm() {
         nome: response.data.nome || "",
         machinePayPosId: response.data.machinePayPosId || "",
         machinePayUsrId: response.data.machinePayUsrId || "",
+        compactPayId: response.data.compactPayId || "",
         descontoAutomaticoMachinePay:
           response.data.descontoAutomaticoMachinePay || false,
         valorDescontoMachinePay: response.data.valorDescontoMachinePay || "",
@@ -158,6 +186,7 @@ export function MaquinaForm() {
         nome: formData.nome.trim(),
         machinePayPosId: formData.machinePayPosId?.trim() || null,
         machinePayUsrId: formData.machinePayUsrId?.trim() || null,
+        compactPayId: formData.compactPayId?.trim() || null,
         descontoAutomaticoMachinePay: formData.descontoAutomaticoMachinePay,
         valorDescontoMachinePay: formData.descontoAutomaticoMachinePay
           ? parseFloat(formData.valorDescontoMachinePay) || null
@@ -330,6 +359,62 @@ export function MaquinaForm() {
                   <p className="text-xs text-gray-500 mt-1">
                     Preenchido automaticamente ao sair do campo POS ID.
                   </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    ID da CompactPay
+                    {validandoCompactPay && (
+                      <span className="ml-2 text-xs text-blue-500 font-normal">
+                        Validando...
+                      </span>
+                    )}
+                    {!validandoCompactPay && validacaoCompactPay?.ok && (
+                      <span className="ml-2 text-xs text-emerald-600 font-normal">
+                        ✓ Encontrada
+                      </span>
+                    )}
+                  </label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="text"
+                      name="compactPayId"
+                      value={formData.compactPayId}
+                      onChange={(e) => {
+                        handleChange(e);
+                        setValidacaoCompactPay(null);
+                      }}
+                      onBlur={(e) => validarCompactPayId(e.target.value)}
+                      className="input-field flex-1"
+                      placeholder="Ex: 1000"
+                      inputMode="numeric"
+                    />
+                    <button
+                      type="button"
+                      className="btn-secondary text-sm px-3 whitespace-nowrap"
+                      disabled={!formData.compactPayId || validandoCompactPay}
+                      onClick={() => validarCompactPayId(formData.compactPayId)}
+                    >
+                      {validandoCompactPay ? "..." : "Validar"}
+                    </button>
+                  </div>
+                  {validacaoCompactPay?.ok ? (
+                    <p className="text-xs text-emerald-700 mt-1">
+                      {validacaoCompactPay.nome || "Maquina"}
+                      {validacaoCompactPay.clienteNome
+                        ? ` · ${validacaoCompactPay.clienteNome}`
+                        : ""}
+                      {` · ${validacaoCompactPay.online ? "online" : "offline"}`}
+                    </p>
+                  ) : validacaoCompactPay?.erro ? (
+                    <p className="text-xs text-red-600 mt-1">
+                      {validacaoCompactPay.erro}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-gray-500 mt-1">
+                      ID da placa no painel CompactPay (o mesmo que aparece na lista de máquinas de lá).
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex items-center">

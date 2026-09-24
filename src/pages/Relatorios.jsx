@@ -48,6 +48,10 @@ export function Relatorios() {
   );
   const [carregandoRankingTodasLojas, setCarregandoRankingTodasLojas] =
     useState(false);
+  // Campo "CompactPay" do relatório: { total, quantidade, maquinas, erro }
+  // somando só as máquinas do relatório atual que têm ID da CompactPay.
+  const [compactPayRelatorio, setCompactPayRelatorio] = useState(null);
+  const [compactPayTodasLojas, setCompactPayTodasLojas] = useState(null);
   const [salvandoFechamento, setSalvandoFechamento] = useState(false);
   const [relatorioAssistentePendente, setRelatorioAssistentePendente] =
     useState(null);
@@ -129,6 +133,53 @@ export function Relatorios() {
     return mapa;
   };
 
+  // Total recebido na CompactPay por máquina no período (só máquinas com ID
+  // da CompactPay cadastrado). Se a CompactPay estiver fora do ar, o
+  // relatório continua funcionando sem esse campo.
+  const buscarTotaisCompactPay = async (periodoInicio, periodoFim) => {
+    try {
+      const response = await api.get("/compact-pay/totais", {
+        params: { inicio: periodoInicio, fim: periodoFim },
+      });
+      const mapa = new Map(
+        (response.data?.maquinas || []).map((item) => [
+          String(item.maquinaId),
+          item,
+        ]),
+      );
+      return { mapa, erro: null };
+    } catch (erroCompactPay) {
+      console.warn(
+        "Não foi possível consultar a CompactPay para o relatório:",
+        erroCompactPay,
+      );
+      return {
+        mapa: new Map(),
+        erro:
+          erroCompactPay.response?.data?.error ||
+          "Não foi possível consultar a CompactPay.",
+      };
+    }
+  };
+
+  const resumirCompactPay = (maquinaIds, { mapa, erro }) => {
+    const itens = maquinaIds
+      .map((maquinaId) => mapa.get(String(maquinaId)))
+      .filter(Boolean);
+    return {
+      total: Number(
+        itens.reduce((soma, item) => soma + toNumber(item.total), 0).toFixed(2),
+      ),
+      quantidade: itens.reduce(
+        (soma, item) => soma + toNumber(item.quantidade),
+        0,
+      ),
+      maquinas: itens.length,
+      maquinasComErro: itens.filter((item) => item.erro).length,
+      erro,
+    };
+  };
+
   const montarRankingMaquinas = async (dadosRelatorio, periodoInicio, periodoFim) => {
     const maquinas = Array.isArray(dadosRelatorio?.maquinas)
       ? dadosRelatorio.maquinas
@@ -140,10 +191,17 @@ export function Relatorios() {
     }
 
     setCarregandoRanking(true);
+    setCompactPayRelatorio({ carregando: true });
     try {
-      const valorRegistradoPorMaquina = await buscarValorRegistradoPorMaquina(
-        periodoInicio,
-        periodoFim,
+      const [valorRegistradoPorMaquina, compactPay] = await Promise.all([
+        buscarValorRegistradoPorMaquina(periodoInicio, periodoFim),
+        buscarTotaisCompactPay(periodoInicio, periodoFim),
+      ]);
+      setCompactPayRelatorio(
+        resumirCompactPay(
+          maquinas.map((m) => m.maquina?.id),
+          compactPay,
+        ),
       );
 
       const itens = await Promise.all(
@@ -194,6 +252,13 @@ export function Relatorios() {
             return { ...base, fonte: "machinePay", valor: valorMachinePay };
           }
 
+          const valorCompactPay = toNumber(
+            compactPay.mapa.get(String(m.maquina?.id))?.total,
+          );
+          if (valorCompactPay > 0) {
+            return { ...base, fonte: "compactPay", valor: valorCompactPay };
+          }
+
           const registrado = valorRegistradoPorMaquina.get(
             String(m.maquina?.id),
           );
@@ -221,9 +286,14 @@ export function Relatorios() {
     nomesLojasFiltro = null,
   ) => {
     setCarregandoRankingTodasLojas(true);
+    setCompactPayTodasLojas({ carregando: true });
     try {
-      const [performanceResponse, machinePayResponse, valorRegistradoPorMaquina] =
-        await Promise.all([
+      const [
+        performanceResponse,
+        machinePayResponse,
+        valorRegistradoPorMaquina,
+        compactPay,
+      ] = await Promise.all([
           api.get("/relatorios/performance-maquinas", {
             params: { dataInicio: periodoInicio, dataFim: periodoFim },
           }),
@@ -233,6 +303,7 @@ export function Relatorios() {
             })
             .catch(() => ({ data: { maquinas: [] } })),
           buscarValorRegistradoPorMaquina(periodoInicio, periodoFim),
+          buscarTotaisCompactPay(periodoInicio, periodoFim),
         ]);
 
       const machinePayPorMaquinaId = new Map(
@@ -247,6 +318,13 @@ export function Relatorios() {
             nomesLojasFiltro.has(p.maquina?.loja),
           )
         : performanceResponse.data?.performance || [];
+
+      setCompactPayTodasLojas(
+        resumirCompactPay(
+          performanceFiltrada.map((p) => p.maquina?.id),
+          compactPay,
+        ),
+      );
 
       const itens = performanceFiltrada.map((p) => {
         const maquinaId = String(p.maquina?.id);
@@ -273,6 +351,11 @@ export function Relatorios() {
 
         if (valorMachinePay !== undefined && valorMachinePay > 0) {
           return { ...base, fonte: "machinePay", valor: valorMachinePay };
+        }
+
+        const valorCompactPay = toNumber(compactPay.mapa.get(maquinaId)?.total);
+        if (valorCompactPay > 0) {
+          return { ...base, fonte: "compactPay", valor: valorCompactPay };
         }
 
         if (registrado && registrado.valor > 0) {
@@ -966,6 +1049,8 @@ export function Relatorios() {
       setLoading(true);
       setError("");
       setRelatorio(null); // Limpar relatório anterior
+      setCompactPayRelatorio(null);
+      setCompactPayTodasLojas(null);
       setDashboard(null);
       setGastosFixosLoja([]);
       setComparativoMensal(null);
@@ -1569,6 +1654,7 @@ export function Relatorios() {
             relatorio={relatorio}
             rankingMaquinas={rankingMaquinasTodasLojas}
             carregandoRankingMaquinas={carregandoRankingTodasLojas}
+            compactPay={compactPayTodasLojas}
             titulo={
               lojasSelecionadas.length === lojas.length
                 ? "🏬 Consolidado de Todas as Lojas"
@@ -1853,6 +1939,33 @@ export function Relatorios() {
                     Cartão / Pix Líquido (Máquinas)
                   </div>
                 </div>
+                {/* CompactPay */}
+                <div className="card bg-gradient-to-br from-emerald-500 to-teal-700 text-white">
+                  <div className="text-2xl sm:text-3xl mb-2">📟</div>
+                  <div className="text-xl sm:text-2xl font-bold">
+                    {compactPayRelatorio?.carregando
+                      ? "..."
+                      : `R$ ${Number(
+                          compactPayRelatorio?.total || 0,
+                        ).toLocaleString("pt-BR", {
+                          minimumFractionDigits: 2,
+                        })}`}
+                  </div>
+                  <div className="text-xs sm:text-sm opacity-90">CompactPay</div>
+                  <div className="text-[10px] sm:text-xs opacity-80 mt-1">
+                    {compactPayRelatorio?.carregando
+                      ? "Consultando CompactPay..."
+                      : compactPayRelatorio?.erro
+                        ? compactPayRelatorio.erro
+                        : compactPayRelatorio?.maquinas
+                          ? `${compactPayRelatorio.quantidade} pagamento(s) em ${compactPayRelatorio.maquinas} máquina(s)${
+                              compactPayRelatorio.maquinasComErro
+                                ? ` · ${compactPayRelatorio.maquinasComErro} sem resposta`
+                                : ""
+                            }`
+                          : "Nenhuma máquina com ID CompactPay"}
+                  </div>
+                </div>
                 {/* Produtos que entraram */}
                 <div className="card bg-gradient-to-br from-green-500 to-green-600 text-white">
                   <div className="text-2xl sm:text-3xl mb-2">📥</div>
@@ -2087,8 +2200,8 @@ export function Relatorios() {
                   Ranking de Máquinas
                 </h3>
                 <p className="text-xs sm:text-sm text-gray-600 mb-4">
-                  Ordenado pelo valor recebido na Machine Pay no período;
-                  quando o valor lá está zerado (mês já fechado), usa o
+                  Ordenado pelo valor recebido na Machine Pay (ou na
+                  CompactPay) no período; quando o valor lá está zerado (mês já fechado), usa o
                   último valor registrado no sistema para a máquina; se
                   nenhum dos dois existir, usa a quantidade de fichas vezes
                   o valor da ficha cadastrado na loja.
@@ -2127,7 +2240,9 @@ export function Relatorios() {
                             className={`font-bold text-lg ${
                               item.fonte === "machinePay"
                                 ? "text-indigo-700"
-                                : item.fonte === "registrado"
+                                : item.fonte === "compactPay"
+                                  ? "text-emerald-700"
+                                  : item.fonte === "registrado"
                                   ? "text-purple-700"
                                   : "text-blue-700"
                             }`}
@@ -2140,7 +2255,9 @@ export function Relatorios() {
                           <div className="text-[10px] text-gray-500 mb-2">
                             {item.fonte === "machinePay"
                               ? "Machine Pay"
-                              : item.fonte === "registrado"
+                              : item.fonte === "compactPay"
+                                ? "CompactPay"
+                                : item.fonte === "registrado"
                                 ? "Registrado no sistema (Machine Pay já fechou o mês)"
                                 : `🎟️ ${item.fichas.toLocaleString("pt-BR")} fichas × R$ ${item.valorFicha?.toLocaleString(
                                     "pt-BR",

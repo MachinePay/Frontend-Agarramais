@@ -218,6 +218,7 @@ export function RelatorioTodasLojas({
   relatorio,
   rankingMaquinas = [],
   carregandoRankingMaquinas = false,
+  compactPay = null,
   titulo = "🏬 Consolidado de Todas as Lojas",
 }) {
   const [mostrarTodasMaquinas, setMostrarTodasMaquinas] = useState(false);
@@ -322,6 +323,27 @@ export function RelatorioTodasLojas({
             Lojas sem dados no período: {relatorio.lojasSemDados.join(", ")}
           </p>
         )}
+        <div className="mt-4 inline-flex flex-col rounded-lg bg-linear-to-br from-emerald-500 to-teal-700 px-4 py-3 text-white shadow">
+          <span className="text-xs font-semibold opacity-90">📟 CompactPay</span>
+          <span className="text-xl font-bold">
+            {compactPay?.carregando
+              ? "..."
+              : formatarMoeda(compactPay?.total || 0)}
+          </span>
+          <span className="text-[10px] opacity-80">
+            {compactPay?.carregando
+              ? "Consultando CompactPay..."
+              : compactPay?.erro
+                ? compactPay.erro
+                : compactPay?.maquinas
+                  ? `${compactPay.quantidade} pagamento(s) em ${compactPay.maquinas} máquina(s)${
+                      compactPay.maquinasComErro
+                        ? ` · ${compactPay.maquinasComErro} sem resposta`
+                        : ""
+                    }`
+                  : "Nenhuma máquina com ID CompactPay"}
+          </span>
+        </div>
       </div>
 
       {comparativoMensal && (
@@ -728,7 +750,8 @@ export function RelatorioTodasLojas({
           )}
         </div>
         <p className="text-xs sm:text-sm text-gray-600 mb-4">
-          Ordenado pelo valor recebido na Machine Pay no período; quando o
+          Ordenado pelo valor recebido na Machine Pay (ou na CompactPay) no
+          período; quando o
           valor lá está zerado (mês já fechado), usa o último valor
           registrado no sistema para a máquina; se nenhum dos dois existir,
           usa a quantidade de fichas vezes o valor da ficha cadastrado na
@@ -768,7 +791,9 @@ export function RelatorioTodasLojas({
                     className={`font-bold text-lg ${
                       item.fonte === "machinePay"
                         ? "text-indigo-700"
-                        : item.fonte === "registrado"
+                        : item.fonte === "compactPay"
+                          ? "text-emerald-700"
+                          : item.fonte === "registrado"
                           ? "text-purple-700"
                           : "text-blue-700"
                     }`}
@@ -778,7 +803,9 @@ export function RelatorioTodasLojas({
                   <div className="text-[10px] text-gray-500 mb-2">
                     {item.fonte === "machinePay"
                       ? "Machine Pay"
-                      : item.fonte === "registrado"
+                      : item.fonte === "compactPay"
+                        ? "CompactPay"
+                        : item.fonte === "registrado"
                         ? "Registrado no sistema (Machine Pay já fechou o mês)"
                         : `🎟️ ${Number(item.fichas || 0).toLocaleString(
                             "pt-BR",

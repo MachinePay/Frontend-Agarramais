@@ -71,6 +71,7 @@ export function Navbar() {
     }
     if (hasRole("ADMIN", "MACHINEPAY")) {
       links.push({ to: "/machine-pay", label: "💳 Machine Pay" });
+      links.push({ to: "/compact-pay", label: "📟 CompactPay" });
     }
   }
   const comercialLinks = [];

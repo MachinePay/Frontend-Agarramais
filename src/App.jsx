@@ -23,6 +23,7 @@ import { Graficos } from "./pages/Graficos";
 import { RankingMaquinas } from "./pages/RankingMaquinas";
 import { Relatorios } from "./pages/Relatorios";
 import { MachinePay } from "./pages/MachinePay";
+import { CompactPay } from "./pages/CompactPay";
 import { BuscaTransportadoras } from "./pages/BuscaTransportadoras";
 import { CalculadoraPedidos } from "./pages/CalculadoraPedidos";
 import { Sangrias } from "./pages/Sangrias";
@@ -241,6 +242,14 @@ function App() {
             element={
               <PrivateRoute roles={["ADMIN", "MACHINEPAY"]}>
                 <MachinePay />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/compact-pay"
+            element={
+              <PrivateRoute roles={["ADMIN", "MACHINEPAY"]}>
+                <CompactPay />
               </PrivateRoute>
             }
           />
