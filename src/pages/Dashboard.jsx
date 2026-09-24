@@ -1148,8 +1148,10 @@ export function Dashboard() {
 
   const carregarAlertasEstoqueLoja = async (lojasData) => {
     try {
-      // Buscar alertas de todas as lojas
-      const alertasPromises = lojasData.map((loja) =>
+      // Buscar alertas de todas as lojas (lojas de teste ficam de fora)
+      const alertasPromises = lojasData
+        .filter((loja) => !loja.teste)
+        .map((loja) =>
         api
           .get(`/estoque-lojas/${loja.id}/alertas`)
           .then((res) => ({
