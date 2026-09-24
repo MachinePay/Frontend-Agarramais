@@ -288,7 +288,7 @@ export function MaquinaForm() {
 
                 <div>
                   <p className="block text-sm font-semibold text-gray-700 mb-2">
-                    Jogadas boas por pelucia
+                    Nome da maquina
                   </p>
                   <label className="sr-only">
                     Nome *
