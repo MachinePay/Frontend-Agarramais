@@ -411,7 +411,7 @@ export function Graficos() {
               <label className="block text-sm font-semibold text-gray-700 mb-2">Loja</label>
               <select value={lojaSelecionada} onChange={(e) => setLojaSelecionada(e.target.value)}
                 className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 border text-sm">
-                {lojas.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
+                {lojas.map((l) => <option key={l.id} value={l.id}>{l.nome}{l.teste ? " 🧪 (teste)" : ""}</option>)}
               </select>
             </div>
             <div>

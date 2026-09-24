@@ -210,7 +210,12 @@ export function RankingMaquinas() {
             params: { inicio: dataInicio, fim: `${dataFim}T23:59` },
           })
           .catch(() => ({ data: { maquinas: [] } })),
-        api.get("/registro-dinheiro").catch(() => ({ data: [] })),
+        api
+          .get("/registro-dinheiro", {
+            // Visão de todas as lojas: lojas de teste ficam de fora.
+            params: lojaSelecionada ? {} : { semLojasTeste: true },
+          })
+          .catch(() => ({ data: [] })),
         paramsAnterior
           ? api
               .get("/relatorios/performance-maquinas", {
@@ -971,6 +976,7 @@ export function RankingMaquinas() {
                 {lojas.map((loja) => (
                   <option key={loja.id} value={loja.id}>
                     {loja.nome}
+                    {loja.teste ? " 🧪 (teste)" : ""}
                   </option>
                 ))}
               </select>

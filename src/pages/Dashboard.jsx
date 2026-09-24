@@ -874,6 +874,7 @@ export function Dashboard() {
           api
             .get("/gastos-variaveis", {
               params: {
+                semLojasTeste: true,
                 dataInicio: periodoComparacaoMensal.inicioMesAtual,
                 dataFim: periodoComparacaoMensal.fimMesAtual,
               },
@@ -899,13 +900,15 @@ export function Dashboard() {
               );
               return { data: { performance: [] } };
             }),
-          api.get("/registro-dinheiro").catch((err) => {
-            console.error(
-              "Erro ao carregar registros de dinheiro do mês:",
-              err.message,
-            );
-            return { data: [] };
-          }),
+          api
+            .get("/registro-dinheiro", { params: { semLojasTeste: true } })
+            .catch((err) => {
+              console.error(
+                "Erro ao carregar registros de dinheiro do mês:",
+                err.message,
+              );
+              return { data: [] };
+            }),
         );
       }
 

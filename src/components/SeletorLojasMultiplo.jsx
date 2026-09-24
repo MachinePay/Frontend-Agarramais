@@ -78,6 +78,9 @@ export function SeletorLojasMultiplo({ lojas, selecionadas, onChange }) {
                 className="w-4 h-4 accent-[#f2a20c]"
               />
               {loja.nome}
+              {loja.teste && (
+                <span className="text-xs text-amber-600">🧪 teste</span>
+              )}
             </label>
           ))}
         </div>

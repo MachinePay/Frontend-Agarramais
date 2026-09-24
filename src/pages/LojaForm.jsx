@@ -21,6 +21,7 @@ export function LojaForm() {
     responsavel: "",
     valorFichaPadrao: "2,50",
     ativo: true,
+    teste: false,
   });
 
   const parseDecimalInput = (value, defaultValue = 0) => {
@@ -253,6 +254,7 @@ export function LojaForm() {
         responsavel: formData.responsavel?.trim() || null,
         valorFichaPadrao: parseDecimalInput(formData.valorFichaPadrao, 2.5),
         ativo: formData.ativo,
+        teste: Boolean(formData.teste),
       };
 
       if (isEdit) {
@@ -550,6 +552,27 @@ export function LojaForm() {
                       Loja Ativa
                     </span>
                   </label>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      name="teste"
+                      checked={Boolean(formData.teste)}
+                      onChange={handleChange}
+                      className="w-5 h-5 text-primary rounded focus:ring-2 focus:ring-primary"
+                    />
+                    <span className="text-sm font-semibold text-gray-700">
+                      🧪 Loja de teste
+                    </span>
+                  </label>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Funciona normalmente (máquinas, movimentações, relatório
+                    da própria loja), mas não entra no Dashboard, no
+                    Relatório de todas as lojas, no Ranking de máquinas nem
+                    nos Gráficos gerais.
+                  </p>
                 </div>
               </div>
             </div>

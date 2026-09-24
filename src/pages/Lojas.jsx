@@ -122,9 +122,12 @@ export function Lojas() {
       label: "Status",
       key: "ativo",
       render: (loja) => (
-        <Badge variant={loja.ativo ? "success" : "danger"}>
-          {loja.ativo ? "Ativa" : "Inativa"}
-        </Badge>
+        <div className="flex flex-wrap gap-1">
+          <Badge variant={loja.ativo ? "success" : "danger"}>
+            {loja.ativo ? "Ativa" : "Inativa"}
+          </Badge>
+          {loja.teste && <Badge variant="warning">🧪 Teste</Badge>}
+        </div>
       ),
     },
     {
