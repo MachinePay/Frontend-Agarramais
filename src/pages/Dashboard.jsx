@@ -4083,6 +4083,9 @@ export function Dashboard() {
                                   : "📤 Saída"}
                               </Badge>
                               <div className="flex items-center gap-3">
+                                <span className="text-sm text-gray-700">
+                                  👤 {mov.usuario?.nome || "Não informado"}
+                                </span>
                                 <span className="text-sm text-gray-600">
                                   {new Date(
                                     mov.dataColeta || mov.createdAt,
