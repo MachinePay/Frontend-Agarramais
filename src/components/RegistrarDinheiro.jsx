@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import api from "../services/api";
 
 const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
@@ -24,6 +24,10 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
   const [consultandoMachinePay, setConsultandoMachinePay] = useState(false);
   const [erroMachinePay, setErroMachinePay] = useState("");
   const [resumoMachinePay, setResumoMachinePay] = useState(null);
+  // Trava contra clique duplo: o ref bloqueia na hora (o state só atualiza
+  // no próximo render, então dois cliques seguidos passariam pelo state).
+  const enviandoRef = useRef(false);
+  const [enviando, setEnviando] = useState(false);
 
   const obterPeriodoDoMes = (valorMes) => {
     if (!valorMes) return null;
@@ -143,6 +147,7 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (enviandoRef.current) return;
     const periodoSelecionado = obterPeriodoDoMes(mesReferencia);
 
     // Garantir que campos obrigatórios estejam preenchidos corretamente
@@ -182,18 +187,25 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
       return;
     }
 
-    await onSubmit({
-      loja: lojaSelecionada,
-      maquina: registrarTotalLoja ? null : maquinaSelecionada || null,
-      registrarTotalLoja,
-      inicio: periodoSelecionado.inicio,
-      fim: periodoSelecionado.fim,
-      valorDinheiro: dinheiroNumero,
-      valorCartaoPix: cartaoPixNumero,
-      percentualTaxaCartaoMedia: taxaMediaNumero,
-      observacoes: observacoes === "" ? null : observacoes,
-      gastosVariaveis: gastosNormalizados,
-    });
+    enviandoRef.current = true;
+    setEnviando(true);
+    try {
+      await onSubmit({
+        loja: lojaSelecionada,
+        maquina: registrarTotalLoja ? null : maquinaSelecionada || null,
+        registrarTotalLoja,
+        inicio: periodoSelecionado.inicio,
+        fim: periodoSelecionado.fim,
+        valorDinheiro: dinheiroNumero,
+        valorCartaoPix: cartaoPixNumero,
+        percentualTaxaCartaoMedia: taxaMediaNumero,
+        observacoes: observacoes === "" ? null : observacoes,
+        gastosVariaveis: gastosNormalizados,
+      });
+    } finally {
+      enviandoRef.current = false;
+      setEnviando(false);
+    }
   };
 
   return (
@@ -662,6 +674,7 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
       </div>
       <button
         type="submit"
+        disabled={enviando}
         style={{
           width: "100%",
           padding: 14,
@@ -674,12 +687,14 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
           boxShadow: "0 2px 8px #e2cfa3",
           letterSpacing: 1,
           marginTop: 8,
+          opacity: enviando ? 0.6 : 1,
+          cursor: enviando ? "not-allowed" : "pointer",
         }}
       >
         <span role="img" aria-label="pelúcia" style={{ marginRight: 8 }}>
           🧸
         </span>
-        Registrar
+        {enviando ? "Registrando..." : "Registrar"}
       </button>
     </form>
   );
