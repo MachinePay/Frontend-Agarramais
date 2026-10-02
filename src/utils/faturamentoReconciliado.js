@@ -77,13 +77,20 @@ const valorPagamentoItem = (item) =>
 
 // Monta um Map<maquinaId, valor> a partir da resposta de
 // /registro-dinheiro/machine-pay-total. A origem de cada máquina
-// ("machinePay" ou "compactPay") fica em `mapa.fontes`.
+// ("machinePay", "compactPay" ou "ambos") fica em `mapa.fontes`, e quanto
+// veio de cada uma em `mapa.detalhes`.
 export const construirMapaMachinePay = (machinePayTotalData) => {
   const mapa = new Map();
   mapa.fontes = new Map();
+  mapa.detalhes = new Map();
   (machinePayTotalData?.maquinas || []).forEach((item) => {
-    mapa.set(String(item.maquinaId), valorPagamentoItem(item));
-    mapa.fontes.set(String(item.maquinaId), item.fonte || "machinePay");
+    const maquinaId = String(item.maquinaId);
+    mapa.set(maquinaId, valorPagamentoItem(item));
+    mapa.fontes.set(maquinaId, item.fonte || "machinePay");
+    mapa.detalhes.set(maquinaId, {
+      valorMachinePay: toN(item.valorMachinePay),
+      valorCompactPay: toN(item.valorCompactPay),
+    });
   });
   return mapa;
 };
@@ -117,6 +124,7 @@ export const obterValorReconciliadoMaquina = (
     return {
       fonte: obterFontePagamento(machinePayMapa, maquinaId),
       valor: valorMachinePay,
+      ...(machinePayMapa.detalhes?.get(maquinaId) || {}),
     };
   }
 

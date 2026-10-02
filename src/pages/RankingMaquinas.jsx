@@ -361,13 +361,14 @@ export function RankingMaquinas() {
         produtoPrincipal: p.produtoPrincipal || null,
       };
 
-      const { fonte, valor } = obterValorReconciliadoMaquina(
-        p,
-        machinePayPorMaquina,
-        valorRegistradoPorMaquina,
-      );
+      const { fonte, valor, valorMachinePay, valorCompactPay } =
+        obterValorReconciliadoMaquina(
+          p,
+          machinePayPorMaquina,
+          valorRegistradoPorMaquina,
+        );
 
-      return { ...base, fonte, valor };
+      return { ...base, fonte, valor, valorMachinePay, valorCompactPay };
     });
 
     return itens.sort((a, b) => b.valor - a.valor);
@@ -853,7 +854,7 @@ export function RankingMaquinas() {
                       : maquina.fonte === "compactPay"
                         ? "📟 CompactPay"
                         : maquina.fonte === "ambos"
-                          ? "💳📟 Machine Pay + CompactPay"
+                          ? `💳 Machine Pay ${formatMoney(maquina.valorMachinePay)} + 📟 CompactPay ${formatMoney(maquina.valorCompactPay)}`
                         : maquina.fonte === "registrado"
                           ? "🗄️ Registrado no sistema"
                           : `🎟️ ${maquina.fichas.toLocaleString(

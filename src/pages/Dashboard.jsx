@@ -2449,6 +2449,7 @@ export function Dashboard() {
           ...base,
           fonte: obterFontePagamento(machinePayPorMaquinaId, maquinaId),
           valor: valorMachinePay,
+          ...(machinePayPorMaquinaId.detalhes?.get(maquinaId) || {}),
         };
       }
 
@@ -2665,7 +2666,14 @@ export function Dashboard() {
                           <span className="truncate">
                             {idx + 1}. {maquina.nome}
                           </span>
-                          <span className="opacity-80 shrink-0">
+                          <span
+                            className="opacity-80 shrink-0"
+                            title={
+                              maquina.fonte === "ambos"
+                                ? `Machine Pay R$ ${formatarMoeda(maquina.valorMachinePay)} + CompactPay R$ ${formatarMoeda(maquina.valorCompactPay)}`
+                                : undefined
+                            }
+                          >
                             {maquina.fonte === "machinePay"
                               ? "💳"
                               : maquina.fonte === "compactPay"
