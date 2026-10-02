@@ -1,5 +1,6 @@
 // Reconcilia o faturamento "de verdade" de cada máquina num período,
-// priorizando o dinheiro que a Machine Pay efetivamente recebeu sobre o
+// priorizando o dinheiro que a Machine Pay (ou a CompactPay, nas máquinas
+// que usam ela) efetivamente recebeu sobre o
 // cálculo histórico (fichas × valor da ficha na época da coleta). Usado
 // tanto no Ranking de Máquinas quanto no Dashboard, para os dois lugares
 // nunca saírem de réguas diferentes.
@@ -65,14 +66,35 @@ export const construirMapaValorRegistrado = (
   return mapa;
 };
 
+// Valor de faturamento de um item de /registro-dinheiro/machine-pay-total.
+// Esse endpoint traz as máquinas da Machine Pay e da CompactPay (campo
+// `fonte`); `valorFaturamento` já vem com a regra de cada uma (bruto da
+// Machine Pay; digital + físico da CompactPay). `brutoComTaxasMp` é o
+// fallback para respostas antigas.
+const valorPagamentoItem = (item) =>
+  toN(item.valorFaturamento ?? item.brutoComTaxasMp);
+
 // Monta um Map<maquinaId, valor> a partir da resposta de
-// /registro-dinheiro/machine-pay-total.
+// /registro-dinheiro/machine-pay-total. A origem de cada máquina
+// ("machinePay" ou "compactPay") fica em `mapa.fontes`.
 export const construirMapaMachinePay = (machinePayTotalData) => {
   const mapa = new Map();
+  mapa.fontes = new Map();
   (machinePayTotalData?.maquinas || []).forEach((item) => {
-    mapa.set(String(item.maquinaId), toN(item.brutoComTaxasMp));
+    mapa.set(String(item.maquinaId), valorPagamentoItem(item));
+    mapa.fontes.set(String(item.maquinaId), item.fonte || "machinePay");
   });
   return mapa;
+};
+
+export const obterFontePagamento = (machinePayMapa, maquinaId) =>
+  machinePayMapa?.fontes?.get(String(maquinaId)) || "machinePay";
+
+export const ROTULO_FONTE = {
+  machinePay: "Machine Pay",
+  compactPay: "CompactPay",
+  registrado: "Registrado",
+  fichas: "Fichas",
 };
 
 // Para um item de /relatorios/performance-maquinas, retorna a fonte e o
@@ -90,7 +112,10 @@ export const obterValorReconciliadoMaquina = (
   const registrado = registradoMapa.get(maquinaId);
 
   if (valorMachinePay !== undefined && valorMachinePay > 0) {
-    return { fonte: "machinePay", valor: valorMachinePay };
+    return {
+      fonte: obterFontePagamento(machinePayMapa, maquinaId),
+      valor: valorMachinePay,
+    };
   }
 
   if (registrado && registrado.valor > 0) {
@@ -214,7 +239,7 @@ export const complementarPerformanceComMachinePay = (
     .filter((item) => !idsComPerformance.has(String(item.maquinaId)))
     .filter((item) => !lojaId || String(item.lojaId) === String(lojaId))
     .filter((item) => {
-      const valorMachinePay = toN(item.brutoComTaxasMp);
+      const valorMachinePay = valorPagamentoItem(item);
       const registrado = registradoMapa?.get(String(item.maquinaId));
       return valorMachinePay > 0 || (registrado && registrado.valor > 0);
     })

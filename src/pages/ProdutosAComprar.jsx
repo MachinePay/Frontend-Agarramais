@@ -971,7 +971,7 @@ export function ProdutosAComprar() {
                                 : "—"}
                               {item.faltaCapacidadeMachinePay > 0 && (
                                 <div className="text-[11px] font-normal text-purple-600 mt-0.5">
-                                  💳 {item.faltaCapacidadeMachinePay} via Machine Pay
+                                  💳 {item.faltaCapacidadeMachinePay} via Machine Pay/CompactPay
                                 </div>
                               )}
                             </td>

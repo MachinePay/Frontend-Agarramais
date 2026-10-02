@@ -16,6 +16,7 @@ import {
   somarFaturamentoReconciliado,
   somarValorRegistradoConsolidado,
   complementarPerformanceComMachinePay,
+  obterFontePagamento,
 } from "../utils/faturamentoReconciliado";
 
 import Swal from "sweetalert2";
@@ -2368,12 +2369,9 @@ export function Dashboard() {
         ? "text-red-700"
         : "text-slate-700";
 
-  const machinePayPorMaquinaId = new Map(
-    (machinePayTotal?.maquinas || []).map((item) => [
-      String(item.maquinaId),
-      Number(item.brutoComTaxasMp || 0),
-    ]),
-  );
+  // Machine Pay e CompactPay (o endpoint traz as duas, com a origem de
+  // cada máquina em machinePayPorMaquinaId.fontes).
+  const machinePayPorMaquinaId = construirMapaMachinePay(machinePayTotal);
 
   // Quando a Machine Pay já fechou o mês, o valor lá fica zerado. Nesse caso
   // usamos o último valor registrado no sistema (Registrar Dinheiro) para a
@@ -2425,7 +2423,13 @@ export function Dashboard() {
     return mapa;
   })();
 
-  const top10MaquinasMachinePay = performanceMaquinasMes
+  // Inclui máquinas que só recebem pela Machine Pay/CompactPay e ainda não
+  // têm coleta no mês (mesmo ajuste do Ranking de Máquinas).
+  const top10MaquinasMachinePay = complementarPerformanceComMachinePay(
+    performanceMaquinasMes,
+    machinePayTotal,
+    valorRegistradoPorMaquinaId,
+  )
     .map((p) => {
       const maquinaId = String(p.maquina?.id);
       const fichas = Number(p.metricas?.totalFichas || 0);
@@ -2441,7 +2445,11 @@ export function Dashboard() {
       const base = { maquinaId, nome: p.maquina?.nome || "-", fichas, valorFicha };
 
       if (valorMachinePay !== undefined && valorMachinePay > 0) {
-        return { ...base, fonte: "machinePay", valor: valorMachinePay };
+        return {
+          ...base,
+          fonte: obterFontePagamento(machinePayPorMaquinaId, maquinaId),
+          valor: valorMachinePay,
+        };
       }
 
       if (registrado && registrado.valor > 0) {
@@ -2660,9 +2668,11 @@ export function Dashboard() {
                           <span className="opacity-80 shrink-0">
                             {maquina.fonte === "machinePay"
                               ? "💳"
-                              : maquina.fonte === "registrado"
-                                ? "🗄️"
-                                : "🎟️"}{" "}
+                              : maquina.fonte === "compactPay"
+                                ? "📟"
+                                : maquina.fonte === "registrado"
+                                  ? "🗄️"
+                                  : "🎟️"}{" "}
                             R$ {formatarMoeda(maquina.valor)}
                           </span>
                         </li>
@@ -2714,12 +2724,12 @@ export function Dashboard() {
                   </p>
                 </div>
               </div>
-              {/* Machine Pay do Mês */}
+              {/* Machine Pay + CompactPay do Mês */}
               <div className="stat-card bg-linear-to-br from-purple-500 to-indigo-600 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 lg:col-start-1 lg:row-start-2">
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-medium opacity-90">
-                      Machine Pay do Mês
+                      Machine Pay + CompactPay do Mês
                     </h3>
                     <svg
                       className="w-8 h-8 opacity-80"
@@ -2743,7 +2753,9 @@ export function Dashboard() {
                   </p>
                   <p className="text-xs opacity-75 mt-1">
                     {machinePayTotal
-                      ? `${machinePayTotal.maquinaCount || 0} máquinas com ID MP`
+                      ? machinePayTotal.totalCompactPay !== undefined
+                        ? `💳 MP R$ ${formatarMoeda(machinePayTotal.totalMachinePay)} (${machinePayTotal.maquinaCountMachinePay || 0}) · 📟 CompactPay R$ ${formatarMoeda(machinePayTotal.totalCompactPay)} (${machinePayTotal.maquinaCountCompactPay || 0})`
+                        : `${machinePayTotal.maquinaCount || 0} máquinas com ID MP`
                       : "Carregando valores reais..."}
                   </p>
                 </div>
@@ -2761,7 +2773,7 @@ export function Dashboard() {
                     R$ {formatarMoeda(stats.valorFichasSoMes)}
                   </p>
                   <p className="text-xs opacity-75 mt-1">
-                    Fichas × valor da ficha no mês, sem Machine Pay/registrado
+                    Fichas × valor da ficha no mês, sem Machine Pay/CompactPay/registrado
                   </p>
                 </div>
               </div>
@@ -4702,7 +4714,10 @@ export function Dashboard() {
                       </p>
                       {alerta.machinePay && (
                         <p className="text-[11px] text-purple-700 mt-1 bg-purple-50 px-2 py-1 rounded-full">
-                          💳 Via Machine Pay · última mov.:{" "}
+                          {alerta.machinePay.fonte === "compactPay"
+                            ? "📟 Via CompactPay"
+                            : "💳 Via Machine Pay"}{" "}
+                          · última mov.:{" "}
                           {alerta.machinePay.estoqueRegistrado}
                         </p>
                       )}
@@ -4784,7 +4799,10 @@ export function Dashboard() {
                         </p>
                         {alerta.machinePay && (
                           <p className="text-[11px] text-purple-700 mt-1 bg-purple-50 px-2 py-1 rounded-full">
-                            💳 Via Machine Pay · última mov.:{" "}
+                            {alerta.machinePay.fonte === "compactPay"
+                              ? "📟 Via CompactPay"
+                              : "💳 Via Machine Pay"}{" "}
+                            · última mov.:{" "}
                             {alerta.machinePay.estoqueRegistrado}
                           </p>
                         )}

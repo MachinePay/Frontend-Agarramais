@@ -797,8 +797,8 @@ export function RankingMaquinas() {
           )}
         </div>
         <p className="text-xs text-gray-500 mb-3">
-          Valor recebido na Machine Pay no período; quando o valor lá está
-          zerado (mês já fechado), usa o último valor registrado no sistema
+          Valor recebido na Machine Pay ou na CompactPay no período; quando o
+          valor lá está zerado (mês já fechado), usa o último valor registrado no sistema
           para a máquina; se nenhum dos dois existir, usa a quantidade de
           fichas vezes o valor da ficha cadastrado na loja.
         </p>
@@ -850,14 +850,16 @@ export function RankingMaquinas() {
                   <td className="px-4 py-3 text-xs text-gray-600">
                     {maquina.fonte === "machinePay"
                       ? "💳 Machine Pay"
-                      : maquina.fonte === "registrado"
-                        ? "🗄️ Registrado no sistema"
-                        : `🎟️ ${maquina.fichas.toLocaleString(
-                            "pt-BR",
-                          )} fichas × R$ ${maquina.valorFicha.toLocaleString(
-                            "pt-BR",
-                            { minimumFractionDigits: 2 },
-                          )}`}
+                      : maquina.fonte === "compactPay"
+                        ? "📟 CompactPay"
+                        : maquina.fonte === "registrado"
+                          ? "🗄️ Registrado no sistema"
+                          : `🎟️ ${maquina.fichas.toLocaleString(
+                              "pt-BR",
+                            )} fichas × R$ ${maquina.valorFicha.toLocaleString(
+                              "pt-BR",
+                              { minimumFractionDigits: 2 },
+                            )}`}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-700">
                     {maquina.produtoPrincipal ? (
@@ -1040,7 +1042,7 @@ export function RankingMaquinas() {
                 comparativo={comparativoFaturamentoNode}
               />
               <KpiCard
-                titulo="Valor Machine Pay"
+                titulo="Valor Machine Pay + CompactPay"
                 valor={formatMoney(valorMachinePaySoAtual)}
                 icon="💳"
                 cor="blue"

@@ -121,15 +121,19 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
       });
 
       setValorCartaoPix(response.data.cartaoPix.toFixed(2).replace(".", ","));
-      setPercentualTaxaCartaoMedia(
-        response.data.percentualTaxaMedia.toFixed(4).replace(".", ","),
-      );
+      // A CompactPay não informa a taxa de cada venda; nesse caso mantém a
+      // taxa média digitada em vez de zerar.
+      if (response.data.fonte !== "compactPay") {
+        setPercentualTaxaCartaoMedia(
+          response.data.percentualTaxaMedia.toFixed(4).replace(".", ","),
+        );
+      }
       setResumoMachinePay(response.data);
     } catch (error) {
       setResumoMachinePay(null);
       setErroMachinePay(
         error.response?.data?.error ||
-          "Não foi possível buscar os valores na Machine Pay.",
+          "Não foi possível buscar os valores na Machine Pay/CompactPay.",
       );
     } finally {
       setConsultandoMachinePay(false);
@@ -529,7 +533,8 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
               fontSize: 14,
             }}
           >
-            {consultandoMachinePay && "Buscando valores na Machine Pay..."}
+            {consultandoMachinePay &&
+              "Buscando valores na Machine Pay/CompactPay..."}
             {!consultandoMachinePay && erroMachinePay && (
               <>
                 <div>{erroMachinePay}</div>
@@ -551,14 +556,36 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
                 </button>
               </>
             )}
-            {!consultandoMachinePay && resumoMachinePay && (
-              <div>
-                Machine Pay: Bruto com Taxas MP R${" "}
-                {resumoMachinePay.brutoComTaxasMp.toFixed(2)} · Pix R${" "}
-                {resumoMachinePay.pix.toFixed(2)} · Cartão R${" "}
-                {resumoMachinePay.cartao.toFixed(2)}
-              </div>
-            )}
+            {!consultandoMachinePay &&
+              resumoMachinePay &&
+              resumoMachinePay.fonte !== "compactPay" && (
+                <div>
+                  Machine Pay: Bruto com Taxas MP R${" "}
+                  {resumoMachinePay.brutoComTaxasMp.toFixed(2)} · Pix R${" "}
+                  {resumoMachinePay.pix.toFixed(2)} · Cartão R${" "}
+                  {resumoMachinePay.cartao.toFixed(2)}
+                </div>
+              )}
+            {!consultandoMachinePay &&
+              resumoMachinePay?.fonte === "compactPay" && (
+                <div>
+                  CompactPay: Digital R${" "}
+                  {resumoMachinePay.cartaoPix.toFixed(2)} · Pix R${" "}
+                  {resumoMachinePay.pix.toFixed(2)} · Cartão R${" "}
+                  {resumoMachinePay.cartao.toFixed(2)} · App Agarra R${" "}
+                  {Number(resumoMachinePay.app || 0).toFixed(2)}
+                  {resumoMachinePay.fisico > 0 && (
+                    <div style={{ marginTop: 4 }}>
+                      Físico contado pela placa (noteiro/moedeiro): R${" "}
+                      {resumoMachinePay.fisico.toFixed(2)} — confira com o
+                      dinheiro recolhido.
+                    </div>
+                  )}
+                  <div style={{ marginTop: 4, fontSize: 12 }}>
+                    Ao salvar, o fechamento do mês é feito na CompactPay.
+                  </div>
+                </div>
+              )}
           </div>
         )}
       </div>

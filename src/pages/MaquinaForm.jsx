@@ -430,7 +430,7 @@ export function MaquinaForm() {
                       className="w-5 h-5 text-primary rounded focus:ring-2 focus:ring-primary"
                     />
                     <span className="text-sm font-semibold text-gray-700">
-                      Descontar automático através da Machine Pay
+                      Descontar automático através da Machine Pay / CompactPay
                     </span>
                   </label>
                 </div>
@@ -451,7 +451,7 @@ export function MaquinaForm() {
                     disabled={!formData.descontoAutomaticoMachinePay}
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    A cada esse valor pago na Machine Pay, a próxima coleta já vem com o Total Pré sugerido 1 a menos.
+                    A cada esse valor pago na Machine Pay (ou na CompactPay, se a máquina só tiver ID da CompactPay), a próxima coleta já vem com o Total Pré sugerido 1 a menos.
                   </p>
                 </div>
 

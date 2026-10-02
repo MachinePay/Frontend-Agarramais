@@ -337,6 +337,10 @@ export function RelatorioTodasLojas({
                 ? compactPay.erro
                 : compactPay?.maquinas
                   ? `${compactPay.quantidade} pagamento(s) em ${compactPay.maquinas} máquina(s)${
+                      compactPay.totalApp > 0
+                        ? ` · App Agarra R$ ${compactPay.totalApp.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+                        : ""
+                    }${
                       compactPay.maquinasComErro
                         ? ` · ${compactPay.maquinasComErro} sem resposta`
                         : ""

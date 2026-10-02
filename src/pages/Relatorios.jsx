@@ -174,6 +174,11 @@ export function Relatorios() {
         (soma, item) => soma + toNumber(item.quantidade),
         0,
       ),
+      totalApp: Number(
+        itens
+          .reduce((soma, item) => soma + toNumber(item.totalApp), 0)
+          .toFixed(2),
+      ),
       maquinas: itens.length,
       maquinasComErro: itens.filter((item) => item.erro).length,
       erro,
@@ -243,7 +248,13 @@ export function Relatorios() {
                 fim: periodoFim,
               },
             });
-            valorMachinePay = toNumber(response.data?.brutoComTaxasMp);
+            // Máquina só com CompactPay também responde aqui (fonte
+            // "compactPay"), mas no ranking ela usa o total da CompactPay
+            // (digital + físico), tratado logo abaixo.
+            valorMachinePay =
+              response.data?.fonte === "compactPay"
+                ? null
+                : toNumber(response.data?.brutoComTaxasMp);
           } catch {
             valorMachinePay = null;
           }
@@ -306,11 +317,12 @@ export function Relatorios() {
           buscarTotaisCompactPay(periodoInicio, periodoFim),
         ]);
 
+      // O machine-pay-total também traz as máquinas CompactPay; aqui elas
+      // ficam de fora porque o ranking usa o total de /compact-pay/totais.
       const machinePayPorMaquinaId = new Map(
-        (machinePayResponse.data?.maquinas || []).map((item) => [
-          String(item.maquinaId),
-          toNumber(item.brutoComTaxasMp),
-        ]),
+        (machinePayResponse.data?.maquinas || [])
+          .filter((item) => (item.fonte || "machinePay") === "machinePay")
+          .map((item) => [String(item.maquinaId), toNumber(item.brutoComTaxasMp)]),
       );
 
       const performanceFiltrada = nomesLojasFiltro
@@ -1959,6 +1971,10 @@ export function Relatorios() {
                         ? compactPayRelatorio.erro
                         : compactPayRelatorio?.maquinas
                           ? `${compactPayRelatorio.quantidade} pagamento(s) em ${compactPayRelatorio.maquinas} máquina(s)${
+                              compactPayRelatorio.totalApp > 0
+                                ? ` · App Agarra R$ ${compactPayRelatorio.totalApp.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+                                : ""
+                            }${
                               compactPayRelatorio.maquinasComErro
                                 ? ` · ${compactPayRelatorio.maquinasComErro} sem resposta`
                                 : ""
