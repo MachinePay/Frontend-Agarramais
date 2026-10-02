@@ -852,6 +852,8 @@ export function RankingMaquinas() {
                       ? "💳 Machine Pay"
                       : maquina.fonte === "compactPay"
                         ? "📟 CompactPay"
+                        : maquina.fonte === "ambos"
+                          ? "💳📟 Machine Pay + CompactPay"
                         : maquina.fonte === "registrado"
                           ? "🗄️ Registrado no sistema"
                           : `🎟️ ${maquina.fichas.toLocaleString(

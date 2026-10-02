@@ -185,6 +185,15 @@ export function Relatorios() {
     };
   };
 
+  // Valor e origem de uma máquina a partir de /registro-dinheiro/machine-pay
+  // ou de um item de /registro-dinheiro/machine-pay-total.
+  const montarPagamentoItem = (dados) => ({
+    fonte: dados?.fonte || "machinePay",
+    valor: toNumber(dados?.valorFaturamento ?? dados?.brutoComTaxasMp),
+    valorMachinePay: toNumber(dados?.valorMachinePay),
+    valorCompactPay: toNumber(dados?.valorCompactPay),
+  });
+
   const montarRankingMaquinas = async (dadosRelatorio, periodoInicio, periodoFim) => {
     const maquinas = Array.isArray(dadosRelatorio?.maquinas)
       ? dadosRelatorio.maquinas
@@ -239,7 +248,9 @@ export function Relatorios() {
             produtoPrincipal,
           };
 
-          let valorMachinePay = null;
+          // Machine Pay e/ou CompactPay: máquina com os dois IDs vem com
+          // fonte "ambos" e o valor já somado (valorFaturamento).
+          let pagamento = null;
           try {
             const response = await api.get("/registro-dinheiro/machine-pay", {
               params: {
@@ -248,19 +259,13 @@ export function Relatorios() {
                 fim: periodoFim,
               },
             });
-            // Máquina só com CompactPay também responde aqui (fonte
-            // "compactPay"), mas no ranking ela usa o total da CompactPay
-            // (digital + físico), tratado logo abaixo.
-            valorMachinePay =
-              response.data?.fonte === "compactPay"
-                ? null
-                : toNumber(response.data?.brutoComTaxasMp);
+            pagamento = montarPagamentoItem(response.data);
           } catch {
-            valorMachinePay = null;
+            pagamento = null;
           }
 
-          if (valorMachinePay && valorMachinePay > 0) {
-            return { ...base, fonte: "machinePay", valor: valorMachinePay };
+          if (pagamento && pagamento.valor > 0) {
+            return { ...base, ...pagamento };
           }
 
           const valorCompactPay = toNumber(
@@ -317,12 +322,12 @@ export function Relatorios() {
           buscarTotaisCompactPay(periodoInicio, periodoFim),
         ]);
 
-      // O machine-pay-total também traz as máquinas CompactPay; aqui elas
-      // ficam de fora porque o ranking usa o total de /compact-pay/totais.
-      const machinePayPorMaquinaId = new Map(
-        (machinePayResponse.data?.maquinas || [])
-          .filter((item) => (item.fonte || "machinePay") === "machinePay")
-          .map((item) => [String(item.maquinaId), toNumber(item.brutoComTaxasMp)]),
+      // Machine Pay e CompactPay (máquina com os dois IDs vem somada).
+      const pagamentoPorMaquinaId = new Map(
+        (machinePayResponse.data?.maquinas || []).map((item) => [
+          String(item.maquinaId),
+          montarPagamentoItem(item),
+        ]),
       );
 
       const performanceFiltrada = nomesLojasFiltro
@@ -349,7 +354,7 @@ export function Relatorios() {
         // valor da ficha cadastrado atualmente na máquina (exibição),
         // não a média entre fichas + notas + pix do faturamento histórico.
         const valorFicha = toNumber(p.maquina?.valorFicha);
-        const valorMachinePay = machinePayPorMaquinaId.get(maquinaId);
+        const pagamento = pagamentoPorMaquinaId.get(maquinaId);
         const registrado = valorRegistradoPorMaquina.get(maquinaId);
 
         const base = {
@@ -361,8 +366,8 @@ export function Relatorios() {
           produtoPrincipal: p.produtoPrincipal || null,
         };
 
-        if (valorMachinePay !== undefined && valorMachinePay > 0) {
-          return { ...base, fonte: "machinePay", valor: valorMachinePay };
+        if (pagamento && pagamento.valor > 0) {
+          return { ...base, ...pagamento };
         }
 
         const valorCompactPay = toNumber(compactPay.mapa.get(maquinaId)?.total);
@@ -2254,7 +2259,8 @@ export function Relatorios() {
                         <div className="mt-2 pl-11">
                           <div
                             className={`font-bold text-lg ${
-                              item.fonte === "machinePay"
+                              item.fonte === "machinePay" ||
+                              item.fonte === "ambos"
                                 ? "text-indigo-700"
                                 : item.fonte === "compactPay"
                                   ? "text-emerald-700"
@@ -2271,7 +2277,9 @@ export function Relatorios() {
                           <div className="text-[10px] text-gray-500 mb-2">
                             {item.fonte === "machinePay"
                               ? "Machine Pay"
-                              : item.fonte === "compactPay"
+                              : item.fonte === "ambos"
+                                ? `Machine Pay R$ ${item.valorMachinePay.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} + CompactPay R$ ${item.valorCompactPay.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+                                : item.fonte === "compactPay"
                                 ? "CompactPay"
                                 : item.fonte === "registrado"
                                 ? "Registrado no sistema (Machine Pay já fechou o mês)"

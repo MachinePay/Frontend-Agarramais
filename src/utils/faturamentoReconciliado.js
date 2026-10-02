@@ -68,9 +68,10 @@ export const construirMapaValorRegistrado = (
 
 // Valor de faturamento de um item de /registro-dinheiro/machine-pay-total.
 // Esse endpoint traz as máquinas da Machine Pay e da CompactPay (campo
-// `fonte`); `valorFaturamento` já vem com a regra de cada uma (bruto da
-// Machine Pay; digital + físico da CompactPay). `brutoComTaxasMp` é o
-// fallback para respostas antigas.
+// `fonte`: "machinePay", "compactPay" ou "ambos" quando a máquina tem os
+// dois IDs e os valores vêm somados); `valorFaturamento` já vem com a regra
+// de cada uma (bruto da Machine Pay; digital + físico da CompactPay).
+// `brutoComTaxasMp` é o fallback para respostas antigas.
 const valorPagamentoItem = (item) =>
   toN(item.valorFaturamento ?? item.brutoComTaxasMp);
 
@@ -93,6 +94,7 @@ export const obterFontePagamento = (machinePayMapa, maquinaId) =>
 export const ROTULO_FONTE = {
   machinePay: "Machine Pay",
   compactPay: "CompactPay",
+  ambos: "Machine Pay + CompactPay",
   registrado: "Registrado",
   fichas: "Fichas",
 };

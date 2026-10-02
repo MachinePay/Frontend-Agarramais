@@ -2670,6 +2670,8 @@ export function Dashboard() {
                               ? "💳"
                               : maquina.fonte === "compactPay"
                                 ? "📟"
+                                : maquina.fonte === "ambos"
+                                  ? "💳📟"
                                 : maquina.fonte === "registrado"
                                   ? "🗄️"
                                   : "🎟️"}{" "}
@@ -4714,9 +4716,11 @@ export function Dashboard() {
                       </p>
                       {alerta.machinePay && (
                         <p className="text-[11px] text-purple-700 mt-1 bg-purple-50 px-2 py-1 rounded-full">
-                          {alerta.machinePay.fonte === "compactPay"
-                            ? "📟 Via CompactPay"
-                            : "💳 Via Machine Pay"}{" "}
+                          {alerta.machinePay.fonte === "ambos"
+                            ? "💳📟 Via Machine Pay + CompactPay"
+                            : alerta.machinePay.fonte === "compactPay"
+                              ? "📟 Via CompactPay"
+                              : "💳 Via Machine Pay"}{" "}
                           · última mov.:{" "}
                           {alerta.machinePay.estoqueRegistrado}
                         </p>
@@ -4799,9 +4803,11 @@ export function Dashboard() {
                         </p>
                         {alerta.machinePay && (
                           <p className="text-[11px] text-purple-700 mt-1 bg-purple-50 px-2 py-1 rounded-full">
-                            {alerta.machinePay.fonte === "compactPay"
-                              ? "📟 Via CompactPay"
-                              : "💳 Via Machine Pay"}{" "}
+                            {alerta.machinePay.fonte === "ambos"
+                              ? "💳📟 Via Machine Pay + CompactPay"
+                              : alerta.machinePay.fonte === "compactPay"
+                                ? "📟 Via CompactPay"
+                                : "💳 Via Machine Pay"}{" "}
                             · última mov.:{" "}
                             {alerta.machinePay.estoqueRegistrado}
                           </p>

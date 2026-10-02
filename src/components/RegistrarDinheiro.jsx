@@ -558,7 +558,7 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
             )}
             {!consultandoMachinePay &&
               resumoMachinePay &&
-              resumoMachinePay.fonte !== "compactPay" && (
+              (resumoMachinePay.fonte || "machinePay") === "machinePay" && (
                 <div>
                   Machine Pay: Bruto com Taxas MP R${" "}
                   {resumoMachinePay.brutoComTaxasMp.toFixed(2)} · Pix R${" "}
@@ -566,6 +566,20 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
                   {resumoMachinePay.cartao.toFixed(2)}
                 </div>
               )}
+            {!consultandoMachinePay && resumoMachinePay?.fonte === "ambos" && (
+              <div>
+                Machine Pay R${" "}
+                {Number(
+                  resumoMachinePay.machinePay?.brutoComTaxasMp || 0,
+                ).toFixed(2)}{" "}
+                + CompactPay R${" "}
+                {Number(resumoMachinePay.compactPay?.cartaoPix || 0).toFixed(2)}{" "}
+                = R$ {resumoMachinePay.cartaoPix.toFixed(2)} (Pix R${" "}
+                {resumoMachinePay.pix.toFixed(2)} · Cartão R${" "}
+                {resumoMachinePay.cartao.toFixed(2)} · App Agarra R${" "}
+                {Number(resumoMachinePay.app || 0).toFixed(2)})
+              </div>
+            )}
             {!consultandoMachinePay &&
               resumoMachinePay?.fonte === "compactPay" && (
                 <div>
@@ -574,18 +588,39 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
                   {resumoMachinePay.pix.toFixed(2)} · Cartão R${" "}
                   {resumoMachinePay.cartao.toFixed(2)} · App Agarra R${" "}
                   {Number(resumoMachinePay.app || 0).toFixed(2)}
+                </div>
+              )}
+            {!consultandoMachinePay &&
+              (resumoMachinePay?.fonte === "compactPay" ||
+                resumoMachinePay?.fonte === "ambos") && (
+                <>
                   {resumoMachinePay.fisico > 0 && (
                     <div style={{ marginTop: 4 }}>
-                      Físico contado pela placa (noteiro/moedeiro): R${" "}
-                      {resumoMachinePay.fisico.toFixed(2)} — confira com o
+                      Físico contado pela placa CompactPay (noteiro/moedeiro):
+                      R$ {resumoMachinePay.fisico.toFixed(2)} — confira com o
                       dinheiro recolhido.
                     </div>
                   )}
                   <div style={{ marginTop: 4, fontSize: 12 }}>
-                    Ao salvar, o fechamento do mês é feito na CompactPay.
+                    Ao salvar, o fechamento do mês é feito na{" "}
+                    {resumoMachinePay.fonte === "ambos"
+                      ? "Machine Pay e na CompactPay"
+                      : "CompactPay"}
+                    .
                   </div>
-                </div>
+                </>
               )}
+            {!consultandoMachinePay &&
+              (resumoMachinePay?.erros || []).map((item) => (
+                <div
+                  key={item.fonte}
+                  style={{ marginTop: 4, color: "#b42318", fontWeight: 600 }}
+                >
+                  ⚠️ {item.fonte === "compactPay" ? "CompactPay" : "Machine Pay"}{" "}
+                  não respondeu ({item.erro}) — o valor acima está sem ela.
+                  Tente novamente antes de salvar.
+                </div>
+              ))}
           </div>
         )}
       </div>

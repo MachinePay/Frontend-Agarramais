@@ -793,7 +793,7 @@ export function RelatorioTodasLojas({
                 <div className="mt-2 pl-11">
                   <div
                     className={`font-bold text-lg ${
-                      item.fonte === "machinePay"
+                      item.fonte === "machinePay" || item.fonte === "ambos"
                         ? "text-indigo-700"
                         : item.fonte === "compactPay"
                           ? "text-emerald-700"
@@ -807,7 +807,9 @@ export function RelatorioTodasLojas({
                   <div className="text-[10px] text-gray-500 mb-2">
                     {item.fonte === "machinePay"
                       ? "Machine Pay"
-                      : item.fonte === "compactPay"
+                      : item.fonte === "ambos"
+                        ? `Machine Pay ${formatarMoeda(item.valorMachinePay)} + CompactPay ${formatarMoeda(item.valorCompactPay)}`
+                        : item.fonte === "compactPay"
                         ? "CompactPay"
                         : item.fonte === "registrado"
                         ? "Registrado no sistema (Machine Pay já fechou o mês)"

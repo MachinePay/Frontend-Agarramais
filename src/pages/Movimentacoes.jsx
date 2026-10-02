@@ -71,6 +71,16 @@ function navegarParaWhatsapp(janelaPreAberta, url) {
   }
 }
 
+// Nome da origem dos pagamentos usada na sugestão de Total Pré
+// (/movimentacoes/sugestao-total-pre devolve "machinePay", "compactPay" ou
+// "ambos" quando a máquina tem os dois IDs).
+const nomeFontePagamento = (fonte) =>
+  fonte === "ambos"
+    ? "Machine Pay + CompactPay"
+    : fonte === "compactPay"
+      ? "CompactPay"
+      : "Machine Pay";
+
 export function Movimentacoes() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -677,7 +687,7 @@ export function Movimentacoes() {
 
     if (divergenciaMachinePaySuspeita && !confirmacaoDivergenciaMachinePay) {
       setError(
-        `O valor esperado pela ${sugestaoTotalPreMachinePay?.fonte === "compactPay" ? "CompactPay" : "Machine Pay"} é diferente do que foi digitado. Reconte a máquina, ou marque a confirmação de que já recontou e o valor está correto.`,
+        `O valor esperado pela ${nomeFontePagamento(sugestaoTotalPreMachinePay?.fonte)} é diferente do que foi digitado. Reconte a máquina, ou marque a confirmação de que já recontou e o valor está correto.`,
       );
       return;
     }
@@ -833,9 +843,9 @@ export function Movimentacoes() {
           await api.post("/alertas-movimentacao", {
             maquinaId: formData.maquina_id,
             observacao:
-              `Divergência na conferência manual da ${sugestaoTotalPreMachinePay.fonte === "compactPay" ? "CompactPay" : "Machine Pay"}: era pra ter ${esperado} ` +
+              `Divergência na conferência manual da ${nomeFontePagamento(sugestaoTotalPreMachinePay.fonte)}: era pra ter ${esperado} ` +
               `(calculado com base em R$ ${sugestaoTotalPreMachinePay.totalRecebidoDesdeUltimaMovimentacao.toFixed(2)} ` +
-              `recebidos na ${sugestaoTotalPreMachinePay.fonte === "compactPay" ? "CompactPay" : "Machine Pay"} desde a movimentação anterior ÷ R$ ${Number(sugestaoTotalPreMachinePay.valorDesconto).toFixed(2)} por pulso ` +
+              `recebidos na ${nomeFontePagamento(sugestaoTotalPreMachinePay.fonte)} desde a movimentação anterior ÷ R$ ${Number(sugestaoTotalPreMachinePay.valorDesconto).toFixed(2)} por pulso ` +
               `= ${sugestaoTotalPreMachinePay.pulsos} pulso(s)), mas o operador registrou ${totalPre} ` +
               `mesmo após o aviso de recontagem. Diferença: ${diferenca > 0 ? "+" : ""}${diferenca}.`,
             dadosAbastecimento: {
@@ -1665,37 +1675,34 @@ export function Movimentacoes() {
                     setError("");
                     setSuccess("");
                     const response = await api.post("/registro-dinheiro", data);
-                    const fechamentoMachinePay =
-                      response.data?.fechamentoMachinePay;
-                    if (fechamentoMachinePay?.executado) {
-                      setSuccess(
-                        fechamentoMachinePay.concluido
-                          ? "Registro salvo e fechamento concluído na Machine Pay!"
-                          : `Registro salvo no sistema, mas a Machine Pay não confirmou o fechamento${
-                              fechamentoMachinePay.erro
-                                ? `: ${fechamentoMachinePay.erro}`
-                                : "."
-                            }`,
-                      );
-                    } else if (
-                      response.data?.fechamentoCompactPay?.executado
-                    ) {
-                      const fechamentoCompactPay =
-                        response.data.fechamentoCompactPay;
-                      setSuccess(
-                        fechamentoCompactPay.concluido
-                          ? fechamentoCompactPay.jaExistia
-                            ? "Registro salvo! Esse período já estava fechado na CompactPay."
-                            : "Registro salvo e fechamento concluído na CompactPay!"
-                          : `Registro salvo no sistema, mas a CompactPay não confirmou o fechamento${
-                              fechamentoCompactPay.erro
-                                ? `: ${fechamentoCompactPay.erro}`
-                                : "."
-                            }`,
-                      );
-                    } else {
-                      setSuccess("Registro de dinheiro salvo com sucesso!");
-                    }
+                    // Máquina com os dois IDs fecha nos dois sistemas;
+                    // junta as mensagens de cada um.
+                    const mensagemFechamento = (fechamento, nome) => {
+                      if (!fechamento?.executado) return null;
+                      if (fechamento.concluido) {
+                        return fechamento.jaExistia
+                          ? `esse período já estava fechado na ${nome}`
+                          : `fechamento concluído na ${nome}`;
+                      }
+                      return `a ${nome} não confirmou o fechamento${
+                        fechamento.erro ? ` (${fechamento.erro})` : ""
+                      }`;
+                    };
+                    const mensagens = [
+                      mensagemFechamento(
+                        response.data?.fechamentoMachinePay,
+                        "Machine Pay",
+                      ),
+                      mensagemFechamento(
+                        response.data?.fechamentoCompactPay,
+                        "CompactPay",
+                      ),
+                    ].filter(Boolean);
+                    setSuccess(
+                      mensagens.length
+                        ? `Registro salvo: ${mensagens.join("; ")}.`
+                        : "Registro de dinheiro salvo com sucesso!",
+                    );
                     setModalRegistrarDinheiro(false);
                   } catch (err) {
                     setError(
@@ -2092,9 +2099,7 @@ export function Movimentacoes() {
                     sugestaoTotalPreMachinePay?.sugestaoDisponivel &&
                     sugestaoTotalPreMachinePay.modo === "auto" && (
                       <p className="text-xs font-semibold text-emerald-600 mt-1">
-                        {sugestaoTotalPreMachinePay.fonte === "compactPay"
-                          ? "📟 Sugestão via CompactPay"
-                          : "💳 Sugestão via Machine Pay"}
+                        {`${sugestaoTotalPreMachinePay.fonte === "compactPay" ? "📟" : "💳"} Sugestão via ${nomeFontePagamento(sugestaoTotalPreMachinePay.fonte)}`}
                         : R${" "}
                         {sugestaoTotalPreMachinePay.totalRecebidoDesdeUltimaMovimentacao.toFixed(
                           2,
@@ -2121,9 +2126,7 @@ export function Movimentacoes() {
                         <div className="flex-1">
                           <p className="text-xs font-bold text-red-800 mb-1">
                             O valor digitado não confere com o que a{" "}
-                            {sugestaoTotalPreMachinePay?.fonte === "compactPay"
-                              ? "CompactPay"
-                              : "Machine Pay"}{" "}
+                            {nomeFontePagamento(sugestaoTotalPreMachinePay?.fonte)}{" "}
                             esperava. Reconte a máquina antes de confirmar.
                           </p>
                           <label className="flex items-center gap-2 mt-2">
