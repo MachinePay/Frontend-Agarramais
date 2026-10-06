@@ -73,6 +73,9 @@ export function Navbar() {
       links.push({ to: "/machine-pay", label: "💳 Machine Pay" });
       links.push({ to: "/compact-pay", label: "📟 CompactPay" });
     }
+    if (usuario?.role === "ADMIN") {
+      links.push({ to: "/creditos-remotos", label: "🔗 Créditos Remotos" });
+    }
   }
   const comercialLinks = [];
   if (hasRole("ADMIN", "COMERCIAL")) {

@@ -24,6 +24,8 @@ import { RankingMaquinas } from "./pages/RankingMaquinas";
 import { Relatorios } from "./pages/Relatorios";
 import { MachinePay } from "./pages/MachinePay";
 import { CompactPay } from "./pages/CompactPay";
+import { CreditosRemotos } from "./pages/CreditosRemotos";
+import { CreditoRemotoPublico } from "./pages/CreditoRemotoPublico";
 import { BuscaTransportadoras } from "./pages/BuscaTransportadoras";
 import { CalculadoraPedidos } from "./pages/CalculadoraPedidos";
 import { Sangrias } from "./pages/Sangrias";
@@ -50,6 +52,8 @@ function App() {
             }
           />
           <Route path="/login" element={<Login />} />
+          {/* Link temporário de crédito remoto: público, sem login */}
+          <Route path="/creditos" element={<CreditoRemotoPublico />} />
           <Route
             path="/alertas"
             element={
@@ -250,6 +254,14 @@ function App() {
             element={
               <PrivateRoute roles={["ADMIN", "MACHINEPAY"]}>
                 <CompactPay />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/creditos-remotos"
+            element={
+              <PrivateRoute adminOnly>
+                <CreditosRemotos />
               </PrivateRoute>
             }
           />
