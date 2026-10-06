@@ -25,7 +25,18 @@ const valoresRapidos = [5, 10, 20, 50];
 
 const obterToken = () => window.location.hash.replace(/^#/, "");
 
+const mensagensSituacao = {
+  revogado: "foi bloqueado",
+  esgotado: "já usou todo o saldo",
+  expirado: "passou da data de validade",
+  inativo: "não está mais ativo",
+};
+
 export function CreditoRemotoPublico() {
+  // O token fica no estado e acompanha a URL: colar outro link na mesma aba
+  // só troca o "#...", o que não recarrega a página — sem isso a tela
+  // continuava mostrando o resultado do link anterior.
+  const [token, setToken] = useState(obterToken);
   const [dados, setDados] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [expirado, setExpirado] = useState("");
@@ -34,25 +45,42 @@ export function CreditoRemotoPublico() {
   const [enviando, setEnviando] = useState(false);
   const [mensagem, setMensagem] = useState(null);
 
+  useEffect(() => {
+    const atualizarToken = () => setToken(obterToken());
+    window.addEventListener("hashchange", atualizarToken);
+    window.addEventListener("popstate", atualizarToken);
+    return () => {
+      window.removeEventListener("hashchange", atualizarToken);
+      window.removeEventListener("popstate", atualizarToken);
+    };
+  }, []);
+
   const carregar = useCallback(async () => {
     try {
       const response = await apiPublica.get("/credito-remoto/publico", {
-        headers: { "X-Link-Token": obterToken() },
+        headers: { "X-Link-Token": token },
       });
       setDados(response.data);
       setExpirado("");
     } catch (err) {
+      const { situacao, descricao, error } = err.response?.data || {};
       setDados(null);
       setExpirado(
-        err.response?.data?.error ||
-          "Não foi possível abrir o link. Tente novamente.",
+        situacao && descricao
+          ? `O link "${descricao}" ${mensagensSituacao[situacao] || "expirou"}.`
+          : error || "Não foi possível abrir o link. Tente novamente.",
       );
     } finally {
       setCarregando(false);
     }
-  }, []);
+  }, [token]);
 
   useEffect(() => {
+    setCarregando(true);
+    setDados(null);
+    setExpirado("");
+    setMaquinaAberta(null);
+    setMensagem(null);
     carregar();
   }, [carregar]);
 
@@ -84,7 +112,7 @@ export function CreditoRemotoPublico() {
       const response = await apiPublica.post(
         "/credito-remoto/publico/enviar",
         { maquinaId: maquinaAberta.id, valor: numero },
-        { headers: { "X-Link-Token": obterToken() } },
+        { headers: { "X-Link-Token": token } },
       );
       setMensagem({
         tipo: response.data.sucesso ? "sucesso" : "aviso",
