@@ -25,6 +25,7 @@ import { Relatorios } from "./pages/Relatorios";
 import { MachinePay } from "./pages/MachinePay";
 import { CompactPay } from "./pages/CompactPay";
 import { CreditosRemotos } from "./pages/CreditosRemotos";
+import { Correios } from "./pages/Correios";
 import { CreditoRemotoPublico } from "./pages/CreditoRemotoPublico";
 import { BuscaTransportadoras } from "./pages/BuscaTransportadoras";
 import { CalculadoraPedidos } from "./pages/CalculadoraPedidos";
@@ -278,6 +279,14 @@ function App() {
             element={
               <PrivateRoute roles={["ADMIN", "COMERCIAL"]}>
                 <CalculadoraPedidos />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/correios"
+            element={
+              <PrivateRoute roles={["ADMIN", "COMERCIAL"]}>
+                <Correios />
               </PrivateRoute>
             }
           />

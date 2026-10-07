@@ -88,6 +88,7 @@ export function Navbar() {
       to: "/pedidos-notas-fiscais",
       label: "📑 Pedidos e Notas Fiscais",
     });
+    comercialLinks.push({ to: "/correios", label: "📮 Correios" });
   }
 
   return (
