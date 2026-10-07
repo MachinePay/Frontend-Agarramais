@@ -74,7 +74,7 @@ export function Navbar() {
       links.push({ to: "/compact-pay", label: "📟 CompactPay" });
     }
     if (usuario?.role === "ADMIN") {
-      links.push({ to: "/creditos-remotos", label: "🔗 Créditos Remotos" });
+      links.push({ to: "/creditos-remotos", label: "🎟️ Vouchers Remotos" });
     }
   }
   const comercialLinks = [];

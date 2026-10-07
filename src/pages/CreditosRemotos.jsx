@@ -202,7 +202,7 @@ export function CreditosRemotos() {
       setMaquinasMachinePay(response.data.maquinasMachinePay || []);
       setLojasMachinePay(response.data.lojasMachinePay || []);
     } catch (err) {
-      setError(err.response?.data?.error || "Erro ao carregar os links.");
+      setError(err.response?.data?.error || "Erro ao carregar os vouchers.");
     } finally {
       setLoading(false);
     }
@@ -261,7 +261,7 @@ export function CreditosRemotos() {
       carregar();
       return true;
     } catch (err) {
-      setError(err.response?.data?.error || "Erro ao criar o link.");
+      setError(err.response?.data?.error || "Erro ao criar o voucher.");
       return false;
     } finally {
       setCriando(false);
@@ -311,7 +311,7 @@ export function CreditosRemotos() {
       return;
     }
     enviarCriacao({
-      descricao: `Link de teste - ${NOME_MAQUINA_TESTE}`,
+      descricao: `Voucher de teste - ${NOME_MAQUINA_TESTE}`,
       limite: LIMITE_LINK_TESTE,
       maquinaId: maquinaTeste.id,
     });
@@ -354,7 +354,7 @@ export function CreditosRemotos() {
       const response = await api.get(`/credito-remoto/lotes/${loteId}/tokens`);
       const ativos = response.data.links || [];
       if (ativos.length === 0) {
-        setError("Nenhum link ativo neste lote.");
+        setError("Nenhum voucher ativo neste lote.");
         return;
       }
       await abrirLote(ativos);
@@ -392,7 +392,7 @@ export function CreditosRemotos() {
       await api.post(`/credito-remoto/links/${linkBloquear.id}/bloquear`);
       carregar();
     } catch (err) {
-      setError(err.response?.data?.error || "Erro ao bloquear o link.");
+      setError(err.response?.data?.error || "Erro ao bloquear o voucher.");
     }
   };
 
@@ -428,8 +428,8 @@ export function CreditosRemotos() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <PageHeader
-          title="Créditos Remotos"
-          subtitle="Links temporários (vouchers) para enviar crédito Machine Pay nas máquinas"
+          title="Vouchers Remotos"
+          subtitle="Vouchers com QR Code para jogar nas máquinas Machine Pay"
           icon="🔗"
           action={
             <button
@@ -437,9 +437,9 @@ export function CreditosRemotos() {
               className="btn-secondary"
               onClick={criarLinkTeste}
               disabled={criando}
-              title={`Gera um link só para a máquina ${NOME_MAQUINA_TESTE}, com limite de R$ ${LIMITE_LINK_TESTE},00`}
+              title={`Gera um voucher só para a máquina ${NOME_MAQUINA_TESTE}, com limite de R$ ${LIMITE_LINK_TESTE},00`}
             >
-              🧪 Gerar link de teste ({NOME_MAQUINA_TESTE}, R$ {LIMITE_LINK_TESTE})
+              🧪 Gerar voucher de teste ({NOME_MAQUINA_TESTE}, R$ {LIMITE_LINK_TESTE})
             </button>
           }
         />
@@ -452,7 +452,7 @@ export function CreditosRemotos() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <section className="card-gradient lg:col-span-1">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Novos links</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Novos vouchers</h2>
             <form onSubmit={criar} className="space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
@@ -576,15 +576,15 @@ export function CreditosRemotos() {
                   onChange={(event) => setExpiraEm(event.target.value)}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Cada link também expira sozinho quando o valor dele acaba.
+                  Cada voucher também expira sozinho quando o valor dele acaba.
                 </p>
               </div>
               <button type="submit" className="btn-primary w-full" disabled={criando}>
                 {criando
                   ? "Gerando..."
                   : quantidadeNumero > 1
-                    ? `Gerar ${quantidadeNumero} links`
-                    : "Gerar link"}
+                    ? `Gerar ${quantidadeNumero} vouchers`
+                    : "Gerar voucher"}
               </button>
             </form>
 
@@ -611,7 +611,7 @@ export function CreditosRemotos() {
           <section className="lg:col-span-2 space-y-3">
             {links.length === 0 ? (
               <div className="card text-center py-12 text-gray-600">
-                Nenhum link criado ainda.
+                Nenhum voucher criado ainda.
               </div>
             ) : (
               links.map((link) => {
@@ -688,7 +688,7 @@ export function CreditosRemotos() {
                             className="btn-danger text-sm"
                             onClick={() => setLinkBloquear(link)}
                           >
-                            🔒 Bloquear link
+                            🔒 Bloquear voucher
                           </button>
                         )}
                       </div>
@@ -704,12 +704,12 @@ export function CreditosRemotos() {
       <Modal
         isOpen={Boolean(linkCriado)}
         onClose={() => setLinkCriado(null)}
-        title={linkCriado?.novo ? "Link criado" : "QR Code do link"}
+        title={linkCriado?.novo ? "Voucher criado" : "QR Code do voucher"}
       >
         {linkCriado && (
           <div className="space-y-4">
             <p className="text-gray-700">
-              {linkCriado.novo ? "Envie este link para " : "Link de "}
+              {linkCriado.novo ? "Envie este voucher para " : "Voucher de "}
               <strong>{linkCriado.descricao}</strong>. Saldo de{" "}
               <strong>{formatarMoeda(linkCriado.restante)}</strong> ·{" "}
               {descreverEscopo(linkCriado)}.
@@ -718,7 +718,7 @@ export function CreditosRemotos() {
               {qrDataUrl ? (
                 <img
                   src={qrDataUrl}
-                  alt="QR Code do link"
+                  alt="QR Code do voucher"
                   className="w-56 h-56 rounded-lg border border-gray-200 bg-white p-2"
                 />
               ) : (
@@ -732,7 +732,7 @@ export function CreditosRemotos() {
             </div>
             {linkCriado.novo && (
               <p className="text-sm text-gray-500">
-                Dá pra copiar de novo e reabrir o QR Code depois pelos botões na lista.
+                Dá pra copiar o link e reabrir o QR Code depois pelos botões na lista.
               </p>
             )}
             <div className="flex flex-wrap justify-end gap-2">
@@ -878,10 +878,10 @@ export function CreditosRemotos() {
         isOpen={Boolean(linkBloquear)}
         onClose={() => setLinkBloquear(null)}
         onConfirm={bloquear}
-        title="🔒 Bloquear link"
+        title="🔒 Bloquear voucher"
         message={
           linkBloquear
-            ? `Tem certeza? O link de "${linkBloquear.descricao}" para de funcionar na hora e não pode ser desbloqueado (saldo restante: ${formatarMoeda(linkBloquear.restante)}). Se precisar, gere um link novo.`
+            ? `Tem certeza? O voucher "${linkBloquear.descricao}" para de funcionar na hora e não pode ser desbloqueado (saldo restante: ${formatarMoeda(linkBloquear.restante)}). Se precisar, gere um voucher novo.`
             : ""
         }
         confirmText="Sim, bloquear"

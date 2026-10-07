@@ -67,8 +67,8 @@ export function CreditoRemotoPublico() {
       setDados(null);
       setExpirado(
         situacao && descricao
-          ? `O link "${descricao}" ${mensagensSituacao[situacao] || "expirou"}.`
-          : error || "Não foi possível abrir o link. Tente novamente.",
+          ? `O voucher "${descricao}" ${mensagensSituacao[situacao] || "expirou"}.`
+          : error || "Não foi possível abrir o voucher. Tente novamente.",
       );
     } finally {
       setCarregando(false);
@@ -156,7 +156,7 @@ export function CreditoRemotoPublico() {
             <p className="text-5xl mb-3">⏱️</p>
             <h1 className="text-xl font-bold text-gray-900">{expirado}</h1>
             <p className="text-gray-600 mt-2">
-              Este link não está mais disponível.
+              Este voucher não está mais disponível.
             </p>
           </div>
         ) : (
@@ -164,7 +164,7 @@ export function CreditoRemotoPublico() {
             <section className="card-gradient mb-5">
               <p className="text-sm text-gray-600">{dados.descricao}</p>
               <h1 className="text-2xl font-black text-gray-900 mt-1">
-                Créditos para jogar
+                Seu voucher Agarra Mais
               </h1>
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <div className="rounded-lg border border-gray-200 bg-white p-3">
@@ -228,7 +228,7 @@ export function CreditoRemotoPublico() {
                       className="btn-primary shrink-0"
                       onClick={() => abrirMaquina(maquina)}
                     >
-                      Adicionar créditos
+                      Usar voucher
                     </button>
                   </li>
                 ))}
@@ -244,7 +244,7 @@ export function CreditoRemotoPublico() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-bold uppercase text-gray-500">
-                  Enviar crédito para
+                  Usar voucher em
                 </p>
                 <h3 className="text-lg font-black text-gray-900">
                   {maquinaAberta.nome}
@@ -311,7 +311,7 @@ export function CreditoRemotoPublico() {
               onClick={enviar}
               disabled={enviando || dados.restante <= 0}
             >
-              {enviando ? "Enviando..." : "Enviar crédito"}
+              {enviando ? "Enviando..." : "Usar voucher"}
             </button>
           </div>
         </div>
