@@ -818,7 +818,7 @@ function AbaAjuda() {
     ["Desativado", "Pontos com \"DESATIVADO\" no nome ficam escondidos por padrão. Marque \"Incluir desativadas\" nos filtros para vê-los."],
     ["Ranking", "Soma das quedas no período. No empate, quem ficou mais tempo offline fica na frente. Use \"Melhor → pior\" para ver as mais estáveis."],
     ["Histórico", "O painel só mostra o dia de hoje. Este sistema lê o painel automaticamente a cada poucos minutos e guarda o histórico — por isso dias antes do início do monitoramento aparecem vazios."],
-    ["Vínculo", "Quando a máquina do sistema tem o \"POS ID Machine Pay\" preenchido no cadastro, o código e a loja dela aparecem junto do ponto, e o filtro por loja passa a funcionar para ela."],
+    ["Quais máquinas aparecem", "Só as máquinas da Agarramais com o \"POS ID Machine Pay\" preenchido no cadastro. Leitores de outros clientes na mesma conta da Machine Pay são ignorados. Máquina nova aparece na próxima leitura depois de cadastrar o POS ID."],
   ];
   return (
     <Secao titulo="❓ Como ler esta página" descricao="Glossário rápido para quem cuida do suporte.">
@@ -1438,7 +1438,7 @@ export function MachinePay() {
               />
             </label>
             <label className="flex flex-col gap-1 text-xs font-semibold text-gray-600">
-              🏪 Loja (máquinas vinculadas)
+              🏪 Loja
               <select className="input-field" value={lojaId} onChange={(e) => setLojaId(e.target.value)}>
                 <option value="">Todas as lojas</option>
                 {lojas.map((l) => (
@@ -1549,7 +1549,7 @@ export function MachinePay() {
             <KpiCard
               titulo="Monitoradas"
               valor={resumo.total}
-              detalhe={`${resumo.vinculadas} vinculadas ao sistema`}
+              detalhe="Máquinas da Agarramais com POS ID"
               icone="📟"
               onClick={() => irParaMaquinas("todas")}
               ativo={aba === "maquinas" && statusMaquinas === "todas" && !comQuedaMaquinas}
