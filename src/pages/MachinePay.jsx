@@ -35,11 +35,12 @@ const SINAL_INFO = {
   SEM_SINAL: { label: "Não informado", className: "bg-gray-100 text-gray-600 border-gray-300", cor: "#9ca3af" },
 };
 
-const TIPOS_LEITOR = ["WEBSOCKET", "MQTT LITE", "MQTT Avançada"];
+const TIPOS_LEITOR = ["WEBSOCKET", "MQTT LITE", "MQTT Avançada", "Relé"];
 
 const MODO_RESPOSTA = {
   MQTT_INSTANTANEO: "MQTT Instantâneo",
   MQTT_CONFIRMADO: "MQTT Confirmado",
+  POST: "POST (consulta periódica)",
   SEM_RESPOSTA: "Sem resposta",
 };
 
@@ -814,7 +815,7 @@ function AbaAjuda() {
     ["🔴 Offline", "O leitor não está respondendo ao painel agora. Nesse estado ele não recebe pagamentos PIX ou cartão."],
     ["Offline há…", "Tempo desde que o monitoramento viu a máquina cair. \"Antes do monitoramento\" significa que ela já estava offline quando começamos a acompanhar — use a última venda como referência."],
     ["📶 Sinal Wi-Fi", "Ótimo / Bom / Fraco / Ruim, como informado pelo leitor. \"Não informado\" é normal em leitores WEBSOCKET, que não mandam o sinal."],
-    ["MQTT Instantâneo / Confirmado", "Como o leitor recebe o crédito: Instantâneo (WEBSOCKET) ou com confirmação de pulso (MQTT). \"Sem resposta\" = leitor não respondeu a última consulta."],
+    ["MQTT Instantâneo / Confirmado", "Como o leitor recebe o crédito: Instantâneo (WEBSOCKET) ou com confirmação de pulso (MQTT). Leitores Relé usam \"POST\": o próprio leitor consulta o painel a cada poucos segundos. \"Sem resposta\" = leitor não respondeu a última consulta."],
     ["Desativado", "Pontos com \"DESATIVADO\" no nome ficam escondidos por padrão. Marque \"Incluir desativadas\" nos filtros para vê-los."],
     ["Ranking", "Soma das quedas no período. No empate, quem ficou mais tempo offline fica na frente. Use \"Melhor → pior\" para ver as mais estáveis."],
     ["Histórico", "O painel só mostra o dia de hoje. Este sistema lê o painel automaticamente a cada poucos minutos e guarda o histórico — por isso dias antes do início do monitoramento aparecem vazios."],
