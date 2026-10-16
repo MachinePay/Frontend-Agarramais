@@ -683,22 +683,42 @@ export default function ManutencaoPage() {
                       <h3 className="text-base font-semibold text-gray-900">
                         {item.titulo}
                       </h3>
-                      <Badge
-                        variant={
-                          item.status === "RESOLVIDA" ? "success" : "warning"
-                        }
-                        size="sm"
-                      >
-                        {item.status}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        {item.origem === "ALERTA_FICHAS" && (
+                          <Badge variant="danger" size="sm">
+                            Alerta automático
+                          </Badge>
+                        )}
+                        <Badge
+                          variant={
+                            item.status === "RESOLVIDA" ? "success" : "warning"
+                          }
+                          size="sm"
+                        >
+                          {item.status}
+                        </Badge>
+                      </div>
                     </div>
 
-                    <p className="mt-2 text-sm text-gray-700">
+                    <p className="mt-2 whitespace-pre-line text-sm text-gray-700">
                       {item.descricao}
                     </p>
 
                     <div className="mt-2 space-y-1 text-xs text-gray-600">
-                      <p>Criado por: {item.criadoPor?.nome || "-"}</p>
+                      {item.origem === "ALERTA_FICHAS" ? (
+                        <p>
+                          Gerado pelo sistema (movimentação de{" "}
+                          {item.criadoPor?.nome || "-"})
+                        </p>
+                      ) : (
+                        <p>Criado por: {item.criadoPor?.nome || "-"}</p>
+                      )}
+                      {item.maquina && (
+                        <p>
+                          Máquina: {item.maquina.nome}
+                          {item.maquina.codigo ? ` (${item.maquina.codigo})` : ""}
+                        </p>
+                      )}
                       {isAdmin && (
                         <p>
                           Custo:{" "}
