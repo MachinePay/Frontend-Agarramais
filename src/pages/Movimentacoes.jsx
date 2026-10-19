@@ -164,6 +164,7 @@ export function Movimentacoes() {
 
   // Estados auxiliares
   const [estoqueAnterior, setEstoqueAnterior] = useState(0);
+  const [saidasCompactPay, setSaidasCompactPay] = useState(null);
   const [alertaDivergencia, setAlertaDivergencia] = useState(null);
   // Sugestão de Total Pré via Machine Pay (máquinas com desconto automático
   // ativado), ver useEffect abaixo. modo "auto" trava o campo com o valor
@@ -461,6 +462,34 @@ export function Movimentacoes() {
       cancelado = true;
     };
   }, [formData.maquina_id, maquinas]);
+
+  // Só admin: prêmios que o sensor de saída da placa CompactPay contou desde
+  // a última movimentação (o "Prêmios entregues" do painel CompactPay no
+  // período entre movimentações). Funcionário não vê pra não copiar o número.
+  useEffect(() => {
+    setSaidasCompactPay(null);
+    if (!formData.maquina_id || usuario?.role !== "ADMIN") return;
+
+    const maquina = maquinas.find(
+      (m) => String(m.id) === String(formData.maquina_id),
+    );
+    if (!maquina?.compactPayId || !maquina?.conferirSaidaCompactPay) return;
+
+    let cancelado = false;
+    setSaidasCompactPay({ carregando: true });
+    api
+      .get(`/movimentacoes/saidas-compactpay/${formData.maquina_id}`)
+      .then((response) => {
+        if (!cancelado) setSaidasCompactPay(response.data || null);
+      })
+      .catch(() => {
+        if (!cancelado) setSaidasCompactPay({ erro: true });
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [formData.maquina_id, maquinas, usuario?.role]);
 
   // Cada vez que o operador muda o valor digitado, a confirmação de
   // "certeza que está correto" anterior deixa de valer.
@@ -2157,6 +2186,43 @@ export function Movimentacoes() {
                           parseInt(formData.quantidadeAtualMaquina || 0),
                       )}{" "}
                       unidades
+                    </p>
+                  )}
+                  {saidasCompactPay?.carregando && (
+                    <p className="text-xs text-blue-600 mt-1">
+                      📟 Buscando prêmios entregues na CompactPay...
+                    </p>
+                  )}
+                  {saidasCompactPay?.erro && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      📟 Não foi possível consultar os prêmios entregues na
+                      CompactPay.
+                    </p>
+                  )}
+                  {saidasCompactPay?.disponivel && (
+                    <p
+                      className={`text-xs font-semibold mt-1 ${
+                        formData.quantidadeAtualMaquina &&
+                        Math.max(
+                          0,
+                          estoqueAnterior -
+                            parseInt(formData.quantidadeAtualMaquina || 0),
+                        ) !== saidasCompactPay.saidas
+                          ? "text-orange-600"
+                          : "text-emerald-600"
+                      }`}
+                    >
+                      📟 CompactPay: {saidasCompactPay.saidas} prêmio
+                      {saidasCompactPay.saidas === 1 ? "" : "s"} entregue
+                      {saidasCompactPay.saidas === 1 ? "" : "s"} desde a última
+                      movimentação (
+                      {new Date(saidasCompactPay.desde).toLocaleString("pt-BR")}
+                      ). Esperado no Total Pré:{" "}
+                      {Math.max(
+                        0,
+                        (saidasCompactPay.totalPosAnterior ?? estoqueAnterior) -
+                          saidasCompactPay.saidas,
+                      )}
                     </p>
                   )}
                   {alertaDivergencia && (

@@ -684,7 +684,7 @@ export default function ManutencaoPage() {
                         {item.titulo}
                       </h3>
                       <div className="flex items-center gap-2">
-                        {item.origem === "ALERTA_FICHAS" && (
+                        {item.origem?.startsWith("ALERTA_") && (
                           <Badge variant="danger" size="sm">
                             Alerta automático
                           </Badge>
@@ -705,7 +705,7 @@ export default function ManutencaoPage() {
                     </p>
 
                     <div className="mt-2 space-y-1 text-xs text-gray-600">
-                      {item.origem === "ALERTA_FICHAS" ? (
+                      {item.origem?.startsWith("ALERTA_") ? (
                         <p>
                           Gerado pelo sistema (movimentação de{" "}
                           {item.criadoPor?.nome || "-"})

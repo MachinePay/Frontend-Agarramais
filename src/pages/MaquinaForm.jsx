@@ -63,6 +63,8 @@ export function MaquinaForm() {
     descontoAutomaticoMachinePay: false,
     valorDescontoMachinePay: "",
     fonteDescontoAutomatico: "machinePay",
+    conferirFichasCompactPay: false,
+    conferirSaidaCompactPay: false,
     recebimentoAParteMachinePay: false,
     geradoraDinheiro: false,
     loja_id: "",
@@ -125,6 +127,9 @@ export function MaquinaForm() {
           response.data.fonteDescontoAutomatico === "compactPay"
             ? "compactPay"
             : "machinePay",
+        conferirFichasCompactPay:
+          response.data.conferirFichasCompactPay || false,
+        conferirSaidaCompactPay: response.data.conferirSaidaCompactPay || false,
         recebimentoAParteMachinePay:
           response.data.recebimentoAParteMachinePay || false,
         geradoraDinheiro: response.data.geradoraDinheiro || false,
@@ -199,6 +204,8 @@ export function MaquinaForm() {
           ? parseFloat(formData.valorDescontoMachinePay) || null
           : null,
         fonteDescontoAutomatico: formData.fonteDescontoAutomatico,
+        conferirFichasCompactPay: formData.conferirFichasCompactPay,
+        conferirSaidaCompactPay: formData.conferirSaidaCompactPay,
         recebimentoAParteMachinePay: formData.recebimentoAParteMachinePay,
         geradoraDinheiro: formData.geradoraDinheiro,
         lojaId: formData.loja_id,
@@ -424,6 +431,45 @@ export function MaquinaForm() {
                       ID da placa no painel CompactPay (o mesmo que aparece na lista de máquinas de lá).
                     </p>
                   )}
+
+                  <div className="mt-3 space-y-2">
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        name="conferirFichasCompactPay"
+                        checked={formData.conferirFichasCompactPay}
+                        onChange={handleChange}
+                        disabled={!formData.compactPayId?.trim()}
+                        className="mt-0.5 w-5 h-5 text-primary rounded focus:ring-2 focus:ring-primary"
+                      />
+                      <span>
+                        <span className="block text-sm font-semibold text-gray-700">
+                          Conferir fichas com a CompactPay
+                        </span>
+                        <span className="block text-xs text-gray-500">
+                          A cada movimentação compara as fichas lançadas com as que a placa contou. Se não bater, gera alerta em Manutenção (só admin vê). A máquina precisa estar como "Máquina de ficha" no painel CompactPay.
+                        </span>
+                      </span>
+                    </label>
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        name="conferirSaidaCompactPay"
+                        checked={formData.conferirSaidaCompactPay}
+                        onChange={handleChange}
+                        disabled={!formData.compactPayId?.trim()}
+                        className="mt-0.5 w-5 h-5 text-primary rounded focus:ring-2 focus:ring-primary"
+                      />
+                      <span>
+                        <span className="block text-sm font-semibold text-gray-700">
+                          Conferir saída de prêmio com a CompactPay
+                        </span>
+                        <span className="block text-xs text-gray-500">
+                          A cada movimentação compara quantos prêmios saíram com o que o sensor de saída da placa contou. Se não bater, gera alerta em Manutenção (só admin vê). Só marque se a máquina tem o sensor de saída ligado na placa.
+                        </span>
+                      </span>
+                    </label>
+                  </div>
                 </div>
 
                 <div className="flex items-center">
