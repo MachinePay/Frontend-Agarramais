@@ -62,7 +62,7 @@ export function MaquinaForm() {
     compactPayId: "",
     descontoAutomaticoMachinePay: false,
     valorDescontoMachinePay: "",
-    fonteDescontoAutomatico: "ambos",
+    fonteDescontoAutomatico: "machinePay",
     recebimentoAParteMachinePay: false,
     geradoraDinheiro: false,
     loja_id: "",
@@ -122,7 +122,9 @@ export function MaquinaForm() {
           response.data.descontoAutomaticoMachinePay || false,
         valorDescontoMachinePay: response.data.valorDescontoMachinePay || "",
         fonteDescontoAutomatico:
-          response.data.fonteDescontoAutomatico || "ambos",
+          response.data.fonteDescontoAutomatico === "compactPay"
+            ? "compactPay"
+            : "machinePay",
         recebimentoAParteMachinePay:
           response.data.recebimentoAParteMachinePay || false,
         geradoraDinheiro: response.data.geradoraDinheiro || false,
@@ -470,11 +472,8 @@ export function MaquinaForm() {
                     className="input-field"
                     disabled={!formData.descontoAutomaticoMachinePay}
                   >
-                    <option value="ambos">
-                      Machine Pay + CompactPay (soma os IDs cadastrados)
-                    </option>
-                    <option value="machinePay">Somente Machine Pay</option>
-                    <option value="compactPay">Somente CompactPay</option>
+                    <option value="machinePay">Machine Pay</option>
+                    <option value="compactPay">CompactPay</option>
                   </select>
                   {formData.descontoAutomaticoMachinePay &&
                     ((formData.fonteDescontoAutomatico === "machinePay" &&
