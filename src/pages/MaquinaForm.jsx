@@ -62,6 +62,7 @@ export function MaquinaForm() {
     compactPayId: "",
     descontoAutomaticoMachinePay: false,
     valorDescontoMachinePay: "",
+    fonteDescontoAutomatico: "ambos",
     recebimentoAParteMachinePay: false,
     geradoraDinheiro: false,
     loja_id: "",
@@ -120,6 +121,8 @@ export function MaquinaForm() {
         descontoAutomaticoMachinePay:
           response.data.descontoAutomaticoMachinePay || false,
         valorDescontoMachinePay: response.data.valorDescontoMachinePay || "",
+        fonteDescontoAutomatico:
+          response.data.fonteDescontoAutomatico || "ambos",
         recebimentoAParteMachinePay:
           response.data.recebimentoAParteMachinePay || false,
         geradoraDinheiro: response.data.geradoraDinheiro || false,
@@ -193,6 +196,7 @@ export function MaquinaForm() {
         valorDescontoMachinePay: formData.descontoAutomaticoMachinePay
           ? parseFloat(formData.valorDescontoMachinePay) || null
           : null,
+        fonteDescontoAutomatico: formData.fonteDescontoAutomatico,
         recebimentoAParteMachinePay: formData.recebimentoAParteMachinePay,
         geradoraDinheiro: formData.geradoraDinheiro,
         lojaId: formData.loja_id,
@@ -451,8 +455,40 @@ export function MaquinaForm() {
                     disabled={!formData.descontoAutomaticoMachinePay}
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    A cada esse valor pago na Machine Pay (ou na CompactPay, se a máquina só tiver ID da CompactPay), a próxima coleta já vem com o Total Pré sugerido 1 a menos.
+                    A cada esse valor pago no sistema escolhido abaixo, a próxima coleta já vem com o Total Pré sugerido 1 a menos.
                   </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Descontar pelos pagamentos da
+                  </label>
+                  <select
+                    name="fonteDescontoAutomatico"
+                    value={formData.fonteDescontoAutomatico}
+                    onChange={handleChange}
+                    className="input-field"
+                    disabled={!formData.descontoAutomaticoMachinePay}
+                  >
+                    <option value="ambos">
+                      Machine Pay + CompactPay (soma os IDs cadastrados)
+                    </option>
+                    <option value="machinePay">Somente Machine Pay</option>
+                    <option value="compactPay">Somente CompactPay</option>
+                  </select>
+                  {formData.descontoAutomaticoMachinePay &&
+                    ((formData.fonteDescontoAutomatico === "machinePay" &&
+                      !formData.machinePayPosId?.trim()) ||
+                      (formData.fonteDescontoAutomatico === "compactPay" &&
+                        !formData.compactPayId?.trim())) && (
+                      <p className="text-xs text-amber-600 mt-1">
+                        Preencha o ID da{" "}
+                        {formData.fonteDescontoAutomatico === "machinePay"
+                          ? "Machine Pay (POS ID)"
+                          : "CompactPay"}{" "}
+                        para o desconto automático funcionar.
+                      </p>
+                    )}
                 </div>
 
                 <div>
