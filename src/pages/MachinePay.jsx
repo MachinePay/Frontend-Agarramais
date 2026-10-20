@@ -18,6 +18,7 @@ import { Footer } from "../components/Footer";
 import { AlertBox, Modal, PageHeader } from "../components/UIComponents";
 import { LoadingSpinner } from "../components/Loading";
 import { useAuth } from "../contexts/AuthContext";
+import { AbasMachinePay } from "../components/AbasMachinePay";
 
 // ---------------------------------------------------------------------------
 // Constantes e formatação
@@ -1396,6 +1397,8 @@ export function MachinePay() {
             </div>
           }
         />
+
+        <AbasMachinePay />
 
         {erroResumo && <AlertBox type="error" title="Problema" message={erroResumo} onClose={() => setErroResumo("")} />}
         {monitor && !monitor.configurado && (
