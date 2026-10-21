@@ -24,6 +24,7 @@ import { RankingMaquinas } from "./pages/RankingMaquinas";
 import { Relatorios } from "./pages/Relatorios";
 import { MachinePay } from "./pages/MachinePay";
 import { CompactPay } from "./pages/CompactPay";
+import { CriarCaixasMachinePay } from "./pages/CriarCaixasMachinePay";
 import { CreditosRemotos } from "./pages/CreditosRemotos";
 import { Correios } from "./pages/Correios";
 import { CreditoRemotoPublico } from "./pages/CreditoRemotoPublico";
@@ -247,6 +248,14 @@ function App() {
             element={
               <PrivateRoute roles={["ADMIN", "MACHINEPAY"]}>
                 <MachinePay />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/machine-pay/criar-caixas"
+            element={
+              <PrivateRoute adminOnly>
+                <CriarCaixasMachinePay />
               </PrivateRoute>
             }
           />
