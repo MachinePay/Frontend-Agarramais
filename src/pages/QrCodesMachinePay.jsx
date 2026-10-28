@@ -7,9 +7,11 @@ import { PageHeader, AlertBox } from "../components/UIComponents";
 import { AbasMachinePay } from "../components/AbasMachinePay";
 import api from "../services/api";
 
-// Tamanho do PNG e margem branca em volta (em "módulos" do QR: 1 módulo ≈ 10px).
-const TAMANHO_QR = 600;
-const MARGEM_QR = 1;
+// Etiqueta 10 x 10 cm na Argox OS-214 Plus (203 dpi = 8 pontos/mm): o PNG
+// tem o tamanho da etiqueta e o QR ocupa ~5 x 5 cm no meio, o resto é branco.
+const PONTOS_POR_MM = 8;
+const ETIQUETA_MM = 100;
+const QR_MM = 50;
 
 const normalizar = (texto) =>
   String(texto || "")
@@ -36,16 +38,69 @@ const baixar = (blob, nome) => {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
+// CRC32 do PNG, para gravar o bloco pHYs (DPI) no arquivo.
+const TABELA_CRC = Array.from({ length: 256 }, (_, n) => {
+  let c = n;
+  for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  return c >>> 0;
+});
+const crc32 = (bytes) => {
+  let c = 0xffffffff;
+  for (const byte of bytes) c = TABELA_CRC[(c ^ byte) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+};
+
+// Marca o PNG como 203 dpi, pra impressão em "tamanho real" sair com 10 cm.
+const comDpi = (png) => {
+  const pontosPorMetro = PONTOS_POR_MM * 1000;
+  const bloco = new Uint8Array(21);
+  const dados = new DataView(bloco.buffer);
+  dados.setUint32(0, 9);
+  bloco.set([0x70, 0x48, 0x59, 0x73], 4); // "pHYs"
+  dados.setUint32(8, pontosPorMetro);
+  dados.setUint32(12, pontosPorMetro);
+  bloco[16] = 1; // unidade: metro
+  dados.setUint32(17, crc32(bloco.subarray(4, 17)));
+  // Logo depois do IHDR (assinatura 8 bytes + IHDR 25 bytes).
+  const saida = new Uint8Array(png.length + bloco.length);
+  saida.set(png.subarray(0, 33));
+  saida.set(bloco, 33);
+  saida.set(png.subarray(33), 33 + bloco.length);
+  return saida;
+};
+
 // Desenha o QR a partir do texto PIX do caixa (campo qr_code do Mercado Pago):
 // é o mesmo QR do link do "Consultar caixa", já sem a moldura do template.
+// Cada módulo do QR vira um número inteiro de pontos da impressora, pra sair
+// nítido no adesivo.
 const gerarPng = async (qrCode) => {
-  const dataUrl = await QRCode.toDataURL(qrCode, {
-    width: TAMANHO_QR,
-    margin: MARGEM_QR,
-    errorCorrectionLevel: "M",
-    color: { dark: "#000000", light: "#ffffff" },
+  const { modules } = QRCode.create(qrCode, { errorCorrectionLevel: "M" });
+  const etiqueta = ETIQUETA_MM * PONTOS_POR_MM;
+  const escala = Math.floor((QR_MM * PONTOS_POR_MM) / modules.size);
+  const inicio = Math.round((etiqueta - modules.size * escala) / 2);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = etiqueta;
+  canvas.height = etiqueta;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, etiqueta, etiqueta);
+  ctx.fillStyle = "#000000";
+  for (let linha = 0; linha < modules.size; linha += 1) {
+    for (let coluna = 0; coluna < modules.size; coluna += 1) {
+      if (modules.get(linha, coluna)) {
+        ctx.fillRect(inicio + coluna * escala, inicio + linha * escala, escala, escala);
+      }
+    }
+  }
+
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+  const png = comDpi(new Uint8Array(await blob.arrayBuffer()));
+  let binario = "";
+  png.forEach((byte) => {
+    binario += String.fromCharCode(byte);
   });
-  return dataUrl.split(",")[1];
+  return btoa(binario);
 };
 
 const base64ParaBlob = (base64) =>
