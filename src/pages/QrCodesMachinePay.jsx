@@ -66,7 +66,7 @@ export function QrCodesMachinePay() {
 
   useEffect(() => {
     api
-      .get("/machine-pay/caixas/clientes")
+      .get("/machine-pay/caixas/qrcodes/clientes")
       .then((response) => setClientes(response.data.clientes || []))
       .catch((err) =>
         setError(err.response?.data?.error || "Erro ao carregar os clientes da Machine Pay."),
@@ -85,7 +85,7 @@ export function QrCodesMachinePay() {
     const termo = normalizar(filtroCaixa);
     return termo
       ? caixas.filter(
-          (caixa) => normalizar(caixa.nome).includes(termo) || caixa.idCaixa.includes(termo),
+          (caixa) => normalizar(caixa.ponto).includes(termo) || caixa.idCaixa.includes(termo),
         )
       : caixas;
   }, [filtroCaixa, caixas]);
@@ -100,7 +100,7 @@ export function QrCodesMachinePay() {
     setCaixas([]);
     try {
       setCarregandoCaixas(true);
-      const response = await api.get(`/machine-pay/caixas/clientes/${escolhido.id}/qrcodes`);
+      const response = await api.get(`/machine-pay/caixas/qrcodes/clientes/${escolhido.id}`);
       setCaixas(response.data.caixas || []);
     } catch (err) {
       setError(err.response?.data?.error || "Erro ao buscar os caixas do cliente.");
@@ -135,7 +135,7 @@ export function QrCodesMachinePay() {
     setError("");
     setFalhas([]);
     try {
-      const response = await api.post(`/machine-pay/caixas/clientes/${cliente.id}/qrcodes`, {
+      const response = await api.post(`/machine-pay/caixas/qrcodes/clientes/${cliente.id}`, {
         ids: caixas.filter((c) => selecionados.has(c.idCaixa)).map((c) => c.idCaixa),
       });
       const resultado = response.data.caixas || [];
@@ -147,17 +147,22 @@ export function QrCodesMachinePay() {
         return;
       }
 
-      // Nome repetido entre caixas ganha o ID no arquivo pra não sobrescrever.
+      // Arquivo = nome do caixa + nome do ponto (quando diferente). Nome
+      // repetido ganha o ID do caixa pra não sobrescrever.
+      const nomes = comQr.map((caixa) =>
+        nomeArquivo(
+          [caixa.nome, normalizar(caixa.ponto) !== normalizar(caixa.nome) ? caixa.ponto : ""]
+            .filter(Boolean)
+            .join(" - ") || caixa.idCaixa,
+        ),
+      );
       const contagem = {};
-      comQr.forEach((caixa) => {
-        const chave = normalizar(caixa.nome);
-        contagem[chave] = (contagem[chave] || 0) + 1;
+      nomes.forEach((nome) => {
+        contagem[normalizar(nome)] = (contagem[normalizar(nome)] || 0) + 1;
       });
       const arquivos = await Promise.all(
-        comQr.map(async (caixa) => ({
-          nome: `${nomeArquivo(caixa.nome)}${
-            contagem[normalizar(caixa.nome)] > 1 || !caixa.nome ? ` (${caixa.idCaixa})` : ""
-          }.png`,
+        comQr.map(async (caixa, i) => ({
+          nome: `${nomes[i]}${contagem[normalizar(nomes[i])] > 1 ? ` (${caixa.idCaixa})` : ""}.png`,
           base64: await gerarPng(caixa.qrCode),
         })),
       );
@@ -254,14 +259,14 @@ export function QrCodesMachinePay() {
             {!cliente ? (
               <p className="text-gray-600">Escolha o cliente primeiro.</p>
             ) : carregandoCaixas ? (
-              <p className="text-gray-600">Buscando caixas no Mercado Pago...</p>
+              <p className="text-gray-600">Buscando caixas no painel...</p>
             ) : caixas.length === 0 ? (
-              <p className="text-gray-600">Este cliente não tem caixas.</p>
+              <p className="text-gray-600">Este cliente não tem caixas na tela de Equipamentos.</p>
             ) : (
               <div className="space-y-3">
                 <input
                   className="input-field w-full"
-                  placeholder="Filtrar caixas por nome ou ID"
+                  placeholder="Filtrar por nome do ponto ou ID do caixa"
                   value={filtroCaixa}
                   onChange={(event) => setFiltroCaixa(event.target.value)}
                   disabled={baixando}
@@ -288,13 +293,8 @@ export function QrCodesMachinePay() {
                             onChange={() => alternar(caixa.idCaixa)}
                             disabled={baixando}
                           />
-                          <span className="font-semibold text-gray-900">{caixa.nome || "—"}</span>
-                          <span className="font-mono text-xs text-gray-500">{caixa.idCaixa}</span>
-                          {!caixa.temQr && (
-                            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
-                              sem QR
-                            </span>
-                          )}
+                          <span className="font-semibold text-gray-900">{caixa.ponto || "—"}</span>
+                          <span className="font-mono text-xs text-gray-500">Caixa {caixa.idCaixa}</span>
                         </label>
                       </li>
                     ))}
@@ -334,7 +334,7 @@ export function QrCodesMachinePay() {
                     <ul className="mt-1 list-disc pl-5">
                       {falhas.map((caixa) => (
                         <li key={caixa.idCaixa}>
-                          {caixa.nome || caixa.idCaixa}: {caixa.erro}
+                          {caixa.ponto || caixa.idCaixa}: {caixa.erro}
                         </li>
                       ))}
                     </ul>
