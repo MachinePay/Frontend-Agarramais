@@ -1,13 +1,18 @@
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
-// Abas da área Machine Pay. "Criar Caixas" só aparece para ADMIN.
+// Abas da área Machine Pay. "Criar Caixas" e "QR Codes" só aparecem para ADMIN.
 export function AbasMachinePay() {
   const { isAdmin } = useAuth();
 
   const abas = [
     { to: "/machine-pay", label: "📡 Máquinas", end: true },
-    ...(isAdmin() ? [{ to: "/machine-pay/criar-caixas", label: "🏠 Criar Caixas" }] : []),
+    ...(isAdmin()
+      ? [
+          { to: "/machine-pay/criar-caixas", label: "🏠 Criar Caixas" },
+          { to: "/machine-pay/qr-codes", label: "🔳 QR Codes" },
+        ]
+      : []),
   ];
 
   if (abas.length < 2) return null;

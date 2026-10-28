@@ -25,6 +25,7 @@ import { Relatorios } from "./pages/Relatorios";
 import { MachinePay } from "./pages/MachinePay";
 import { CompactPay } from "./pages/CompactPay";
 import { CriarCaixasMachinePay } from "./pages/CriarCaixasMachinePay";
+import { QrCodesMachinePay } from "./pages/QrCodesMachinePay";
 import { CreditosRemotos } from "./pages/CreditosRemotos";
 import { Correios } from "./pages/Correios";
 import { CreditoRemotoPublico } from "./pages/CreditoRemotoPublico";
@@ -256,6 +257,14 @@ function App() {
             element={
               <PrivateRoute adminOnly>
                 <CriarCaixasMachinePay />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/machine-pay/qr-codes"
+            element={
+              <PrivateRoute adminOnly>
+                <QrCodesMachinePay />
               </PrivateRoute>
             }
           />
