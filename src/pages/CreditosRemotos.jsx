@@ -306,7 +306,7 @@ export function CreditosRemotos() {
   const criarLinkTeste = () => {
     if (!maquinaTeste) {
       setError(
-        `A máquina "${NOME_MAQUINA_TESTE}" não foi encontrada. Cadastre-a em Máquinas com o ID Machine Pay (número do Caixa) e deixe ativa.`,
+        `A máquina "${NOME_MAQUINA_TESTE}" não foi encontrada. Cadastre-a em Máquinas com o ID Machine Pay (número do Caixa) ou da CompactPay e deixe ativa.`,
       );
       return;
     }
@@ -429,7 +429,7 @@ export function CreditosRemotos() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <PageHeader
           title="Vouchers Remotos"
-          subtitle="Vouchers com QR Code para jogar nas máquinas Machine Pay"
+          subtitle="Vouchers com QR Code para jogar nas máquinas Machine Pay e CompactPay"
           icon="🔗"
           action={
             <button
@@ -528,7 +528,7 @@ export function CreditosRemotos() {
                 <div className="rounded-lg border border-gray-200 bg-white p-3 max-h-56 overflow-y-auto space-y-1">
                   {lojasMachinePay.length === 0 ? (
                     <p className="text-sm text-amber-700">
-                      Nenhuma loja ativa com máquina Machine Pay.
+                      Nenhuma loja ativa com máquina Machine Pay ou CompactPay.
                     </p>
                   ) : (
                     lojasMachinePay.map((loja) => (
@@ -595,7 +595,7 @@ export function CreditosRemotos() {
                 </p>
                 {maquinasPermitidas.length === 0 ? (
                   <p className="text-sm text-amber-700">
-                    Nenhuma máquina ativa com "GRU" no nome e ID Machine Pay.
+                    Nenhuma máquina ativa com "GRU" no nome e ID Machine Pay ou CompactPay.
                   </p>
                 ) : (
                   <ul className="text-sm text-gray-700 space-y-1">
