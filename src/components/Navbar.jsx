@@ -3,7 +3,13 @@ import { useAuth } from "../contexts/AuthContext";
 import { useEffect, useRef, useState } from "react";
 
 export function Navbar() {
-  const { usuario, logout, hasRole, alertasManutencaoCount } = useAuth();
+  const {
+    usuario,
+    logout,
+    hasRole,
+    alertasManutencaoCount,
+    alertasCompactPayCount,
+  } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -72,6 +78,14 @@ export function Navbar() {
     if (hasRole("ADMIN", "MACHINEPAY")) {
       links.push({ to: "/machine-pay", label: "💳 Machine Pay" });
       links.push({ to: "/compact-pay", label: "📟 CompactPay" });
+    }
+    if (usuario?.role === "ADMIN") {
+      links.push({
+        to: "/alertas-compactpay",
+        label: "🚨 Alertas CompactPay",
+        alert: alertasCompactPayCount > 0,
+        badge: alertasCompactPayCount > 0 ? alertasCompactPayCount : null,
+      });
     }
     if (usuario?.role === "ADMIN") {
       links.push({ to: "/creditos-remotos", label: "🎟️ Vouchers Remotos" });

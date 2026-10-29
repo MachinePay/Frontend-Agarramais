@@ -24,6 +24,7 @@ import { RankingMaquinas } from "./pages/RankingMaquinas";
 import { Relatorios } from "./pages/Relatorios";
 import { MachinePay } from "./pages/MachinePay";
 import { CompactPay } from "./pages/CompactPay";
+import { AlertasCompactPay } from "./pages/AlertasCompactPay";
 import { CriarCaixasMachinePay } from "./pages/CriarCaixasMachinePay";
 import { QrCodesMachinePay } from "./pages/QrCodesMachinePay";
 import { CreditosRemotos } from "./pages/CreditosRemotos";
@@ -217,6 +218,14 @@ function App() {
             element={
               <PrivateRoute>
                 <ManutencaoPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/alertas-compactpay"
+            element={
+              <PrivateRoute adminOnly>
+                <AlertasCompactPay />
               </PrivateRoute>
             }
           />

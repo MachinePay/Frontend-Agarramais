@@ -13,6 +13,7 @@ export function AuthProvider({ children }) {
   const [usuario, setUsuario] = useState(null);
   const [loading, setLoading] = useState(true);
   const [alertasManutencaoCount, setAlertasManutencaoCount] = useState(0);
+  const [alertasCompactPayCount, setAlertasCompactPayCount] = useState(0);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -50,8 +51,24 @@ export function AuthProvider({ children }) {
       }
     };
 
+    // Alertas da conferência com a placa CompactPay (badge do menu).
+    const buscarCompactPay = async () => {
+      try {
+        const response = await api.get("/manutencoes/alertas-compactpay", {
+          params: { apenasContagem: 1 },
+        });
+        setAlertasCompactPayCount(Number(response.data?.pendentes || 0));
+      } catch {
+        // Silencioso, igual aos alertas de manutenção.
+      }
+    };
+
     buscar();
-    const intervalId = setInterval(buscar, 30000);
+    buscarCompactPay();
+    const intervalId = setInterval(() => {
+      buscar();
+      buscarCompactPay();
+    }, 30000);
 
     return () => clearInterval(intervalId);
   }, [usuario?.role]);
@@ -124,6 +141,9 @@ export function AuthProvider({ children }) {
         alertasManutencaoCount:
           usuario?.role === "ADMIN" ? alertasManutencaoCount : 0,
         atualizarAlertasManutencaoCount,
+        alertasCompactPayCount:
+          usuario?.role === "ADMIN" ? alertasCompactPayCount : 0,
+        setAlertasCompactPayCount,
       }}
     >
       {children}
