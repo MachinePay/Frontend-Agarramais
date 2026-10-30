@@ -902,7 +902,20 @@ export function Dashboard() {
               return { data: { performance: [] } };
             }),
           api
-            .get("/registro-dinheiro", { params: { semLojasTeste: true } })
+            .get("/registro-dinheiro", {
+              params: {
+                semLojasTeste: true,
+                // Só o mês anterior em diante (com 1 dia de folga para
+                // fuso); o histórico inteiro não é usado aqui.
+                fimAPartirDe: formatarDataParametro(
+                  new Date(
+                    inicioMesAnterior.getFullYear(),
+                    inicioMesAnterior.getMonth(),
+                    inicioMesAnterior.getDate() - 1,
+                  ),
+                ),
+              },
+            })
             .catch((err) => {
               console.error(
                 "Erro ao carregar registros de dinheiro do mês:",
@@ -1032,19 +1045,6 @@ export function Dashboard() {
         alertasRes = { data: { alertas: [] } };
         alertasBomDesempenhoRes = { data: { alertas: [] } };
         balancoRes = { data: null };
-      }
-
-      console.log("Lojas carregadas:", lojasRes.data);
-      console.log("Máquinas carregadas:", maquinasRes.data);
-      console.log("Produtos carregados:", produtosRes.data);
-      if (isAdmin) {
-        console.log("Balanço Mensal:", balancoRes.data);
-        console.log("Estrutura completa de totais:", balancoRes.data?.totais);
-        console.log("Total de Fichas:", balancoRes.data?.totais?.totalFichas);
-        console.log(
-          "Total de Faturamento:",
-          balancoRes.data?.totais?.totalFaturamento,
-        );
       }
 
       setStats({
@@ -1185,7 +1185,6 @@ export function Dashboard() {
       });
 
       setAlertasEstoqueLoja(todosAlertas);
-      console.log("Alertas de estoque de lojas:", todosAlertas);
     } catch (error) {
       console.error("Erro ao carregar alertas de estoque de lojas:", error);
       setAlertasEstoqueLoja([]);
@@ -1290,10 +1289,6 @@ export function Dashboard() {
       const lojasData = lojasRes.data || [];
       const maquinasData = maquinasRes.data || [];
 
-      console.log("Movimentações:", movimentacoes);
-      console.log("Produtos:", produtosData);
-      console.log("Lojas:", lojasData);
-      console.log("Máquinas:", maquinasData);
 
       // Agrupar vendas por produto
       const produtosMap = {};
@@ -1350,7 +1345,6 @@ export function Dashboard() {
         .filter((p) => p.totalVendido > 0)
         .sort((a, b) => b.totalVendido - a.totalVendido);
 
-      console.log("Produtos agrupados:", produtosArray);
       setVendasPorProduto(produtosArray);
     } catch (error) {
       console.error("Erro ao carregar vendas por produto:", error);
@@ -2229,11 +2223,7 @@ export function Dashboard() {
 
   // Máquinas da loja selecionada
   const maquinasDaLoja = lojaSelecionada
-    ? (() => {
-        const result = maquinas.filter((m) => m.lojaId === lojaSelecionada.id);
-        console.log("Máquinas da loja selecionada:", result);
-        return result;
-      })()
+    ? maquinas.filter((m) => m.lojaId === lojaSelecionada.id)
     : [];
 
   // Busca estoques das máquinas da loja selecionada
@@ -2315,8 +2305,6 @@ export function Dashboard() {
     return <PageLoader />;
   }
 
-  console.log("Estado stats no render:", stats);
-  console.log("Fichas no render:", stats.balanco?.totais?.totalFichas);
 
   const formatarMoeda = (valor) =>
     Number(valor || 0).toLocaleString("pt-BR", {
@@ -3806,19 +3794,6 @@ export function Dashboard() {
               {maquinasDaLoja.length > 0 ? (
                 maquinasDaLoja.map((maquina) => {
                   const produtoAtual = produtoAtualMaquinas[maquina.id];
-                  console.log("Dados da máquina:", maquina);
-                  if (maquina.movimentacoes) {
-                    console.log(
-                      `Movimentações da máquina ${maquina.codigo}:`,
-                      maquina.movimentacoes,
-                    );
-                  }
-                  if (maquina.sairam !== undefined) {
-                    console.log(
-                      `Saíram da máquina ${maquina.codigo}:`,
-                      maquina.sairam,
-                    );
-                  }
                   return (
                     <div
                       key={maquina.id}

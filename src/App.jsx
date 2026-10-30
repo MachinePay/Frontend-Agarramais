@@ -1,51 +1,128 @@
-import Veiculos from "./pages/Veiculos";
-import Alertas from "./pages/Alertas";
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { PrivateRoute } from "./components/PrivateRoute";
 import { Login } from "./pages/Login";
-import { Registrar } from "./pages/Registrar";
-import { Dashboard } from "./pages/Dashboard";
-import { Usuarios } from "./pages/Usuarios";
-import { UsuarioForm } from "./pages/UsuarioForm";
-import { Lojas } from "./pages/Lojas";
-import { LojaForm } from "./pages/LojaForm";
-import { LojaDetalhes } from "./pages/LojaDetalhes";
-import { Maquinas } from "./pages/Maquinas";
-import { MaquinaForm } from "./pages/MaquinaForm";
-import { MaquinaDetalhes } from "./pages/MaquinaDetalhes";
-import { Produtos } from "./pages/Produtos";
-import { ProdutosAComprar } from "./pages/ProdutosAComprar";
-import { ProdutoForm } from "./pages/ProdutoForm";
-import { Movimentacoes } from "./pages/Movimentacoes";
-import ManutencaoPage from "./pages/ManutencaoPage";
-import { Graficos } from "./pages/Graficos";
-import { RankingMaquinas } from "./pages/RankingMaquinas";
-import { Relatorios } from "./pages/Relatorios";
-import { MachinePay } from "./pages/MachinePay";
-import { CompactPay } from "./pages/CompactPay";
-import { AlertasCompactPay } from "./pages/AlertasCompactPay";
-import { CriarCaixasMachinePay } from "./pages/CriarCaixasMachinePay";
-import { QrCodesMachinePay } from "./pages/QrCodesMachinePay";
-import { CreditosRemotos } from "./pages/CreditosRemotos";
-import { Correios } from "./pages/Correios";
-import { CreditoRemotoPublico } from "./pages/CreditoRemotoPublico";
-import { BuscaTransportadoras } from "./pages/BuscaTransportadoras";
-import { CalculadoraPedidos } from "./pages/CalculadoraPedidos";
-import { Sangrias } from "./pages/Sangrias";
-import { PedidosNotasFiscais } from "./pages/PedidosNotasFiscais";
-import { GastosVariaveis } from "./pages/GastosVariaveis";
-import { StyleGuide } from "./pages/StyleGuide";
-import { AnaliseEstoque } from "./pages/AnaliseEstoque";
-import { SuporteTecnico } from "./pages/suporteTecnico/SuporteTecnico";
-import { SuporteTecnicoHistorico } from "./pages/suporteTecnico/SuporteTecnicoHistorico";
-import { SuporteTecnicoDevolucoesPendentes } from "./pages/suporteTecnico/SuporteTecnicoDevolucoesPendentes";
 import "./App.css";
+import { PageLoader } from "./components/Loading";
+
+// Cada página vira um arquivo JS separado, baixado só quando a rota é
+// aberta (antes o app inteiro — gráficos, QR code, zip… — vinha no
+// primeiro carregamento).
+const Veiculos = lazy(() => import("./pages/Veiculos"));
+const Alertas = lazy(() => import("./pages/Alertas"));
+const Registrar = lazy(() =>
+  import("./pages/Registrar").then((m) => ({ default: m.Registrar })),
+);
+const Dashboard = lazy(() =>
+  import("./pages/Dashboard").then((m) => ({ default: m.Dashboard })),
+);
+const Usuarios = lazy(() =>
+  import("./pages/Usuarios").then((m) => ({ default: m.Usuarios })),
+);
+const UsuarioForm = lazy(() =>
+  import("./pages/UsuarioForm").then((m) => ({ default: m.UsuarioForm })),
+);
+const Lojas = lazy(() =>
+  import("./pages/Lojas").then((m) => ({ default: m.Lojas })),
+);
+const LojaForm = lazy(() =>
+  import("./pages/LojaForm").then((m) => ({ default: m.LojaForm })),
+);
+const LojaDetalhes = lazy(() =>
+  import("./pages/LojaDetalhes").then((m) => ({ default: m.LojaDetalhes })),
+);
+const Maquinas = lazy(() =>
+  import("./pages/Maquinas").then((m) => ({ default: m.Maquinas })),
+);
+const MaquinaForm = lazy(() =>
+  import("./pages/MaquinaForm").then((m) => ({ default: m.MaquinaForm })),
+);
+const MaquinaDetalhes = lazy(() =>
+  import("./pages/MaquinaDetalhes").then((m) => ({ default: m.MaquinaDetalhes })),
+);
+const Produtos = lazy(() =>
+  import("./pages/Produtos").then((m) => ({ default: m.Produtos })),
+);
+const ProdutosAComprar = lazy(() =>
+  import("./pages/ProdutosAComprar").then((m) => ({ default: m.ProdutosAComprar })),
+);
+const ProdutoForm = lazy(() =>
+  import("./pages/ProdutoForm").then((m) => ({ default: m.ProdutoForm })),
+);
+const Movimentacoes = lazy(() =>
+  import("./pages/Movimentacoes").then((m) => ({ default: m.Movimentacoes })),
+);
+const ManutencaoPage = lazy(() => import("./pages/ManutencaoPage"));
+const Graficos = lazy(() =>
+  import("./pages/Graficos").then((m) => ({ default: m.Graficos })),
+);
+const RankingMaquinas = lazy(() =>
+  import("./pages/RankingMaquinas").then((m) => ({ default: m.RankingMaquinas })),
+);
+const Relatorios = lazy(() =>
+  import("./pages/Relatorios").then((m) => ({ default: m.Relatorios })),
+);
+const MachinePay = lazy(() =>
+  import("./pages/MachinePay").then((m) => ({ default: m.MachinePay })),
+);
+const CompactPay = lazy(() =>
+  import("./pages/CompactPay").then((m) => ({ default: m.CompactPay })),
+);
+const AlertasCompactPay = lazy(() =>
+  import("./pages/AlertasCompactPay").then((m) => ({ default: m.AlertasCompactPay })),
+);
+const CriarCaixasMachinePay = lazy(() =>
+  import("./pages/CriarCaixasMachinePay").then((m) => ({ default: m.CriarCaixasMachinePay })),
+);
+const QrCodesMachinePay = lazy(() =>
+  import("./pages/QrCodesMachinePay").then((m) => ({ default: m.QrCodesMachinePay })),
+);
+const CreditosRemotos = lazy(() =>
+  import("./pages/CreditosRemotos").then((m) => ({ default: m.CreditosRemotos })),
+);
+const Correios = lazy(() =>
+  import("./pages/Correios").then((m) => ({ default: m.Correios })),
+);
+const CreditoRemotoPublico = lazy(() =>
+  import("./pages/CreditoRemotoPublico").then((m) => ({ default: m.CreditoRemotoPublico })),
+);
+const BuscaTransportadoras = lazy(() =>
+  import("./pages/BuscaTransportadoras").then((m) => ({ default: m.BuscaTransportadoras })),
+);
+const CalculadoraPedidos = lazy(() =>
+  import("./pages/CalculadoraPedidos").then((m) => ({ default: m.CalculadoraPedidos })),
+);
+const Sangrias = lazy(() =>
+  import("./pages/Sangrias").then((m) => ({ default: m.Sangrias })),
+);
+const PedidosNotasFiscais = lazy(() =>
+  import("./pages/PedidosNotasFiscais").then((m) => ({ default: m.PedidosNotasFiscais })),
+);
+const GastosVariaveis = lazy(() =>
+  import("./pages/GastosVariaveis").then((m) => ({ default: m.GastosVariaveis })),
+);
+const StyleGuide = lazy(() =>
+  import("./pages/StyleGuide").then((m) => ({ default: m.StyleGuide })),
+);
+const AnaliseEstoque = lazy(() =>
+  import("./pages/AnaliseEstoque").then((m) => ({ default: m.AnaliseEstoque })),
+);
+const SuporteTecnico = lazy(() =>
+  import("./pages/suporteTecnico/SuporteTecnico").then((m) => ({ default: m.SuporteTecnico })),
+);
+const SuporteTecnicoHistorico = lazy(() =>
+  import("./pages/suporteTecnico/SuporteTecnicoHistorico").then((m) => ({ default: m.SuporteTecnicoHistorico })),
+);
+const SuporteTecnicoDevolucoesPendentes = lazy(() =>
+  import("./pages/suporteTecnico/SuporteTecnicoDevolucoesPendentes").then((m) => ({ default: m.SuporteTecnicoDevolucoesPendentes })),
+);
 
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route
             path="/veiculos"
@@ -367,6 +444,7 @@ function App() {
           />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </AuthProvider>
   );
