@@ -117,6 +117,8 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
           maquinaId: maquinaSelecionada,
           inicio: periodoSelecionado.inicio,
           fim: periodoSelecionado.fim,
+          // Só o que ainda não foi fechado na CompactPay.
+          apenasAbertas: 1,
         },
       });
 
