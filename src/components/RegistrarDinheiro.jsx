@@ -596,13 +596,21 @@ const RegistrarDinheiro = ({ lojas, maquinas, onSubmit }) => {
               (resumoMachinePay?.fonte === "compactPay" ||
                 resumoMachinePay?.fonte === "ambos") && (
                 <>
-                  {resumoMachinePay.fisico > 0 && (
-                    <div style={{ marginTop: 4 }}>
-                      Físico contado pela placa CompactPay (noteiro/moedeiro):
-                      R$ {resumoMachinePay.fisico.toFixed(2)} — confira com o
-                      dinheiro recolhido.
-                    </div>
-                  )}
+                  {resumoMachinePay.fisico > 0 &&
+                    (resumoMachinePay.maquinaFicha ? (
+                      <div style={{ marginTop: 4 }}>
+                        Máquina de ficha: R${" "}
+                        {resumoMachinePay.fisico.toFixed(2)} em fichas contadas
+                        pela placa CompactPay — não entra no faturamento da
+                        máquina (as fichas são vendidas no caixa da loja).
+                      </div>
+                    ) : (
+                      <div style={{ marginTop: 4 }}>
+                        Físico contado pela placa CompactPay (noteiro/moedeiro):
+                        R$ {resumoMachinePay.fisico.toFixed(2)} — confira com o
+                        dinheiro recolhido.
+                      </div>
+                    ))}
                   <div style={{ marginTop: 4, fontSize: 12 }}>
                     Ao salvar, o fechamento do mês é feito na{" "}
                     {resumoMachinePay.fonte === "ambos"
