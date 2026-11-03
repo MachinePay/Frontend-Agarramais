@@ -249,6 +249,8 @@ export default function ManutencaoPage() {
         quantidade_notas_entrada: dados.quantidade_notas_entrada,
         valor_entrada_maquininha_pix: dados.valor_entrada_maquininha_pix,
         observacao: alerta.observacao,
+        // A movimentação aconteceu quando o alerta foi gerado, não agora.
+        dataColeta: alerta.createdAt,
         alertaId: alerta.id,
         origem: "AlertaMovimentacao",
       },

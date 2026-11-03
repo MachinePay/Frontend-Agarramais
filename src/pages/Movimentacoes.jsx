@@ -81,6 +81,14 @@ const nomeFontePagamento = (fonte) =>
       ? "CompactPay"
       : "Machine Pay";
 
+// Data no formato do <input type="datetime-local"> (YYYY-MM-DDTHH:mm, hora local).
+const paraInputDataHora = (valor) => {
+  const data = valor ? new Date(valor) : new Date();
+  if (Number.isNaN(data.getTime())) return "";
+  const local = new Date(data.getTime() - data.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+};
+
 export function Movimentacoes() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -146,7 +154,10 @@ export function Movimentacoes() {
   });
 
   // Formulário Nova Movimentação
+  // dataColeta vazio = horário do lançamento (padrão). Só admin preenche,
+  // para lançar uma movimentação que ficou para trás.
   const [formData, setFormData] = useState({
+    dataColeta: "",
     maquina_id: "",
     produto_id: "",
     quantidadeAtualMaquina: "",
@@ -188,6 +199,11 @@ export function Movimentacoes() {
   });
   const [confirmacaoContadorIn, setConfirmacaoContadorIn] = useState(false);
   const [confirmacaoContadorOut, setConfirmacaoContadorOut] = useState(false);
+
+  // Data escolhida pelo admin em ISO (null = lançamento no horário atual).
+  const dataColetaIso = formData.dataColeta
+    ? new Date(formData.dataColeta).toISOString()
+    : null;
 
   // --- EFEITOS ---
   useEffect(() => {
@@ -239,6 +255,7 @@ export function Movimentacoes() {
         "",
       observacao: state.observacao ?? params.get("observacao") ?? "",
       alertaId: state.alertaId ?? params.get("alertaId") ?? null,
+      dataColeta: state.dataColeta ?? params.get("dataColeta") ?? "",
     });
   }, [location.search, location.state]);
 
@@ -288,6 +305,13 @@ export function Movimentacoes() {
         movimentacaoAssistentePendente.valor_entrada_maquininha_pix,
       ),
       observacao: campoOuVazio(movimentacaoAssistentePendente.observacao),
+      // Vindo de um alerta da Manutenção, já chega com a data/hora em que
+      // a movimentação aconteceu (só admin pode lançar com outra data).
+      dataColeta:
+        movimentacaoAssistentePendente.dataColeta &&
+        usuario?.role === "ADMIN"
+          ? paraInputDataHora(movimentacaoAssistentePendente.dataColeta)
+          : "",
     }));
     setAlertaOrigemId(movimentacaoAssistentePendente.alertaId || null);
     setMovimentacaoAssistentePendente(null);
@@ -297,7 +321,7 @@ export function Movimentacoes() {
         .getElementById("form-nova-movimentacao")
         ?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
-  }, [movimentacaoAssistentePendente, loading]);
+  }, [movimentacaoAssistentePendente, loading, usuario?.role]);
 
   // Atualizar estoque anterior quando seleciona máquina
   useEffect(() => {
@@ -305,11 +329,11 @@ export function Movimentacoes() {
       const maquina = maquinas.find(
         (m) => String(m.id) === String(formData.maquina_id),
       );
-      if (maquina) {
+      if (maquina && !formData.dataColeta) {
         setEstoqueAnterior(maquina.estoqueAtual || 0);
       }
     }
-  }, [formData.maquina_id, maquinas]);
+  }, [formData.maquina_id, formData.dataColeta, maquinas]);
 
   // Verificar divergência entre contador OUT e total pre informado
   useEffect(() => {
@@ -334,10 +358,15 @@ export function Movimentacoes() {
       }
 
       try {
-        // Buscar última movimentação da máquina
-        const response = await api.get(
-          `/movimentacoes?maquinaId=${formData.maquina_id}&limite=1`,
-        );
+        // Buscar última movimentação da máquina (até a data escolhida, se
+        // for um lançamento retroativo)
+        const response = await api.get("/movimentacoes", {
+          params: {
+            maquinaId: formData.maquina_id,
+            limite: 1,
+            dataFim: dataColetaIso || undefined,
+          },
+        });
         const movimentacoes = response.data;
 
         if (movimentacoes && movimentacoes.length > 0) {
@@ -381,6 +410,7 @@ export function Movimentacoes() {
     formData.maquina_id,
     formData.contadorOut,
     formData.quantidadeAtualMaquina,
+    dataColetaIso,
   ]);
 
   // Busca o último contador IN/OUT registrado da máquina selecionada, para
@@ -395,7 +425,13 @@ export function Movimentacoes() {
     let cancelado = false;
 
     api
-      .get(`/movimentacoes?maquinaId=${formData.maquina_id}&limite=1`)
+      .get("/movimentacoes", {
+        params: {
+          maquinaId: formData.maquina_id,
+          limite: 1,
+          dataFim: dataColetaIso || undefined,
+        },
+      })
       .then((response) => {
         if (cancelado) return;
         const ultimaMov = response.data?.[0];
@@ -403,6 +439,7 @@ export function Movimentacoes() {
           contadorIn: ultimaMov?.contadorIn ?? null,
           contadorOut: ultimaMov?.contadorOut ?? null,
         });
+        if (dataColetaIso) setEstoqueAnterior(ultimaMov?.totalPos || 0);
       })
       .catch(() => {
         if (!cancelado) {
@@ -413,7 +450,7 @@ export function Movimentacoes() {
     return () => {
       cancelado = true;
     };
-  }, [formData.maquina_id]);
+  }, [formData.maquina_id, dataColetaIso]);
 
   // Para máquinas com "desconto automático via Machine Pay" ativado, busca
   // quanto já entrou na Machine Pay desde a última coleta e calcula o Total
@@ -427,7 +464,9 @@ export function Movimentacoes() {
     setSugestaoTotalPreMachinePay(null);
     setCarregandoSugestaoMachinePay(false);
 
-    if (!formData.maquina_id) return;
+    // A sugestão conta os pagamentos da última coleta até agora: não serve
+    // para uma movimentação lançada com data retroativa.
+    if (!formData.maquina_id || formData.dataColeta) return;
 
     const maquina = maquinas.find(
       (m) => String(m.id) === String(formData.maquina_id),
@@ -461,14 +500,19 @@ export function Movimentacoes() {
     return () => {
       cancelado = true;
     };
-  }, [formData.maquina_id, maquinas]);
+  }, [formData.maquina_id, formData.dataColeta, maquinas]);
 
   // Só admin: prêmios que o sensor de saída da placa CompactPay contou desde
   // a última movimentação (o "Prêmios entregues" do painel CompactPay no
   // período entre movimentações). Funcionário não vê pra não copiar o número.
   useEffect(() => {
     setSaidasCompactPay(null);
-    if (!formData.maquina_id || usuario?.role !== "ADMIN") return;
+    if (
+      !formData.maquina_id ||
+      formData.dataColeta ||
+      usuario?.role !== "ADMIN"
+    )
+      return;
 
     const maquina = maquinas.find(
       (m) => String(m.id) === String(formData.maquina_id),
@@ -489,7 +533,7 @@ export function Movimentacoes() {
     return () => {
       cancelado = true;
     };
-  }, [formData.maquina_id, maquinas, usuario?.role]);
+  }, [formData.maquina_id, formData.dataColeta, maquinas, usuario?.role]);
 
   // Cada vez que o operador muda o valor digitado, a confirmação de
   // "certeza que está correto" anterior deixa de valer.
@@ -828,6 +872,8 @@ export function Movimentacoes() {
       // Transformar para o formato do backend
       const data = {
         maquinaId: formData.maquina_id,
+        ...(usuario?.role === "ADMIN" &&
+          dataColetaIso && { dataColeta: dataColetaIso }),
         totalPre: totalPre,
         sairam: quantidadeSaiu,
         abastecidas: quantidadeAdicionada,
@@ -975,6 +1021,7 @@ export function Movimentacoes() {
       console.log("Último totalPos encontrado:", ultimoTotalPos);
 
       setFormData({
+        dataColeta: "",
         maquina_id: "",
         produto_id: "",
         quantidadeAtualMaquina: "",
@@ -1817,6 +1864,46 @@ export function Movimentacoes() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {usuario?.role === "ADMIN" && (
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Data e hora da movimentação
+                    </label>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                      <input
+                        type="datetime-local"
+                        value={formData.dataColeta || paraInputDataHora()}
+                        max={paraInputDataHora()}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            dataColeta: e.target.value,
+                          }))
+                        }
+                        className={`input-field sm:max-w-xs ${formData.dataColeta ? "border-amber-500 bg-amber-50" : ""}`}
+                      />
+                      {formData.dataColeta && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData((prev) => ({ ...prev, dataColeta: "" }))
+                          }
+                          className="text-xs font-semibold text-blue-600 hover:text-blue-700"
+                        >
+                          Usar horário atual
+                        </button>
+                      )}
+                    </div>
+                    {formData.dataColeta && (
+                      <p className="text-xs text-amber-700 mt-1">
+                        ⏪ Lançamento retroativo: a saída é calculada a partir
+                        da movimentação anterior a esta data, e a movimentação
+                        seguinte é recalculada para usar esta como anterior.
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Loja *
