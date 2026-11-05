@@ -6,6 +6,7 @@ import {
   useEffect,
 } from "react";
 import api from "../services/api";
+import { normalizarCargo } from "../utils/cargos";
 
 export const AuthContext = createContext({});
 
@@ -20,7 +21,8 @@ export function AuthProvider({ children }) {
     const usuarioSalvo = localStorage.getItem("usuario");
 
     if (token && usuarioSalvo) {
-      setUsuario(JSON.parse(usuarioSalvo));
+      const salvo = JSON.parse(usuarioSalvo);
+      setUsuario({ ...salvo, role: normalizarCargo(salvo.role) });
       api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     }
 

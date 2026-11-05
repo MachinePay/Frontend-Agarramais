@@ -1,6 +1,7 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useEffect, useRef, useState } from "react";
+import { ehEquipeOperacional, nomeCargo } from "../utils/cargos";
 
 export function Navbar() {
   const {
@@ -16,7 +17,7 @@ export function Navbar() {
   const menuRef = useRef(null);
   const menuButtonRef = useRef(null);
 
-  const temAlertaManutencao = alertasManutencaoCount > 0;
+  const totalAlertasMenu = alertasManutencaoCount + alertasCompactPayCount;
 
   const handleLogout = () => {
     logout();
@@ -57,13 +58,8 @@ export function Navbar() {
   if (usuario?.role !== "COMERCIAL") {
     links.push({ to: "/", label: "📊 Dashboard" });
     links.push({ to: "/movimentacoes", label: "📦 Movimentações" });
-    links.push({
-      to: "/manutencao",
-      label: "🛠️ Manutenção",
-      alert: temAlertaManutencao,
-      badge: temAlertaManutencao ? alertasManutencaoCount : null,
-    });
-    if (usuario?.role !== "FUNCIONARIO") {
+    links.push({ to: "/manutencao", label: "🛠️ Manutenção" });
+    if (!ehEquipeOperacional(usuario?.role)) {
       links.push({ to: "/maquinas", label: "🎮 Máquinas" });
       links.push({ to: "/lojas", label: "🏪 Lojas" });
       links.push({ to: "/produtos", label: "🧸 Produtos" });
@@ -85,11 +81,13 @@ export function Navbar() {
       links.push({ to: "/compact-pay", label: "📟 CompactPay" });
     }
     if (usuario?.role === "ADMIN") {
+      // Badge: alertas que têm contagem rápida (WhatsApp/Machine Pay +
+      // CompactPay); IN/OUT só aparecem ao abrir a página.
       links.push({
-        to: "/alertas-compactpay",
-        label: "🚨 Alertas CompactPay",
-        alert: alertasCompactPayCount > 0,
-        badge: alertasCompactPayCount > 0 ? alertasCompactPayCount : null,
+        to: "/alertas",
+        label: "🚨 Alertas",
+        alert: totalAlertasMenu > 0,
+        badge: totalAlertasMenu > 0 ? totalAlertasMenu : null,
       });
     }
     if (usuario?.role === "ADMIN") {
@@ -184,10 +182,8 @@ export function Navbar() {
                     </svg>
                     Administrador
                   </>
-                ) : usuario?.role === "COMERCIAL" ? (
-                  "Comercial"
                 ) : (
-                  "Funcionário"
+                  nomeCargo(usuario?.role)
                 )}
               </div>
             </div>
@@ -266,11 +262,7 @@ export function Navbar() {
                   {usuario?.nome}
                 </div>
                 <div className="text-xs text-accent-cream flex items-center gap-1 mt-1">
-                  {usuario?.role === "ADMIN"
-                    ? "Administrador"
-                    : usuario?.role === "COMERCIAL"
-                      ? "Comercial"
-                      : "Funcionário"}
+                  {nomeCargo(usuario?.role)}
                 </div>
               </div>
             </div>

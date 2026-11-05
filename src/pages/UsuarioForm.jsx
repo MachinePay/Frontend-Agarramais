@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Navbar } from "../components/Navbar";
 import api from "../services/api";
+import { CARGOS, CARGOS_COM_LOJAS, ORDEM_CARGOS, nomeCargo } from "../utils/cargos";
 
 export function UsuarioForm() {
   const { id } = useParams();
@@ -14,7 +15,7 @@ export function UsuarioForm() {
     senha: "",
     confirmarSenha: "",
     telefone: "",
-    role: "FUNCIONARIO",
+    role: "OPERADOR",
     lojasPermitidas: [],
   });
 
@@ -103,10 +104,12 @@ export function UsuarioForm() {
     }
 
     if (
-      formData.role === "FUNCIONARIO" &&
+      CARGOS_COM_LOJAS.includes(formData.role) &&
       formData.lojasPermitidas.length === 0
     ) {
-      setError("Funcionários devem ter acesso a pelo menos uma loja");
+      setError(
+        `${nomeCargo(formData.role)} precisa ter acesso a pelo menos uma loja`,
+      );
       return;
     }
 
@@ -119,7 +122,9 @@ export function UsuarioForm() {
         telefone: formData.telefone,
         role: formData.role,
         lojasPermitidas:
-          formData.role === "FUNCIONARIO" ? formData.lojasPermitidas : [],
+          CARGOS_COM_LOJAS.includes(formData.role)
+            ? formData.lojasPermitidas
+            : [],
       };
 
       // Só incluir senha se foi preenchida
@@ -287,25 +292,20 @@ export function UsuarioForm() {
                   className="input-field"
                   required
                 >
-                  <option value="FUNCIONARIO">Funcionário</option>
-                  <option value="ADMIN">Administrador</option>
-                  <option value="MACHINEPAY">Funcionário Machine</option>
-                  <option value="COMERCIAL">Funcionário Comercial</option>
+                  {ORDEM_CARGOS.map((cargo) => (
+                    <option key={cargo} value={cargo}>
+                      {CARGOS[cargo].label}
+                    </option>
+                  ))}
                 </select>
                 <p className="mt-2 text-sm text-gray-500">
-                  {formData.role === "ADMIN"
-                    ? "Administradores têm acesso total ao sistema"
-                    : formData.role === "MACHINEPAY"
-                    ? "Funcionários Machine têm acesso apenas às funcionalidades da Machine Pay"
-                    : formData.role === "COMERCIAL"
-                    ? "Funcionários Comerciais têm acesso apenas à busca de transportadoras"
-                    : "Funcionários têm acesso limitado às lojas autorizadas"}
+                  {CARGOS[formData.role]?.descricao}
                 </p>
               </div>
             </div>
 
-            {/* Lojas Permitidas (apenas para Funcionários) */}
-            {formData.role === "FUNCIONARIO" && (
+            {/* Lojas Permitidas (cargos que trabalham por loja) */}
+            {CARGOS_COM_LOJAS.includes(formData.role) && (
               <div>
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">
                   Lojas Autorizadas *

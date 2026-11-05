@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { nomeCargo } from "../../utils/cargos";
 
 export function SuporteTecnicoLayout({ activeTab, children }) {
   const navigate = useNavigate();
@@ -52,7 +53,7 @@ export function SuporteTecnicoLayout({ activeTab, children }) {
                   {usuario?.nome}
                 </div>
                 <div className="text-xs text-cyan-300/80">
-                  {usuario?.role === "ADMIN" ? "Administrador" : "Funcionário"}
+                  {nomeCargo(usuario?.role)}
                 </div>
               </div>
               <button

@@ -18,6 +18,7 @@ import {
   obterFotoUltimaMovimentacao,
   limparFotoUltimaMovimentacao,
 } from "../services/fotoUltimaMovimentacaoDb";
+import { ehEquipeOperacional } from "../utils/cargos";
 
 const CHAVE_ULTIMA_MENSAGEM_WHATSAPP = "ultimaMensagemMovimentacaoWhatsapp";
 
@@ -1713,7 +1714,7 @@ export function Movimentacoes() {
             >
               Sangria
             </button>
-            {usuario?.role !== "FUNCIONARIO" && (
+            {!ehEquipeOperacional(usuario?.role) && (
               <button
                 className="px-6 py-2 bg-blue-700 text-white rounded hover:bg-blue-800 font-bold shadow text-base"
                 onClick={() => setModalRegistrarDinheiro(true)}

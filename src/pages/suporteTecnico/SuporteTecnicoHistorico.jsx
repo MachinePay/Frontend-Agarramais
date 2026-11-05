@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import api from "../../services/api";
 import { SuporteTecnicoLayout } from "./SuporteTecnicoLayout";
 import { CATEGORIA_LABELS, CATEGORIA_BADGE_CLASSES } from "./categoriaUtils";
+import { nomeCargo } from "../../utils/cargos";
 
 const formatarDataHora = (iso) => {
   if (!iso) return "-";
@@ -272,7 +273,7 @@ export function SuporteTecnicoHistorico() {
                       {mov.usuario?.nome}
                       {mov.usuario?.role && (
                         <span className="text-xs text-slate-500 block">
-                          {mov.usuario.role === "ADMIN" ? "Administrador" : "Funcionário"}
+                          {nomeCargo(mov.usuario.role)}
                         </span>
                       )}
                     </td>

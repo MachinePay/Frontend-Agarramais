@@ -8,6 +8,8 @@ import { IAgarraAssistente } from "../components/IAgarraAssistente";
 import { PageLoader } from "../components/Loading";
 import { Badge } from "../components/UIComponents";
 import AlertAdmin from "../components/AlertAdmin";
+import PainelAlertas from "../components/PainelAlertas";
+import { buscarAlertas } from "../utils/alertasCentral";
 import LancarGastoVariavel from "../components/LancarGastoVariavel";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -20,6 +22,7 @@ import {
 } from "../utils/faturamentoReconciliado";
 
 import Swal from "sweetalert2";
+import { ehEquipeOperacional } from "../utils/cargos";
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -270,6 +273,22 @@ export function Dashboard() {
   }
   const { usuario } = useAuth();
   const [notificacoesPendentes, setNotificacoesPendentes] = useState(null);
+  // Central de alertas (card de atalho + painel). null = carregando.
+  const [alertasCentral, setAlertasCentral] = useState({
+    lista: null,
+    erros: [],
+  });
+
+  useEffect(() => {
+    if (usuario?.role !== "ADMIN") return;
+    let cancelado = false;
+    buscarAlertas().then((resultado) => {
+      if (!cancelado) setAlertasCentral(resultado);
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, [usuario?.role]);
 
   useEffect(() => {
     if (usuario?.role !== "ADMIN") return;
@@ -1123,7 +1142,7 @@ export function Dashboard() {
   }, [carregarDados]);
 
   const carregarManutencoesPendentes = useCallback(async () => {
-    if (usuario?.role !== "FUNCIONARIO") {
+    if (!ehEquipeOperacional(usuario?.role)) {
       setManutencoesPendentes([]);
       return;
     }
@@ -2884,6 +2903,30 @@ export function Dashboard() {
                   </p>
                 </div>
               </div>
+              {/* Alertas (atalho pra central) */}
+              <div
+                className={`stat-card bg-linear-to-br from-rose-600 to-red-800 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 cursor-pointer ${
+                  alertasCentral.lista?.length > 0 ? "ring-4 ring-red-300" : ""
+                }`}
+                onClick={() => navigate("/alertas")}
+              >
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-medium opacity-90">
+                      Central de alertas
+                    </h3>
+                    <span className="text-2xl opacity-90">🚨</span>
+                  </div>
+                  <p className="text-3xl font-bold">
+                    {alertasCentral.lista === null
+                      ? "…"
+                      : alertasCentral.lista.length}
+                  </p>
+                  <p className="text-xs opacity-75 mt-1">
+                    IN/OUT, CompactPay, Machine Pay, WhatsApp →
+                  </p>
+                </div>
+              </div>
               {/* Notificações de mudança */}
               <div
                 className={`stat-card bg-linear-to-br from-indigo-500 to-blue-700 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 cursor-pointer ${
@@ -2987,7 +3030,7 @@ export function Dashboard() {
             </div>
           </div>
 
-          {usuario?.role === "FUNCIONARIO" && (
+          {ehEquipeOperacional(usuario?.role) && (
             <div
               className={`stat-card p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 cursor-pointer transition-all ${
                 manutencoesPendentes.length > 0
@@ -3016,7 +3059,7 @@ export function Dashboard() {
               </div>
             </div>
           )}
-          {usuario?.role === "FUNCIONARIO" && (
+          {ehEquipeOperacional(usuario?.role) && (
             <div
               className="stat-card bg-linear-to-br from-emerald-600 to-emerald-800 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 cursor-pointer"
               onClick={() => setModalGastoVariavel(true)}
@@ -3066,30 +3109,12 @@ export function Dashboard() {
           </div>
         )}
 
-        {/* Alerta de Movimentação Inconsistente - ADMIN */}
+        {/* Central de alertas - ADMIN */}
         {usuario?.role === "ADMIN" && (
-          <div className="card-gradient mb-8 border-l-4 border-yellow-500 p-4 sm:p-8 rounded-xl shadow-md  sm:flex-row items-center justify-between gap-6">
-            <div className="flex-1 min-w-0">
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-                <span className="bg-linear-to-br from-yellow-400 to-yellow-600 p-2 sm:p-3 rounded-xl text-white">
-                  ⚠️
-                </span>
-                Alertas de Movimentação Inconsistente
-              </h2>
-              <p className="text-gray-600 text-sm sm:text-base">
-                Avisos de inconsistência entre OUT, IN e fichas nas máquinas.
-                Clique para ver detalhes e corrigir.
-              </p>
-            </div>
-            <div className="text-left sm:text-right mt-4 sm:mt-0 flex flex-col items-end">
-              <button
-                className="btn-warning font-bold text-yellow-900 px-6 py-2 rounded-lg shadow hover:bg-yellow-400 transition-colors flex items-center gap-2"
-                onClick={() => navigate("/alertas")}
-              >
-                <span className="text-2xl">⚠️</span> Ver Alertas
-              </button>
-            </div>
-          </div>
+          <PainelAlertas
+            alertas={alertasCentral.lista}
+            erros={alertasCentral.erros}
+          />
         )}
 
         {/* Estatísticas de Produtos Totais - Apenas para ADMIN */}
