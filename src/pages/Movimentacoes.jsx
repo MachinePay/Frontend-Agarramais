@@ -6,17 +6,14 @@ import { Footer } from "../components/Footer";
 import {
   PageHeader,
   StatsGrid,
-  DataTable,
-  Badge,
   AlertBox,
   ConfirmDialog,
 } from "../components/UIComponents";
 import RegistrarDinheiro from "../components/RegistrarDinheiro";
 import LancarGastoVariavel from "../components/LancarGastoVariavel";
-import { PageLoader, EmptyState } from "../components/Loading";
+import { PageLoader } from "../components/Loading";
 import { useAuth } from "../contexts/AuthContext";
 import AvisosMaquinasFaltam from "../components/AvisosMaquinasFaltam";
-import TabelaMovimentacoesEstoqueDeLoja from "../components/TabelaMovimentacoesEstoqueDeLoja";
 import {
   salvarFotoUltimaMovimentacao,
   obterFotoUltimaMovimentacao,
@@ -98,17 +95,6 @@ export function Movimentacoes() {
 
   // --- ESTADOS ---
   const [movimentacoes, setMovimentacoes] = useState([]);
-  const [movimentacoesEstoqueLoja, setMovimentacoesEstoqueLoja] = useState([]);
-
-  // Filtros Estoque Loja
-  const [filtroLojaEstoque, setFiltroLojaEstoque] = useState("");
-  const [filtroDataInicioEstoque, setFiltroDataInicioEstoque] = useState("");
-  const [filtroDataFimEstoque, setFiltroDataFimEstoque] = useState("");
-  const [filtroResponsavelEstoque, setFiltroResponsavelEstoque] = useState("");
-
-  // Ações Estoque Loja
-  const [editandoEstoqueLoja, setEditandoEstoqueLoja] = useState(null);
-  const [excluindoEstoqueLoja, setExcluindoEstoqueLoja] = useState(null);
 
   // Dados Gerais
   const [maquinas, setMaquinas] = useState([]);
@@ -142,16 +128,6 @@ export function Movimentacoes() {
 
   // Filtros Movimentações
   const [filtroLojaForm, setFiltroLojaForm] = useState("");
-  const [filtroLojaListagem, setFiltroLojaListagem] = useState("");
-
-  // Edição
-  const [editandoMovimentacao, setEditandoMovimentacao] = useState(null);
-  const [formEdicao, setFormEdicao] = useState({
-    fichas: "",
-    abastecidas: "",
-    quantidade_notas_entrada: "",
-    valor_entrada_maquininha_pix: "",
-  });
 
   // Formulário Nova Movimentação
   // dataColeta vazio = horário do lançamento (padrão). Só admin preenche,
@@ -208,7 +184,6 @@ export function Movimentacoes() {
   // --- EFEITOS ---
   useEffect(() => {
     carregarDados();
-    carregarMovimentacoesEstoqueLoja();
   }, []);
 
   useEffect(() => {
@@ -600,19 +575,6 @@ export function Movimentacoes() {
       setError("Erro ao carregar dados iniciais.");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const carregarMovimentacoesEstoqueLoja = async () => {
-    try {
-      const res = await api.get("/movimentacao-estoque-loja");
-      setMovimentacoesEstoqueLoja(res.data || []);
-    } catch (error) {
-      console.error(
-        "Erro ao carregar movimentações de estoque de loja:",
-        error,
-      );
-      setMovimentacoesEstoqueLoja([]);
     }
   };
 
@@ -1059,90 +1021,6 @@ export function Movimentacoes() {
     }
   };
 
-  const iniciarEdicao = (movimentacao) => {
-    setEditandoMovimentacao(movimentacao);
-    setFormEdicao({
-      fichas: movimentacao.fichas || 0,
-      abastecidas: movimentacao.abastecidas || 0,
-      quantidade_notas_entrada: movimentacao.quantidade_notas_entrada || "",
-      valor_entrada_maquininha_pix:
-        movimentacao.valor_entrada_maquininha_pix || "",
-    });
-  };
-
-  const cancelarEdicao = () => {
-    setEditandoMovimentacao(null);
-    setFormEdicao({
-      fichas: "",
-      abastecidas: "",
-      quantidade_notas_entrada: "",
-      valor_entrada_maquininha_pix: "",
-    });
-  };
-
-  const salvarEdicao = async () => {
-    try {
-      await api.put(`/movimentacoes/${editandoMovimentacao.id}`, {
-        fichas: parseInt(formEdicao.fichas) || 0,
-        abastecidas: parseInt(formEdicao.abastecidas) || 0,
-        quantidade_notas_entrada:
-          formEdicao.quantidade_notas_entrada !== ""
-            ? parseFloat(formEdicao.quantidade_notas_entrada)
-            : null,
-        valor_entrada_maquininha_pix:
-          formEdicao.valor_entrada_maquininha_pix !== ""
-            ? parseFloat(formEdicao.valor_entrada_maquininha_pix)
-            : null,
-      });
-      setSuccess("Movimentação atualizada com sucesso!");
-      cancelarEdicao();
-      carregarDados();
-    } catch (error) {
-      console.error("Erro ao atualizar:", error);
-      setError("Erro ao atualizar movimentação");
-    }
-  };
-  const confirmarExclusaoLoja = async () => {
-    if (!excluindoEstoqueLoja) return;
-
-    try {
-      await api.delete(`/movimentacao-estoque-loja/${excluindoEstoqueLoja.id}`);
-      setSuccess("Movimentação de estoque de loja excluída com sucesso!");
-      carregarMovimentacoesEstoqueLoja(); // Recarrega a lista
-    } catch (err) {
-      console.error("Erro ao excluir:", err);
-      setError("Erro ao excluir movimentação de loja.");
-    } finally {
-      setExcluindoEstoqueLoja(null); // Fecha o modal
-    }
-  };
-
-  // Função para salvar edição de loja (Exemplo editando o Responsável)
-  const salvarEdicaoLoja = async (e) => {
-    e.preventDefault();
-    if (!editandoEstoqueLoja) return;
-
-    try {
-      await api.put(`/movimentacao-estoque-loja/${editandoEstoqueLoja.id}`, {
-        lojaId: editandoEstoqueLoja.loja?.id || editandoEstoqueLoja.lojaId,
-        usuarioId: usuario.id,
-        produtos: editandoEstoqueLoja.produtosEnviados.map((p) => ({
-          produtoId: p.produto?.id || p.produtoId,
-          quantidade: Number(p.quantidade),
-          tipoMovimentacao: p.tipoMovimentacao || "saida",
-        })),
-      });
-
-      setSuccess("Movimentação de loja atualizada!");
-      carregarMovimentacoesEstoqueLoja();
-      if (typeof carregarDados === "function") carregarDados();
-      setEditandoEstoqueLoja(null);
-    } catch (err) {
-      console.error("Erro ao editar:", err);
-      setError("Erro ao atualizar movimentação de loja.");
-    }
-  };
-
   // --- WHATSAPP ---
   const enviarParaWhatsapp = async (janelaPreAberta = null) => {
     const loja = lojas.find((l) => l.id === filtroLojaForm);
@@ -1355,13 +1233,6 @@ export function Movimentacoes() {
   // );
   // const totalSaidas = saidas.reduce((sum, m) => sum + (m.sairam || 0), 0);
 
-  const movimentacoesFiltradas = filtroLojaListagem
-    ? movimentacoes.filter((mov) => {
-        const maquina = maquinas.find((m) => m.id === mov.maquinaId);
-        return maquina?.lojaId === filtroLojaListagem;
-      })
-    : movimentacoes;
-
   // const stats = [
   //   {
   //     label: "Total de Entradas",
@@ -1392,156 +1263,6 @@ export function Movimentacoes() {
   //     subtitle: "Total de registros",
   //   },
   // ];
-
-  const columns = [
-    {
-      key: "data",
-      label: "Data/Hora",
-      render: (mov) => {
-        const data = new Date(mov.dataColeta || mov.createdAt);
-        return (
-          <div>
-            <div className="font-semibold">
-              {data.toLocaleDateString("pt-BR")}
-            </div>
-            <div className="text-xs text-gray-500">
-              {data.toLocaleTimeString("pt-BR")}
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      key: "usuario",
-      label: "Usuário",
-      render: (mov) => (
-        <div className="flex items-center gap-1">
-          <span className="text-lg">👤</span>
-          <span className="text-sm font-medium text-gray-700">
-            {mov.usuario?.nome || "Não informado"}
-          </span>
-        </div>
-      ),
-    },
-    {
-      key: "tipo",
-      label: "Tipo",
-      render: (mov) => {
-        const isEntrada = mov.abastecidas > 0;
-        return (
-          <Badge variant={isEntrada ? "success" : "danger"}>
-            {isEntrada ? "📥 Entrada" : "📤 Saída"}
-          </Badge>
-        );
-      },
-    },
-    {
-      key: "produto",
-      label: "Produto",
-      render: (mov) => {
-        const produtoId = mov.detalhesProdutos?.[0]?.produtoId;
-        const produto = produtos.find((p) => p.id === produtoId);
-        return produto ? (
-          <div className="flex items-center gap-2">
-            <span className="text-xl">{produto.emoji || "🧸"}</span>
-            <span>{produto.nome}</span>
-          </div>
-        ) : (
-          `N/A (ID: ${produtoId || "undefined"})`
-        );
-      },
-    },
-    {
-      key: "maquina",
-      label: "Máquina",
-      render: (mov) => {
-        const maquina =
-          mov.maquina || maquinas.find((m) => m.id === mov.maquinaId);
-        if (!maquina) return `N/A (ID: ${mov.maquinaId})`;
-        const loja = lojas.find((l) => l.id === maquina.lojaId);
-        return (
-          <div>
-            <div className="font-semibold">
-              {maquina.codigo}
-              <span className="text-gray-500 text-xs ml-1">
-                - {maquina.nome}
-              </span>
-            </div>
-            <div className="text-xs text-gray-500">{loja?.nome || "N/A"}</div>
-          </div>
-        );
-      },
-    },
-    {
-      key: "saida",
-      label: "Saída",
-      render: (mov) => (
-        <div className="flex items-center gap-1">
-          <span className="text-lg">📤</span>
-          <span className="font-bold text-red-600">
-            {mov.sairam > 0 ? `-${mov.sairam}` : "-"}
-          </span>
-        </div>
-      ),
-    },
-    {
-      key: "entrada",
-      label: "Entrada",
-      render: (mov) => (
-        <div className="flex items-center gap-1">
-          <span className="text-lg">📥</span>
-          <span className="font-bold text-green-600">
-            {mov.abastecidas > 0 ? `+${mov.abastecidas}` : "-"}
-          </span>
-        </div>
-      ),
-    },
-    {
-      key: "fichas",
-      label: "Fichas",
-      render: (mov) => (
-        <div className="flex items-center gap-1">
-          <span className="text-lg">🎫</span>
-          <span className="font-semibold text-blue-600">{mov.fichas || 0}</span>
-        </div>
-      ),
-    },
-    {
-      key: "observacao",
-      label: "Observação",
-      render: (mov) => (
-        <span className="text-sm text-gray-600">{mov.observacoes || "-"}</span>
-      ),
-    },
-  ];
-
-  if (usuario?.role === "ADMIN") {
-    columns.push({
-      key: "acoes",
-      label: "Ações",
-      render: (mov) => (
-        <button
-          onClick={() => iniciarEdicao(mov)}
-          className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition-colors flex items-center gap-1"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-            />
-          </svg>
-          Editar
-        </button>
-      ),
-    });
-  }
 
   if (loading) return <PageLoader />;
 
@@ -1685,6 +1406,14 @@ export function Movimentacoes() {
             >
               Enviar Última Mensagem
             </button>
+            {usuario?.role === "ADMIN" && (
+              <button
+                className="px-6 py-2 bg-slate-800 text-white rounded hover:bg-slate-900 font-bold shadow text-base"
+                onClick={() => navigate("/historico-movimentacoes")}
+              >
+                🗂️ Ver Histórico
+              </button>
+            )}
           </div>
         </div>
 
@@ -1804,35 +1533,6 @@ export function Movimentacoes() {
         )}  
 
         <AvisosMaquinasFaltam lojas={lojas} />
-
-        {/* Filtro por Loja - Apenas para ADMIN */}
-        {usuario?.role === "ADMIN" && (
-          <div className="card-gradient mb-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <span className="text-2xl">🔍</span>
-              Filtrar Movimentações
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  🏪 Filtrar por Loja
-                </label>
-                <select
-                  value={filtroLojaListagem}
-                  onChange={(e) => setFiltroLojaListagem(e.target.value)}
-                  className="input-field"
-                >
-                  <option value="">Todas as lojas</option>
-                  {lojas.map((loja) => (
-                    <option key={loja.id} value={loja.id}>
-                      {loja.nome}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-        )}
 
         {showForm && (
           <div id="form-nova-movimentacao" className="card-gradient mb-6">
@@ -2623,420 +2323,7 @@ export function Movimentacoes() {
           </div>
         )}
 
-        {/* Histórico de Movimentações - Apenas para ADMIN */}
-        {usuario?.role === "ADMIN" && (
-          <div className="card-gradient">
-            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <span className="text-2xl">📋</span>
-              Histórico de Movimentações
-              {filtroLojaListagem && (
-                <span className="text-sm text-gray-600 font-normal">
-                  ({movimentacoesFiltradas.length} de {movimentacoes.length}{" "}
-                  registros)
-                </span>
-              )}
-            </h3>
-
-            {movimentacoesFiltradas.length > 0 ? (
-              <DataTable headers={columns} data={movimentacoesFiltradas} />
-            ) : (
-              <EmptyState
-                icon="🔄"
-                title={
-                  filtroLojaListagem
-                    ? "Nenhuma movimentação encontrada"
-                    : "Nenhuma movimentação registrada"
-                }
-                message={
-                  filtroLojaListagem
-                    ? "Não há movimentações para a loja selecionada."
-                    : "Registre sua primeira movimentação para começar o controle de estoque!"
-                }
-                action={{
-                  label: "Nova Movimentação",
-                  onClick: () => setShowForm(true),
-                }}
-              />
-            )}
-          </div>
-        )}
-
-        {/* Seção Movimentações de Estoque de Loja - visível apenas para ADMIN */}
-        {usuario?.role === "ADMIN" && (
-          <div className="mt-12">
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-              <span className="text-3xl">🏪</span>
-              Movimentações de Estoque de Loja
-            </h2>
-            {/* Filtros */}
-            <div className="mb-5 rounded-2xl border border-gray-200 bg-white/80 backdrop-blur-sm shadow-sm p-4 md:p-5">
-              <div className="flex items-center justify-between gap-3 mb-4">
-                <h3 className="text-sm md:text-base font-bold text-gray-800 flex items-center gap-2">
-                  <span>🔎</span>
-                  Filtros
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFiltroLojaEstoque("");
-                    setFiltroDataInicioEstoque("");
-                    setFiltroDataFimEstoque("");
-                    setFiltroResponsavelEstoque("");
-                  }}
-                  className="text-xs md:text-sm font-semibold text-blue-700 hover:text-blue-800 transition-colors"
-                >
-                  Limpar filtros
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Loja
-                  </label>
-                  <select
-                    className="input-field"
-                    value={filtroLojaEstoque}
-                    onChange={(e) => setFiltroLojaEstoque(e.target.value)}
-                  >
-                    <option value="">Todas as lojas</option>
-                    {lojas.map((loja) => (
-                      <option key={loja.id} value={loja.id}>
-                        {loja.nome}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Data início
-                  </label>
-                  <input
-                    type="date"
-                    className="input-field"
-                    value={filtroDataInicioEstoque}
-                    onChange={(e) => setFiltroDataInicioEstoque(e.target.value)}
-                    aria-label="Data início"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Data fim
-                  </label>
-                  <input
-                    type="date"
-                    className="input-field"
-                    value={filtroDataFimEstoque}
-                    onChange={(e) => setFiltroDataFimEstoque(e.target.value)}
-                    aria-label="Data fim"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Responsável
-                  </label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    placeholder="Digite o nome"
-                    value={filtroResponsavelEstoque}
-                    onChange={(e) =>
-                      setFiltroResponsavelEstoque(e.target.value)
-                    }
-                  />
-                </div>
-              </div>
-
-              <p className="text-xs text-gray-500 mt-3">
-                Sem selecionar datas, a tabela mostra automaticamente apenas os
-                registros de hoje.
-              </p>
-            </div>
-            <TabelaMovimentacoesEstoqueDeLoja
-              movimentacoesEstoqueLoja={movimentacoesEstoqueLoja}
-              lojas={lojas}
-              produtos={produtos}
-              filtroLojaEstoque={filtroLojaEstoque}
-              filtroDataInicioEstoque={filtroDataInicioEstoque}
-              filtroDataFimEstoque={filtroDataFimEstoque}
-              filtroResponsavelEstoque={filtroResponsavelEstoque}
-              setEditandoEstoqueLoja={setEditandoEstoqueLoja}
-              setExcluindoEstoqueLoja={setExcluindoEstoqueLoja}
-              onChangeEstoqueLoja={carregarDados}
-            />
-          </div>
-        )}
-
-        {/* Modal de Edição */}
-        {editandoMovimentacao && usuario?.role === "ADMIN" && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                  <span className="text-2xl">✏️</span>
-                  Editar Movimentação
-                </h3>
-                <button
-                  onClick={cancelarEdicao}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600">
-                    <strong>Data:</strong>{" "}
-                    {new Date(
-                      editandoMovimentacao.dataColeta ||
-                        editandoMovimentacao.createdAt,
-                    ).toLocaleString("pt-BR")}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-1">
-                    <strong>Máquina:</strong>{" "}
-                    {maquinas.find(
-                      (m) => m.id === editandoMovimentacao.maquinaId,
-                    )?.codigo || "N/A"}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    🎫 Quantidade de Fichas
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formEdicao.fichas}
-                    onChange={(e) =>
-                      setFormEdicao({ ...formEdicao, fichas: e.target.value })
-                    }
-                    className="input-field"
-                    placeholder="0"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    📦 Quantidade Abastecida
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formEdicao.abastecidas}
-                    onChange={(e) =>
-                      setFormEdicao({
-                        ...formEdicao,
-                        abastecidas: e.target.value,
-                      })
-                    }
-                    className="input-field"
-                    placeholder="0"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    💵 Quantidade de Notas
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formEdicao.quantidade_notas_entrada}
-                    onChange={(e) =>
-                      setFormEdicao({
-                        ...formEdicao,
-                        quantidade_notas_entrada: e.target.value,
-                      })
-                    }
-                    className="input-field"
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    💳 Valor Digital (Pix/Maquininha) (R$)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formEdicao.valor_entrada_maquininha_pix}
-                    onChange={(e) =>
-                      setFormEdicao({
-                        ...formEdicao,
-                        valor_entrada_maquininha_pix: e.target.value,
-                      })
-                    }
-                    className="input-field"
-                    placeholder="0.00"
-                  />
-                </div>
-                <div className="flex gap-3 pt-4">
-                  <button
-                    onClick={cancelarEdicao}
-                    className="flex-1 btn-secondary"
-                  >
-                    Cancelar
-                  </button>
-                  <button onClick={salvarEdicao} className="flex-1 btn-primary">
-                    Salvar Alterações
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
-      {/* --- MODAL DE EXCLUSÃO DE ESTOQUE LOJA --- */}
-      {excluindoEstoqueLoja && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6">
-            <div className="text-center">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-                <svg
-                  className="h-6 w-6 text-red-600"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-gray-900">
-                Excluir Movimentação?
-              </h3>
-              <p className="text-sm text-gray-500 mt-2">
-                Tem certeza que deseja excluir esta movimentação de estoque da
-                loja? Esta ação não pode ser desfeita.
-              </p>
-              <div className="mt-6 flex justify-center gap-3">
-                <button
-                  onClick={() => setExcluindoEstoqueLoja(null)}
-                  className="btn-secondary"
-                >
-                  Cancelar
-                </button>
-                <button onClick={confirmarExclusaoLoja} className="btn-danger">
-                  Sim, Excluir
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* --- MODAL DE EDIÇÃO DE ESTOQUE LOJA --- */}
-      {editandoEstoqueLoja && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">
-              ✏️ Editar Produtos Enviados
-            </h3>
-            <form onSubmit={salvarEdicaoLoja}>
-              <div className="p-3 bg-gray-50 rounded mb-4">
-                <p className="text-xs text-gray-500">
-                  Data:{" "}
-                  {editandoEstoqueLoja.data
-                    ? new Date(editandoEstoqueLoja.data).toLocaleString("pt-BR")
-                    : "-"}
-                </p>
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Produtos Enviados
-                </label>
-                {editandoEstoqueLoja.produtosEnviados &&
-                editandoEstoqueLoja.produtosEnviados.length > 0 ? (
-                  editandoEstoqueLoja.produtosEnviados.map((prod, idx) => (
-                    <div
-                      key={prod.id || idx}
-                      className="flex gap-2 mb-2 items-center"
-                    >
-                      <span className="min-w-30">
-                        {prod.produto?.nome || prod.produtoId}
-                      </span>
-                      <input
-                        type="number"
-                        min="0"
-                        value={prod.quantidade}
-                        onChange={(e) => {
-                          const novaLista =
-                            editandoEstoqueLoja.produtosEnviados.map((p, i) =>
-                              i === idx
-                                ? { ...p, quantidade: e.target.value }
-                                : p,
-                            );
-                          setEditandoEstoqueLoja({
-                            ...editandoEstoqueLoja,
-                            produtosEnviados: novaLista,
-                          });
-                        }}
-                        className="input-field w-24"
-                      />
-                      <select
-                        value={prod.tipoMovimentacao}
-                        onChange={(e) => {
-                          const novaLista =
-                            editandoEstoqueLoja.produtosEnviados.map((p, i) =>
-                              i === idx
-                                ? { ...p, tipoMovimentacao: e.target.value }
-                                : p,
-                            );
-                          setEditandoEstoqueLoja({
-                            ...editandoEstoqueLoja,
-                            produtosEnviados: novaLista,
-                          });
-                        }}
-                        className="input-field w-28"
-                      >
-                        <option value="entrada">Entrada</option>
-                        <option value="saida">Saída</option>
-                      </select>
-                    </div>
-                  ))
-                ) : (
-                  <span className="text-gray-500">Nenhum produto enviado</span>
-                )}
-              </div>
-              <div className="flex gap-3 justify-end mt-6">
-                <button
-                  type="button"
-                  onClick={() => setEditandoEstoqueLoja(null)}
-                  className="btn-secondary"
-                >
-                  Cancelar
-                </button>
-                <button type="submit" className="btn-primary">
-                  Salvar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       <ConfirmDialog
         isOpen={mostrarConfirmacaoMovimentacao}
         onClose={() => setMostrarConfirmacaoMovimentacao(false)}

@@ -53,6 +53,11 @@ const ProdutoForm = lazy(() =>
 const Movimentacoes = lazy(() =>
   import("./pages/Movimentacoes").then((m) => ({ default: m.Movimentacoes })),
 );
+const HistoricoMovimentacoes = lazy(() =>
+  import("./pages/HistoricoMovimentacoes").then((m) => ({
+    default: m.HistoricoMovimentacoes,
+  })),
+);
 const ManutencaoPage = lazy(() => import("./pages/ManutencaoPage"));
 const Graficos = lazy(() =>
   import("./pages/Graficos").then((m) => ({ default: m.Graficos })),
@@ -279,6 +284,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Movimentacoes />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/historico-movimentacoes"
+            element={
+              <PrivateRoute adminOnly>
+                <HistoricoMovimentacoes />
               </PrivateRoute>
             }
           />
