@@ -13,7 +13,6 @@ import RegistrarDinheiro from "../components/RegistrarDinheiro";
 import LancarGastoVariavel from "../components/LancarGastoVariavel";
 import { PageLoader } from "../components/Loading";
 import { useAuth } from "../contexts/AuthContext";
-import AvisosMaquinasFaltam from "../components/AvisosMaquinasFaltam";
 import {
   salvarFotoUltimaMovimentacao,
   obterFotoUltimaMovimentacao,
@@ -86,6 +85,78 @@ const paraInputDataHora = (valor) => {
   return local.toISOString().slice(0, 16);
 };
 
+// Uma máquina conta como "concluída" na lista da loja se teve movimentação
+// nessa janela (mesmo critério do antigo aviso de máquinas que faltam).
+const HORAS_MAQUINA_CONCLUIDA = 12;
+
+const FORMULARIO_VAZIO = {
+  dataColeta: "",
+  maquina_id: "",
+  produto_id: "",
+  quantidadeAtualMaquina: "",
+  quantidadeAdicionada: "",
+  fichas: "",
+  contadorIn: "",
+  contadorOut: "",
+  observacao: "",
+  retiradaEstoque: false,
+  retiradaProduto: 0,
+  retiradaProdutoDevolverEstoque: false,
+  ignoreInOut: false,
+};
+
+// Status das máquinas de uma loja: quando cada uma foi concluída (última
+// movimentação na janela acima) e quantas manutenções pendentes tem.
+async function buscarStatusLoja(lojaId) {
+  const desde = new Date(
+    Date.now() - HORAS_MAQUINA_CONCLUIDA * 60 * 60 * 1000,
+  ).toISOString();
+  const [movRes, manutRes] = await Promise.allSettled([
+    api.get("/movimentacoes", {
+      params: { lojaId, dataInicio: desde, limite: 500 },
+    }),
+    api.get("/manutencoes", { params: { lojaId, status: "PENDENTE" } }),
+  ]);
+
+  const concluidas = {};
+  if (movRes.status === "fulfilled") {
+    for (const mov of movRes.value.data || []) {
+      const data = new Date(mov.dataColeta || mov.createdAt);
+      if (!concluidas[mov.maquinaId] || data > concluidas[mov.maquinaId]) {
+        concluidas[mov.maquinaId] = data;
+      }
+    }
+  }
+
+  const manutencoes = {};
+  if (manutRes.status === "fulfilled" && Array.isArray(manutRes.value.data)) {
+    for (const manut of manutRes.value.data) {
+      if (!manut.maquinaId || manut.status === "RESOLVIDA") continue;
+      manutencoes[manut.maquinaId] = (manutencoes[manut.maquinaId] || 0) + 1;
+    }
+  }
+
+  return { concluidas, manutencoes };
+}
+
+function NumeroMaquina({ label, value, tone = "slate" }) {
+  const tones = {
+    slate: "text-slate-800",
+    amber: "text-amber-600",
+    muted: "text-slate-400",
+  };
+  return (
+    <div className="w-12 sm:w-16 text-center shrink-0">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+        {label}
+      </p>
+      <p className={`text-base sm:text-lg font-bold tabular-nums ${tones[tone]}`}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
 export function Movimentacoes() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -106,7 +177,12 @@ export function Movimentacoes() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [showForm, setShowForm] = useState(false);
+  const [mostrarMaisOpcoes, setMostrarMaisOpcoes] = useState(false);
+  const [statusLoja, setStatusLoja] = useState({
+    concluidas: {},
+    manutencoes: {},
+  });
+  const [carregandoStatusLoja, setCarregandoStatusLoja] = useState(false);
   const [salvandoMovimentacao, setSalvandoMovimentacao] = useState(false);
   const [mostrarConfirmacaoMovimentacao, setMostrarConfirmacaoMovimentacao] =
     useState(false);
@@ -132,22 +208,7 @@ export function Movimentacoes() {
   // Formulário Nova Movimentação
   // dataColeta vazio = horário do lançamento (padrão). Só admin preenche,
   // para lançar uma movimentação que ficou para trás.
-  const [formData, setFormData] = useState({
-    dataColeta: "",
-    maquina_id: "",
-    produto_id: "",
-    quantidadeAtualMaquina: "",
-    quantidadeAdicionada: "",
-    fichas: "",
-    contadorIn: "",
-    contadorOut: "",
-    quantidade_notas_entrada: "",
-    valor_entrada_maquininha_pix: "",
-    observacao: "",
-    retiradaEstoque: false,
-    retiradaProduto: 0,
-    ignoreInOut: false,
-  });
+  const [formData, setFormData] = useState(FORMULARIO_VAZIO);
 
   // Estados auxiliares
   const [estoqueAnterior, setEstoqueAnterior] = useState(0);
@@ -220,14 +281,6 @@ export function Movimentacoes() {
       quantidadeAdicionada:
         state.quantidadeAdicionada ?? params.get("quantidadeAdicionada") ?? "",
       fichas: state.fichas ?? params.get("fichas") ?? "",
-      quantidade_notas_entrada:
-        state.quantidade_notas_entrada ??
-        params.get("quantidade_notas_entrada") ??
-        "",
-      valor_entrada_maquininha_pix:
-        state.valor_entrada_maquininha_pix ??
-        params.get("valor_entrada_maquininha_pix") ??
-        "",
       observacao: state.observacao ?? params.get("observacao") ?? "",
       alertaId: state.alertaId ?? params.get("alertaId") ?? null,
       dataColeta: state.dataColeta ?? params.get("dataColeta") ?? "",
@@ -258,8 +311,14 @@ export function Movimentacoes() {
     const campoOuVazio = (valor) =>
       valor !== undefined && valor !== null ? String(valor) : "";
 
-    setShowForm(true);
-    setFiltroLojaForm(lojaId);
+    // A máquina só aparece aberta dentro da lista da loja dela.
+    setFiltroLojaForm(
+      lojaId ||
+        String(
+          maquinas.find((m) => String(m.id) === maquinaId)?.lojaId ?? "",
+        ),
+    );
+    if (movimentacaoAssistentePendente.observacao) setMostrarMaisOpcoes(true);
     setFormData((prev) => ({
       ...prev,
       maquina_id: maquinaId,
@@ -273,12 +332,6 @@ export function Movimentacoes() {
         movimentacaoAssistentePendente.quantidadeAdicionada,
       ),
       fichas: campoOuVazio(movimentacaoAssistentePendente.fichas),
-      quantidade_notas_entrada: campoOuVazio(
-        movimentacaoAssistentePendente.quantidade_notas_entrada,
-      ),
-      valor_entrada_maquininha_pix: campoOuVazio(
-        movimentacaoAssistentePendente.valor_entrada_maquininha_pix,
-      ),
       observacao: campoOuVazio(movimentacaoAssistentePendente.observacao),
       // Vindo de um alerta da Manutenção, já chega com a data/hora em que
       // a movimentação aconteceu (só admin pode lançar com outra data).
@@ -290,13 +343,37 @@ export function Movimentacoes() {
     }));
     setAlertaOrigemId(movimentacaoAssistentePendente.alertaId || null);
     setMovimentacaoAssistentePendente(null);
+  }, [movimentacaoAssistentePendente, loading, usuario?.role, maquinas]);
 
+  useEffect(() => {
+    if (!filtroLojaForm) {
+      setStatusLoja({ concluidas: {}, manutencoes: {} });
+      return;
+    }
+    let cancelado = false;
+    setCarregandoStatusLoja(true);
+    buscarStatusLoja(filtroLojaForm)
+      .then((status) => {
+        if (!cancelado) setStatusLoja(status);
+      })
+      .finally(() => {
+        if (!cancelado) setCarregandoStatusLoja(false);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [filtroLojaForm]);
+
+  // Ao abrir uma máquina, traz ela pro topo da tela (a que estava aberta
+  // antes fecha e mudaria tudo de lugar).
+  useEffect(() => {
+    if (!formData.maquina_id) return;
     queueMicrotask(() => {
       document
-        .getElementById("form-nova-movimentacao")
+        .getElementById(`maquina-${formData.maquina_id}`)
         ?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
-  }, [movimentacaoAssistentePendente, loading, usuario?.role]);
+  }, [formData.maquina_id]);
 
   // Atualizar estoque anterior quando seleciona máquina
   useEffect(() => {
@@ -843,12 +920,6 @@ export function Movimentacoes() {
         fichas: fichas,
         contadorIn: parseInt(formData.contadorIn) || null,
         contadorOut: parseInt(formData.contadorOut) || null,
-        quantidade_notas_entrada: formData.quantidade_notas_entrada
-          ? parseFloat(formData.quantidade_notas_entrada)
-          : null,
-        valor_entrada_maquininha_pix: formData.valor_entrada_maquininha_pix
-          ? parseFloat(formData.valor_entrada_maquininha_pix)
-          : null,
         retiradaEstoque: formData.retiradaEstoque,
         contadorMaquina: null,
         observacoes: observacaoFinal || null,
@@ -982,29 +1053,15 @@ export function Movimentacoes() {
       }
       console.log("Último totalPos encontrado:", ultimoTotalPos);
 
-      setFormData({
-        dataColeta: "",
-        maquina_id: "",
-        produto_id: "",
-        quantidadeAtualMaquina: "",
-        quantidadeAdicionada: "",
-        fichas: "",
-        contadorIn: "",
-        contadorOut: "",
-        quantidade_notas_entrada: "",
-        valor_entrada_maquininha_pix: "",
-        observacao: "",
-        retiradaEstoque: false,
-        retiradaProduto: 0,
-        ignoreInOut: false,
-      });
+      setFormData(FORMULARIO_VAZIO);
       limparFotoContadores();
       setEstoqueAnterior(0);
-      setFiltroLojaForm("");
-      setShowForm(false);
+      setMostrarMaisOpcoes(false);
 
-      // Recarregar dados
+      // Recarregar dados (a loja continua selecionada pra seguir pra
+      // próxima máquina)
       carregarDados();
+      buscarStatusLoja(filtroLojaForm).then(setStatusLoja);
     } catch (error) {
       console.error("❌ [handleSubmit] Erro:", error);
       setError(
@@ -1172,6 +1229,26 @@ export function Movimentacoes() {
     setObsAlerta("");
   };
 
+  // Abre a máquina clicada (com o formulário zerado) ou fecha se já estava
+  // aberta. A data retroativa escolhida pelo admin vale pra loja inteira.
+  const selecionarMaquina = (maquinaId) => {
+    limparFotoContadores();
+    resetFluxoWhatsappBypass();
+    setAlertaOrigemId(null);
+    setMostrarMaisOpcoes(false);
+    setEstoqueAnterior(0);
+    setError("");
+    setFormData((prev) => ({
+      ...FORMULARIO_VAZIO,
+      dataColeta: prev.dataColeta,
+      maquina_id: prev.maquina_id === maquinaId ? "" : maquinaId,
+    }));
+  };
+
+  const fecharMaquina = () => {
+    if (formData.maquina_id) selecionarMaquina(formData.maquina_id);
+  };
+
   const handleClickEnviarWhatsapp = () => {
     if (!naoVaiRegistrar) return;
     if (!formData.maquina_id) {
@@ -1202,9 +1279,6 @@ export function Movimentacoes() {
           fichas: formData.fichas || null,
           contadorIn: formData.contadorIn || null,
           contadorOut: formData.contadorOut || null,
-          quantidade_notas_entrada: formData.quantidade_notas_entrada || null,
-          valor_entrada_maquininha_pix:
-            formData.valor_entrada_maquininha_pix || null,
         },
       });
       await enviarParaWhatsapp(janelaWhatsapp);
@@ -1309,6 +1383,13 @@ export function Movimentacoes() {
     parseInt(formData.quantidadeAdicionada) || 0;
   const retiradaProdutoNoForm = parseInt(formData.retiradaProduto) || 0;
 
+  const maquinasDaLoja = filtroLojaForm
+    ? maquinas.filter((m) => String(m.lojaId) === String(filtroLojaForm))
+    : [];
+  const maquinasConcluidasLoja = maquinasDaLoja.filter(
+    (m) => statusLoja.concluidas[m.id],
+  ).length;
+
   const resumoConfirmacaoMovimentacao = (
     <>
       <span className="block">
@@ -1365,15 +1446,6 @@ export function Movimentacoes() {
             action={null}
           />
           <div className="flex flex-wrap gap-3">
-            <button
-              className="px-6 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 font-bold shadow text-base"
-              onClick={() => {
-                setShowForm((v) => !v);
-                setAlertaOrigemId(null);
-              }}
-            >
-              {showForm ? "Cancelar" : "Nova Movimentação"}
-            </button>
             <button
               className="px-6 py-2 bg-rose-600 text-white rounded hover:bg-rose-700 font-bold shadow text-base"
               onClick={() => navigate("/sangrias")}
@@ -1532,796 +1604,839 @@ export function Movimentacoes() {
           />
         )}  
 
-        <AvisosMaquinasFaltam lojas={lojas} />
-
-        {showForm && (
-          <div id="form-nova-movimentacao" className="card-gradient mb-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <span className="text-2xl">📝</span>
-              Registrar Movimentação
-            </h3>
-
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800 flex items-center gap-2">
-                <svg
-                  className="w-4 h-4"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                <strong>Como funciona:</strong> Informe quantos produtos tem
-                AGORA na máquina (o sistema calcula o que saiu). Se abastecer,
-                informe quantos foram adicionados.
-              </p>
+        <div className="card-gradient mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                🏪 Loja atual
+              </label>
+              <select
+                value={filtroLojaForm}
+                onChange={(e) => {
+                  fecharMaquina();
+                  setFiltroLojaForm(e.target.value);
+                }}
+                className="select-field text-base font-semibold"
+              >
+                <option value="">Em qual loja você está?</option>
+                {lojas
+                  .filter((l) => l.ativo)
+                  .map((loja) => (
+                    <option key={loja.id} value={loja.id}>
+                      {loja.nome}
+                    </option>
+                  ))}
+              </select>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {usuario?.role === "ADMIN" && (
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Data e hora da movimentação
-                    </label>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                      <input
-                        type="datetime-local"
-                        value={formData.dataColeta || paraInputDataHora()}
-                        max={paraInputDataHora()}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            dataColeta: e.target.value,
-                          }))
-                        }
-                        className={`input-field sm:max-w-xs ${formData.dataColeta ? "border-amber-500 bg-amber-50" : ""}`}
-                      />
-                      {formData.dataColeta && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setFormData((prev) => ({ ...prev, dataColeta: "" }))
-                          }
-                          className="text-xs font-semibold text-blue-600 hover:text-blue-700"
-                        >
-                          Usar horário atual
-                        </button>
-                      )}
-                    </div>
-                    {formData.dataColeta && (
-                      <p className="text-xs text-amber-700 mt-1">
-                        ⏪ Lançamento retroativo: a saída é calculada a partir
-                        da movimentação anterior a esta data, e a movimentação
-                        seguinte é recalculada para usar esta como anterior.
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Loja *
-                  </label>
-                  <select
-                    value={filtroLojaForm}
-                    onChange={(e) => {
-                      setFiltroLojaForm(e.target.value);
-                      setFormData({
-                        ...formData,
-                        maquina_id: "",
-                        produto_id: "",
-                      });
-                    }}
-                    className="select-field"
-                    required
-                  >
-                    <option value="">Selecione uma loja...</option>
-                    {lojas
-                      .filter((l) => l.ativo)
-                      .map((loja) => (
-                        <option key={loja.id} value={loja.id}>
-                          {loja.nome}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Máquina *
-                  </label>
-                  <select
-                    name="maquina_id"
-                    value={formData.maquina_id}
-                    onChange={handleChange}
-                    className="select-field"
-                    required
-                    disabled={!filtroLojaForm}
-                  >
-                    <option value="">
-                      {filtroLojaForm
-                        ? "Selecione uma máquina..."
-                        : "Primeiro selecione uma loja"}
-                    </option>
-                    {maquinas
-                      .filter(
-                        (m) =>
-                          !filtroLojaForm ||
-                          String(m.lojaId) === String(filtroLojaForm),
-                      )
-                      .map((maquina) => (
-                        <option key={maquina.id} value={maquina.id}>
-                          {maquina.nome} - {maquina.codigo}
-                        </option>
-                      ))}
-                  </select>
-                  {filtroLojaForm && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      💡 Mostrando apenas máquinas da loja selecionada
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Produto *
-                  </label>
-                  <select
-                    name="produto_id"
-                    value={formData.produto_id}
-                    onChange={handleChange}
-                    className={`select-field ${formData.produto_id ? "border-blue-500 bg-blue-50" : ""}`}
-                    required
-                  >
-                    <option value="">Nenhum produto</option>
-                    {produtos.map((produto) => (
-                      <option key={produto.id} value={produto.id}>
-                        {produto.emoji || "🧸"} {produto.nome}
-                      </option>
-                    ))}
-                  </select>
-                  {formData.maquina_id && formData.produto_id && (
-                    <p className="text-[10px] text-blue-600 mt-1 animate-pulse">
-                      ✨ Produto sugerido com base na última visita
-                    </p>
-                  )}
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Observação
-                  </label>
-                  <textarea
-                    name="observacao"
-                    value={formData.observacao}
-                    onChange={handleChange}
-                    className="input-field"
-                    rows="2"
-                    placeholder="Informações adicionais sobre a movimentação..."
-                  />
-                </div>
-              </div>
-
-              <div className="p-4 bg-white border border-blue-100 rounded-lg">
+            {usuario?.role === "ADMIN" && (
+              <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Foto dos contadores
+                  Data e hora da movimentação
                 </label>
-                <input
-                  id="foto-contadores-camera"
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleFotoContadores}
-                  className="sr-only"
-                  disabled={lendoFotoContadores}
-                />
-                <label
-                  htmlFor="foto-contadores-camera"
-                  className={`inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg px-4 py-2 font-semibold text-white shadow transition-colors ${
-                    lendoFotoContadores
-                      ? "cursor-not-allowed bg-gray-400"
-                      : "cursor-pointer bg-blue-600 hover:bg-blue-700"
-                  }`}
-                >
-                  <span aria-hidden="true">📷</span>
-                  {lendoFotoContadores ? "Lendo foto..." : "Tirar foto dos contadores"}
-                </label>
-                <p className="text-xs text-gray-500 mt-2">
-                  No celular, o botao abre a camera para fotografar os dois
-                  contadores. O maior numero sera usado como IN e o menor como
-                  OUT. Confira e ajuste se precisar.
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <input
+                    type="datetime-local"
+                    value={formData.dataColeta || paraInputDataHora()}
+                    max={paraInputDataHora()}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        dataColeta: e.target.value,
+                      }))
+                    }
+                    className={`input-field ${formData.dataColeta ? "border-amber-500 bg-amber-50" : ""}`}
+                  />
+                  {formData.dataColeta && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData((prev) => ({ ...prev, dataColeta: "" }))
+                      }
+                      className="text-xs font-semibold text-blue-600 hover:text-blue-700 whitespace-nowrap"
+                    >
+                      Usar horário atual
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          {formData.dataColeta && (
+            <p className="text-xs text-amber-700 mt-2">
+              ⏪ Lançamento retroativo: a saída é calculada a partir da
+              movimentação anterior a esta data, e a movimentação seguinte é
+              recalculada para usar esta como anterior.
+            </p>
+          )}
+
+          {!filtroLojaForm ? (
+            <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white/70 py-10 text-center">
+              <div className="text-4xl mb-2">🏪</div>
+              <p className="font-semibold text-slate-700">
+                Escolha a loja para ver as máquinas
+              </p>
+              <p className="text-sm text-slate-500 mt-1">
+                Toque numa máquina para registrar a movimentação dela.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-6">
+              <div className="flex items-end justify-between gap-3 mb-2">
+                <h3 className="text-lg font-bold text-gray-900">Máquinas</h3>
+                <p className="text-sm font-semibold text-slate-600 tabular-nums">
+                  {carregandoStatusLoja
+                    ? "Atualizando..."
+                    : `${maquinasConcluidasLoja} de ${maquinasDaLoja.length} concluídas`}
                 </p>
-
-                {fotoContadoresPreview && (
-                  <div className="mt-3 grid grid-cols-1 md:grid-cols-[160px_1fr] gap-3 items-start">
-                    <img
-                      src={fotoContadoresPreview}
-                      alt="Foto dos contadores"
-                      className="w-full max-w-40 rounded-lg border border-gray-200 object-cover"
-                    />
-                    <div className="text-sm">
-                      {resultadoFotoContadores && (
-                        <p
-                          className={`font-medium ${
-                            lendoFotoContadores
-                              ? "text-blue-700"
-                              : "text-gray-700"
-                          }`}
-                        >
-                          {resultadoFotoContadores}
-                        </p>
-                      )}
-                      <p className="text-xs text-gray-500 mt-1">
-                        A foto nao sera salva no sistema. Ela fica somente para
-                        anexar na mensagem do WhatsApp.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={limparFotoContadores}
-                        className="mt-2 text-xs font-semibold text-red-600 hover:text-red-700"
-                      >
-                        Remover foto
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
-              {/* Contadores da Máquina */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    📥 Contador IN (Entrada)
-                  </label>
-                  <input
-                    type="number"
-                    name="contadorIn"
-                    value={formData.contadorIn}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="0"
-                    min="0"
-                    required={!formData.ignoreInOut}
-                    disabled={formData.ignoreInOut}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Número do contador IN da máquina
-                  </p>
-                  {contadorInSuspeito && (
-                    <div className="mt-2 p-3 bg-red-50 border-l-4 border-red-500 rounded">
-                      <div className="flex items-start">
-                        <span className="text-red-600 text-lg mr-2">🚫</span>
-                        <div className="flex-1">
-                          <p className="text-xs font-bold text-red-800 mb-1">
-                            Diferença de {diferencaContadorIn} em relação ao
-                            último Contador IN registrado (
-                            {ultimoContadorMaquina.contadorIn}). Provavelmente
-                            há um erro de leitura ou digitação.
-                          </p>
-                          <label className="flex items-center gap-2 mt-2">
-                            <input
-                              type="checkbox"
-                              checked={confirmacaoContadorIn}
-                              onChange={(e) =>
-                                setConfirmacaoContadorIn(e.target.checked)
-                              }
-                              className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
-                            />
-                            <span className="text-xs font-semibold text-red-800">
-                              Tenho certeza que o Contador IN está correto
-                            </span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    📤 Contador OUT (Saída)
-                  </label>
-                  <input
-                    type="number"
-                    name="contadorOut"
-                    value={formData.contadorOut}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="0"
-                    min="0"
-                    required={!formData.ignoreInOut}
-                    disabled={formData.ignoreInOut}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Número do contador OUT da máquina
-                  </p>
-                  {contadorOutSuspeito && (
-                    <div className="mt-2 p-3 bg-red-50 border-l-4 border-red-500 rounded">
-                      <div className="flex items-start">
-                        <span className="text-red-600 text-lg mr-2">🚫</span>
-                        <div className="flex-1">
-                          <p className="text-xs font-bold text-red-800 mb-1">
-                            Diferença de {diferencaContadorOut} em relação ao
-                            último Contador OUT registrado (
-                            {ultimoContadorMaquina.contadorOut}). Provavelmente
-                            há um erro de leitura ou digitação.
-                          </p>
-                          <label className="flex items-center gap-2 mt-2">
-                            <input
-                              type="checkbox"
-                              checked={confirmacaoContadorOut}
-                              onChange={(e) =>
-                                setConfirmacaoContadorOut(e.target.checked)
-                              }
-                              className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
-                            />
-                            <span className="text-xs font-semibold text-red-800">
-                              Tenho certeza que o Contador OUT está correto
-                            </span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-              {/* Checkbox para ignorar IN/OUT */}
-              <div className="flex items-center mt-2 mb-4">
-                <input
-                  type="checkbox"
-                  id="ignoreInOut"
-                  name="ignoreInOut"
-                  checked={formData.ignoreInOut || false}
-                  onChange={handleChange}
-                  className="mr-2"
-                />
-                <label htmlFor="ignoreInOut" className="text-sm text-gray-700">
-                  Não preciso informar IN/OUT nesta movimentação
-                </label>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    📦 Quantidade Atual na Máquina *
-                  </label>
-                  <input
-                    type="number"
-                    name="quantidadeAtualMaquina"
-                    value={formData.quantidadeAtualMaquina}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder={
-                      carregandoSugestaoMachinePay
-                        ? "Buscando na Machine Pay/CompactPay..."
-                        : "0"
-                    }
-                    min="0"
-                    disabled={carregandoSugestaoMachinePay}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Quantos produtos tem agora
-                  </p>
-                  {carregandoSugestaoMachinePay && (
-                    <p className="text-xs font-semibold text-blue-600 mt-1">
-                      💳 Buscando na Machine Pay/CompactPay...
-                    </p>
-                  )}
-                  {!carregandoSugestaoMachinePay &&
-                    sugestaoTotalPreMachinePay?.sugestaoDisponivel &&
-                    sugestaoTotalPreMachinePay.modo === "auto" && (
-                      <p className="text-xs font-semibold text-emerald-600 mt-1">
-                        {`${sugestaoTotalPreMachinePay.fonte === "compactPay" ? "📟" : "💳"} Sugestão via ${nomeFontePagamento(sugestaoTotalPreMachinePay.fonte)}`}
-                        : R${" "}
-                        {sugestaoTotalPreMachinePay.totalRecebidoDesdeUltimaMovimentacao.toFixed(
-                          2,
-                        )}{" "}
-                        recebidos desde a última coleta ({sugestaoTotalPreMachinePay.pulsos}{" "}
-                        pulso{sugestaoTotalPreMachinePay.pulsos === 1 ? "" : "s"}) →
-                        Total Pré sugerido: {sugestaoTotalPreMachinePay.sugestaoTotalPre}.
-                        Se o valor real for diferente, ajuste — vamos pedir
-                        para você confirmar que recontou.
-                      </p>
-                    )}
-                  {!carregandoSugestaoMachinePay &&
-                    sugestaoTotalPreMachinePay?.sugestaoDisponivel &&
-                    sugestaoTotalPreMachinePay.modo === "forcar_manual" && (
-                      <p className="text-xs font-semibold text-purple-600 mt-1">
-                        🔍 Conferência manual (a cada 15 dias): conte
-                        fisicamente e digite o valor.
-                      </p>
-                    )}
-                  {divergenciaMachinePaySuspeita && (
-                    <div className="mt-2 p-3 bg-red-50 border-l-4 border-red-500 rounded">
-                      <div className="flex items-start">
-                        <span className="text-red-600 text-lg mr-2">🚫</span>
-                        <div className="flex-1">
-                          <p className="text-xs font-bold text-red-800 mb-1">
-                            O valor digitado não confere com o que a{" "}
-                            {nomeFontePagamento(sugestaoTotalPreMachinePay?.fonte)}{" "}
-                            esperava. Reconte a máquina antes de confirmar.
-                          </p>
-                          <label className="flex items-center gap-2 mt-2">
-                            <input
-                              type="checkbox"
-                              checked={confirmacaoDivergenciaMachinePay}
-                              onChange={(e) =>
-                                setConfirmacaoDivergenciaMachinePay(
-                                  e.target.checked,
-                                )
-                              }
-                              className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
-                            />
-                            <span className="text-xs font-semibold text-red-800">
-                              Já recontei, o valor está correto mesmo assim
-                            </span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {formData.quantidadeAtualMaquina && estoqueAnterior > 0 && (
-                    <p className="text-xs font-semibold text-red-600 mt-1">
-                      🔻 Saíram:{" "}
-                      {Math.max(
-                        0,
-                        estoqueAnterior -
-                          parseInt(formData.quantidadeAtualMaquina || 0),
-                      )}{" "}
-                      unidades
-                    </p>
-                  )}
-                  {saidasCompactPay?.carregando && (
-                    <p className="text-xs text-blue-600 mt-1">
-                      📟 Buscando prêmios entregues na CompactPay...
-                    </p>
-                  )}
-                  {saidasCompactPay?.erro && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      📟 Não foi possível consultar os prêmios entregues na
-                      CompactPay.
-                    </p>
-                  )}
-                  {saidasCompactPay?.disponivel && (
-                    <p
-                      className={`text-xs font-semibold mt-1 ${
-                        formData.quantidadeAtualMaquina &&
-                        Math.max(
-                          0,
-                          estoqueAnterior -
-                            parseInt(formData.quantidadeAtualMaquina || 0),
-                        ) !== saidasCompactPay.saidas
-                          ? "text-orange-600"
-                          : "text-emerald-600"
-                      }`}
-                    >
-                      📟 CompactPay: {saidasCompactPay.saidas} prêmio
-                      {saidasCompactPay.saidas === 1 ? "" : "s"} entregue
-                      {saidasCompactPay.saidas === 1 ? "" : "s"} desde a última
-                      movimentação (
-                      {new Date(saidasCompactPay.desde).toLocaleString("pt-BR")}
-                      ). Esperado no Total Pré:{" "}
-                      {Math.max(
-                        0,
-                        (saidasCompactPay.totalPosAnterior ?? estoqueAnterior) -
-                          saidasCompactPay.saidas,
-                      )}
-                    </p>
-                  )}
-                  {alertaDivergencia && (
-                    <div className="mt-2 p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded">
-                      <div className="flex items-start">
-                        <span className="text-yellow-600 text-lg mr-2">⚠️</span>
-                        <div className="flex-1">
-                          <p className="text-xs font-bold text-yellow-800 mb-1">
-                            Atenção: Possível erro de contagem!
-                          </p>
-                          <p className="text-xs text-yellow-700">
-                            Reconte por favor
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    📥 Quantidade Adicionada
-                  </label>
-                  <input
-                    type="number"
-                    name="quantidadeAdicionada"
-                    value={formData.quantidadeAdicionada}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="0"
-                    min="0"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Quantos produtos foram adicionados
-                  </p>
-                  {formData.quantidadeAdicionada &&
-                    formData.quantidadeAtualMaquina && (
-                      <p className="text-xs font-semibold text-green-600 mt-1">
-                        ✅ Novo total:{" "}
-                        {parseInt(formData.quantidadeAtualMaquina || 0) +
-                          parseInt(formData.quantidadeAdicionada || 0)}{" "}
-                        unidades
-                      </p>
-                    )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    🎫 Quantidade de Fichas
-                  </label>
-                  <input
-                    type="number"
-                    name="fichas"
-                    value={formData.fichas}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="0"
-                    min="0"
-                    disabled={formData.retiradaEstoque}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Fichas coletadas da máquina
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    ❌ Retirada de Produto
-                  </label>
-                  <input
-                    type="number"
-                    name="retiradaProduto"
-                    value={formData.retiradaProduto}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="0"
-                    min="0"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Quantidade de produtos retirados (não conta como saída
-                    financeira)
-                  </p>
-                  <label className="flex items-center mt-2 gap-2">
-                    <input
-                      type="checkbox"
-                      name="retiradaProdutoDevolverEstoque"
-                      checked={formData.retiradaProdutoDevolverEstoque || false}
-                      onChange={handleChange}
-                      className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                    />
-                    <span className="text-xs text-green-700">
-                      Devolver retirada para o estoque da loja
-                    </span>
-                  </label>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    💵 Valor em Notas (R$)
-                  </label>
-                  <input
-                    type="number"
-                    name="quantidade_notas_entrada"
-                    value={formData.quantidade_notas_entrada}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="0.00"
-                    min="0"
-                    step="0.01"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Valor total em dinheiro (notas) inserido na máquina
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    💳 Valor Digital (Pix/Maquininha) (R$)
-                  </label>
-                  <input
-                    type="number"
-                    name="valor_entrada_maquininha_pix"
-                    value={formData.valor_entrada_maquininha_pix}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="0.00"
-                    min="0"
-                    step="0.01"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Valor total recebido via pagamento digital (Pix/Maquininha)
-                  </p>
-                </div>
-              </div>
-
-              {/* Checkbox de Retirada de Estoque */}
-              <div className="p-4 bg-linear-to-r from-orange-50 to-yellow-50 border-2 border-orange-200 rounded-lg">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    name="retiradaEstoque"
-                    checked={formData.retiradaEstoque}
-                    onChange={handleChange}
-                    className="w-5 h-5 text-orange-600 bg-gray-100 border-gray-300 rounded focus:ring-orange-500 focus:ring-2 cursor-pointer"
-                  />
-                  <div className="flex-1">
-                    <span className="text-sm font-bold text-orange-900">
-                      📦 Retirada de Estoque (não conta como dinheiro)
-                    </span>
-                    <p className="text-xs text-orange-700 mt-1">
-                      Marque esta opção quando estiver retirando produtos da
-                      máquina sem que seja uma venda (exemplo: produtos
-                      danificados, devolução, transferência). As fichas serão
-                      automaticamente zeradas.
-                    </p>
-                  </div>
-                </label>
-              </div>
-
-              <div className="flex items-start gap-2 pt-4 border-t border-gray-200 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                <input
-                  type="checkbox"
-                  id="naoVaiRegistrar"
-                  checked={naoVaiRegistrar}
-                  onChange={(e) => {
-                    setNaoVaiRegistrar(e.target.checked);
-                    if (!e.target.checked) {
-                      setMostrarObsAlerta(false);
-                      setObsAlerta("");
-                    }
+              <div className="h-2 rounded-full bg-slate-200 overflow-hidden mb-4">
+                <div
+                  className="h-full rounded-full bg-emerald-500 transition-all"
+                  style={{
+                    width: `${maquinasDaLoja.length ? (maquinasConcluidasLoja / maquinasDaLoja.length) * 100 : 0}%`,
                   }}
-                  className="mt-1"
                 />
-                <label htmlFor="naoVaiRegistrar" className="text-sm text-amber-900">
-                  Não vou registrar esta movimentação agora — só quero avisar
-                  pelo WhatsApp. (isso gera um alerta pra loja acompanhar)
-                </label>
               </div>
 
-              {mostrarObsAlerta && (
-                <div className="border border-amber-300 bg-amber-50 rounded-lg p-4 space-y-2">
-                  <label className="block text-sm font-semibold text-amber-900">
-                    Por que você não vai registrar essa movimentação agora?
-                  </label>
-                  <textarea
-                    value={obsAlerta}
-                    onChange={(e) => setObsAlerta(e.target.value)}
-                    className="input-field"
-                    rows="2"
-                    placeholder="Explique o motivo (obrigatório)"
-                  />
-                  <div className="flex gap-2 justify-end">
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => setMostrarObsAlerta(false)}
-                      disabled={enviandoAlerta}
-                    >
-                      Voltar
-                    </button>
-                    <button
-                      type="button"
-                      className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      onClick={confirmarEnvioBypassWhatsapp}
-                      disabled={enviandoAlerta || !obsAlerta.trim()}
-                    >
-                      {enviandoAlerta
-                        ? "Enviando..."
-                        : "Confirmar e enviar para WhatsApp"}
-                    </button>
-                  </div>
-                </div>
+              {maquinasDaLoja.length === 0 && (
+                <p className="py-8 text-center text-sm text-slate-500">
+                  Nenhuma máquina cadastrada nesta loja.
+                </p>
               )}
 
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:justify-end pt-4 border-t border-gray-200">
-                {error && (
-                  <AlertBox
-                    type="error"
-                    message={error}
-                    onClose={() => setError("")}
-                  />
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowForm(false);
-                    setFiltroLojaForm("");
-                    limparFotoContadores();
-                    resetFluxoWhatsappBypass();
-                    setAlertaOrigemId(null);
-                  }}
-                  className="btn-secondary w-full sm:w-auto"
-                  disabled={salvandoMovimentacao}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={handleClickEnviarWhatsapp}
-                  className={`px-4 py-2 font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 shadow w-full sm:w-auto ${
-                    naoVaiRegistrar
-                      ? "bg-green-500 hover:bg-green-600 text-white"
-                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                  }`}
-                  disabled={salvandoMovimentacao || !naoVaiRegistrar}
-                  title={
-                    naoVaiRegistrar
-                      ? "Enviar aviso pelo WhatsApp sem registrar"
-                      : "Marque a caixa acima para liberar este botão"
-                  }
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                  </svg>
-                  Enviar para WhatsApp
-                </button>
-                <button
-                  type="submit"
-                  className="btn-primary w-full sm:w-auto"
-                  disabled={
-                    salvandoMovimentacao ||
-                    (contadorInSuspeito && !confirmacaoContadorIn) ||
-                    (contadorOutSuspeito && !confirmacaoContadorOut) ||
-                    (divergenciaMachinePaySuspeita &&
-                      !confirmacaoDivergenciaMachinePay)
-                  }
-                >
-                  {salvandoMovimentacao ? (
-                    <span className="flex items-center gap-2">
-                      <svg
-                        className="animate-spin h-5 w-5"
-                        fill="none"
-                        viewBox="0 0 24 24"
+              <div className="space-y-2">
+                {maquinasDaLoja.map((maquina) => {
+                  const aberta =
+                    String(formData.maquina_id) === String(maquina.id);
+                  const concluidaEm = statusLoja.concluidas[maquina.id];
+                  const manutencoesPendentes =
+                    statusLoja.manutencoes[maquina.id] || 0;
+                  const padrao = maquina.capacidadePadrao ?? null;
+                  const atual = Number(maquina.estoqueAtual) || 0;
+                  const falta =
+                    padrao !== null ? Math.max(0, padrao - atual) : null;
+
+                  return (
+                    <div
+                      key={maquina.id}
+                      id={`maquina-${maquina.id}`}
+                      className={`scroll-mt-4 rounded-2xl border overflow-hidden transition-shadow ${
+                        aberta
+                          ? "border-amber-400 bg-white shadow-lg"
+                          : concluidaEm
+                            ? "border-emerald-200 bg-emerald-50/60"
+                            : "border-slate-200 bg-white hover:shadow-md"
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => selecionarMaquina(maquina.id)}
+                        className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 text-left"
+                        aria-expanded={aberta}
                       >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
+                        <span
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+                            concluidaEm
+                              ? "bg-emerald-500 text-white"
+                              : "bg-slate-100 text-slate-400"
+                          }`}
+                          aria-label={concluidaEm ? "Concluída" : "Pendente"}
+                        >
+                          {concluidaEm ? "✓" : "•"}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className={`font-bold truncate ${
+                              concluidaEm && !aberta
+                                ? "text-slate-500 line-through decoration-emerald-500/60"
+                                : "text-slate-900"
+                            }`}
+                          >
+                            {maquina.nome}
+                          </p>
+                          <p className="text-xs text-slate-500 truncate">
+                            {maquina.codigo}
+                            {concluidaEm && (
+                              <span className="ml-1 font-semibold text-emerald-700">
+                                · Concluída às{" "}
+                                {concluidaEm.toLocaleTimeString("pt-BR", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                        {manutencoesPendentes > 0 && (
+                          <span
+                            className="shrink-0 inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-1 text-xs font-bold text-orange-700"
+                            title={`${manutencoesPendentes} manutenção(ões) pendente(s)`}
+                          >
+                            🔧 {manutencoesPendentes}
+                          </span>
+                        )}
+                        <NumeroMaquina label="Padrão" value={padrao ?? "-"} />
+                        <NumeroMaquina
+                          label="Falta"
+                          value={falta ?? "-"}
+                          tone={falta > 0 ? "amber" : "muted"}
+                        />
+                        <NumeroMaquina label="Atual" value={atual} />
+                        <svg
+                          className={`w-5 h-5 shrink-0 text-slate-400 transition-transform ${aberta ? "rotate-180" : ""}`}
+                          fill="none"
                           stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        />
-                      </svg>
-                      Salvando...
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-2">
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                      Registrar Movimentação
-                    </span>
-                  )}
-                </button>
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </button>
+
+                      {aberta && (
+                        <form
+                          onSubmit={handleSubmit}
+                          className="border-t border-slate-200 px-3 sm:px-4 py-4 space-y-4"
+                        >
+                          {concluidaEm && (
+                            <p className="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-800">
+                              ✓ Esta máquina já teve movimentação nas últimas{" "}
+                              {HORAS_MAQUINA_CONCLUIDA}h. Registrar de novo
+                              cria uma nova movimentação.
+                            </p>
+                          )}
+                          {manutencoesPendentes > 0 && (
+                            <p className="rounded-lg bg-orange-50 border border-orange-200 px-3 py-2 text-xs text-orange-800">
+                              🔧 {manutencoesPendentes} manutenção(ões)
+                              pendente(s) nesta máquina.{" "}
+                              <button
+                                type="button"
+                                onClick={() => navigate("/manutencao")}
+                                className="font-semibold underline"
+                              >
+                                Ver manutenções
+                              </button>
+                            </p>
+                          )}
+
+                          {/* Produto + padrão */}
+                          <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                Produto *
+                              </label>
+                              <select
+                                name="produto_id"
+                                value={formData.produto_id}
+                                onChange={handleChange}
+                                className={`select-field ${formData.produto_id ? "border-blue-500 bg-blue-50" : ""}`}
+                                required
+                              >
+                                <option value="">Nenhum produto</option>
+                                {produtos.map((produto) => (
+                                  <option key={produto.id} value={produto.id}>
+                                    {produto.emoji || "🧸"} {produto.nome}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-2 text-center">
+                              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                                Padrão
+                              </p>
+                              <p className="text-xl font-bold text-slate-800 tabular-nums">
+                                {padrao ?? "-"}
+                              </p>
+                            </div>
+                          </div>
+                          {formData.produto_id && (
+                            <p className="-mt-2 text-[11px] text-blue-600">
+                              ✨ Produto sugerido com base na última visita
+                            </p>
+                          )}
+
+                          {/* Foto dos contadores */}
+                          <div className="p-4 bg-white border border-blue-100 rounded-xl">
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Foto dos contadores
+                            </label>
+                            <input
+                              id="foto-contadores-camera"
+                              type="file"
+                              accept="image/*"
+                              capture="environment"
+                              onChange={handleFotoContadores}
+                              className="sr-only"
+                              disabled={lendoFotoContadores}
+                            />
+                            <label
+                              htmlFor="foto-contadores-camera"
+                              className={`inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg px-4 py-2 font-semibold text-white shadow transition-colors ${
+                                lendoFotoContadores
+                                  ? "cursor-not-allowed bg-gray-400"
+                                  : "cursor-pointer bg-blue-600 hover:bg-blue-700"
+                              }`}
+                            >
+                              <span aria-hidden="true">📷</span>
+                              {lendoFotoContadores
+                                ? "Lendo foto..."
+                                : "Tirar foto dos contadores"}
+                            </label>
+                            <p className="text-xs text-gray-500 mt-2">
+                              O maior número vira IN e o menor OUT. Confira e
+                              ajuste se precisar.
+                            </p>
+
+                            {fotoContadoresPreview && (
+                              <div className="mt-3 grid grid-cols-1 md:grid-cols-[160px_1fr] gap-3 items-start">
+                                <img
+                                  src={fotoContadoresPreview}
+                                  alt="Foto dos contadores"
+                                  className="w-full max-w-40 rounded-lg border border-gray-200 object-cover"
+                                />
+                                <div className="text-sm">
+                                  {resultadoFotoContadores && (
+                                    <p
+                                      className={`font-medium ${
+                                        lendoFotoContadores
+                                          ? "text-blue-700"
+                                          : "text-gray-700"
+                                      }`}
+                                    >
+                                      {resultadoFotoContadores}
+                                    </p>
+                                  )}
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    A foto não é salva no sistema, só vai
+                                    anexada na mensagem do WhatsApp.
+                                  </p>
+                                  <button
+                                    type="button"
+                                    onClick={limparFotoContadores}
+                                    className="mt-2 text-xs font-semibold text-red-600 hover:text-red-700"
+                                  >
+                                    Remover foto
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Contadores */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                📥 Contador IN
+                              </label>
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                name="contadorIn"
+                                value={formData.contadorIn}
+                                onChange={handleChange}
+                                className="input-field"
+                                placeholder={
+                                  ultimoContadorMaquina.contadorIn !== null
+                                    ? `Último: ${ultimoContadorMaquina.contadorIn}`
+                                    : "0"
+                                }
+                                min="0"
+                                required={!formData.ignoreInOut}
+                                disabled={formData.ignoreInOut}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                📤 Contador OUT
+                              </label>
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                name="contadorOut"
+                                value={formData.contadorOut}
+                                onChange={handleChange}
+                                className="input-field"
+                                placeholder={
+                                  ultimoContadorMaquina.contadorOut !== null
+                                    ? `Último: ${ultimoContadorMaquina.contadorOut}`
+                                    : "0"
+                                }
+                                min="0"
+                                required={!formData.ignoreInOut}
+                                disabled={formData.ignoreInOut}
+                              />
+                            </div>
+                          </div>
+                          {contadorInSuspeito && (
+                            <div className="p-3 bg-red-50 border-l-4 border-red-500 rounded">
+                              <p className="text-xs font-bold text-red-800 mb-1">
+                                🚫 Diferença de {diferencaContadorIn} em relação
+                                ao último Contador IN registrado (
+                                {ultimoContadorMaquina.contadorIn}).
+                                Provavelmente há um erro de leitura ou
+                                digitação.
+                              </p>
+                              <label className="flex items-center gap-2 mt-2">
+                                <input
+                                  type="checkbox"
+                                  checked={confirmacaoContadorIn}
+                                  onChange={(e) =>
+                                    setConfirmacaoContadorIn(e.target.checked)
+                                  }
+                                  className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                                />
+                                <span className="text-xs font-semibold text-red-800">
+                                  Tenho certeza que o Contador IN está correto
+                                </span>
+                              </label>
+                            </div>
+                          )}
+                          {contadorOutSuspeito && (
+                            <div className="p-3 bg-red-50 border-l-4 border-red-500 rounded">
+                              <p className="text-xs font-bold text-red-800 mb-1">
+                                🚫 Diferença de {diferencaContadorOut} em
+                                relação ao último Contador OUT registrado (
+                                {ultimoContadorMaquina.contadorOut}).
+                                Provavelmente há um erro de leitura ou
+                                digitação.
+                              </p>
+                              <label className="flex items-center gap-2 mt-2">
+                                <input
+                                  type="checkbox"
+                                  checked={confirmacaoContadorOut}
+                                  onChange={(e) =>
+                                    setConfirmacaoContadorOut(e.target.checked)
+                                  }
+                                  className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                                />
+                                <span className="text-xs font-semibold text-red-800">
+                                  Tenho certeza que o Contador OUT está correto
+                                </span>
+                              </label>
+                            </div>
+                          )}
+                          <label className="flex items-center gap-2 text-sm text-gray-700">
+                            <input
+                              type="checkbox"
+                              name="ignoreInOut"
+                              checked={formData.ignoreInOut || false}
+                              onChange={handleChange}
+                              className="w-4 h-4"
+                            />
+                            Não preciso informar IN/OUT nesta movimentação
+                          </label>
+
+                          {/* Quantidade atual */}
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              📦 Quantidade atual na máquina *
+                            </label>
+                            <input
+                              type="number"
+                              inputMode="numeric"
+                              name="quantidadeAtualMaquina"
+                              value={formData.quantidadeAtualMaquina}
+                              onChange={handleChange}
+                              className="input-field"
+                              placeholder={
+                                carregandoSugestaoMachinePay
+                                  ? "Buscando na Machine Pay/CompactPay..."
+                                  : "Quantos produtos tem agora"
+                              }
+                              min="0"
+                              disabled={carregandoSugestaoMachinePay}
+                            />
+                            {!carregandoSugestaoMachinePay &&
+                              sugestaoTotalPreMachinePay?.sugestaoDisponivel &&
+                              sugestaoTotalPreMachinePay.modo === "auto" && (
+                                <p className="text-xs font-semibold text-emerald-600 mt-1">
+                                  {`${sugestaoTotalPreMachinePay.fonte === "compactPay" ? "📟" : "💳"} Sugestão via ${nomeFontePagamento(sugestaoTotalPreMachinePay.fonte)}`}
+                                  : R${" "}
+                                  {sugestaoTotalPreMachinePay.totalRecebidoDesdeUltimaMovimentacao.toFixed(
+                                    2,
+                                  )}{" "}
+                                  recebidos desde a última coleta (
+                                  {sugestaoTotalPreMachinePay.pulsos} pulso
+                                  {sugestaoTotalPreMachinePay.pulsos === 1
+                                    ? ""
+                                    : "s"}
+                                  ) → Total Pré sugerido:{" "}
+                                  {sugestaoTotalPreMachinePay.sugestaoTotalPre}.
+                                  Se o valor real for diferente, ajuste — vamos
+                                  pedir para você confirmar que recontou.
+                                </p>
+                              )}
+                            {!carregandoSugestaoMachinePay &&
+                              sugestaoTotalPreMachinePay?.sugestaoDisponivel &&
+                              sugestaoTotalPreMachinePay.modo ===
+                                "forcar_manual" && (
+                                <p className="text-xs font-semibold text-purple-600 mt-1">
+                                  🔍 Conferência manual (a cada 15 dias): conte
+                                  fisicamente e digite o valor.
+                                </p>
+                              )}
+                            {divergenciaMachinePaySuspeita && (
+                              <div className="mt-2 p-3 bg-red-50 border-l-4 border-red-500 rounded">
+                                <p className="text-xs font-bold text-red-800 mb-1">
+                                  🚫 O valor digitado não confere com o que a{" "}
+                                  {nomeFontePagamento(
+                                    sugestaoTotalPreMachinePay?.fonte,
+                                  )}{" "}
+                                  esperava. Reconte a máquina antes de
+                                  confirmar.
+                                </p>
+                                <label className="flex items-center gap-2 mt-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={confirmacaoDivergenciaMachinePay}
+                                    onChange={(e) =>
+                                      setConfirmacaoDivergenciaMachinePay(
+                                        e.target.checked,
+                                      )
+                                    }
+                                    className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                                  />
+                                  <span className="text-xs font-semibold text-red-800">
+                                    Já recontei, o valor está correto mesmo
+                                    assim
+                                  </span>
+                                </label>
+                              </div>
+                            )}
+                            {formData.quantidadeAtualMaquina &&
+                              estoqueAnterior > 0 && (
+                                <p className="text-xs font-semibold text-red-600 mt-1">
+                                  🔻 Saíram:{" "}
+                                  {Math.max(
+                                    0,
+                                    estoqueAnterior -
+                                      parseInt(
+                                        formData.quantidadeAtualMaquina || 0,
+                                      ),
+                                  )}{" "}
+                                  unidades
+                                </p>
+                              )}
+                            {saidasCompactPay?.carregando && (
+                              <p className="text-xs text-blue-600 mt-1">
+                                📟 Buscando prêmios entregues na CompactPay...
+                              </p>
+                            )}
+                            {saidasCompactPay?.erro && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                📟 Não foi possível consultar os prêmios
+                                entregues na CompactPay.
+                              </p>
+                            )}
+                            {saidasCompactPay?.disponivel && (
+                              <p
+                                className={`text-xs font-semibold mt-1 ${
+                                  formData.quantidadeAtualMaquina &&
+                                  Math.max(
+                                    0,
+                                    estoqueAnterior -
+                                      parseInt(
+                                        formData.quantidadeAtualMaquina || 0,
+                                      ),
+                                  ) !== saidasCompactPay.saidas
+                                    ? "text-orange-600"
+                                    : "text-emerald-600"
+                                }`}
+                              >
+                                📟 CompactPay: {saidasCompactPay.saidas} prêmio
+                                {saidasCompactPay.saidas === 1 ? "" : "s"}{" "}
+                                entregue
+                                {saidasCompactPay.saidas === 1 ? "" : "s"}{" "}
+                                desde a última movimentação (
+                                {new Date(
+                                  saidasCompactPay.desde,
+                                ).toLocaleString("pt-BR")}
+                                ). Esperado no Total Pré:{" "}
+                                {Math.max(
+                                  0,
+                                  (saidasCompactPay.totalPosAnterior ??
+                                    estoqueAnterior) - saidasCompactPay.saidas,
+                                )}
+                              </p>
+                            )}
+                            {alertaDivergencia && (
+                              <div className="mt-2 p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded">
+                                <p className="text-xs font-bold text-yellow-800">
+                                  ⚠️ Atenção: possível erro de contagem!
+                                  Reconte por favor.
+                                </p>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Fichas + abastecido */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                🎫 Fichas
+                              </label>
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                name="fichas"
+                                value={formData.fichas}
+                                onChange={handleChange}
+                                className="input-field"
+                                placeholder="0"
+                                min="0"
+                                disabled={formData.retiradaEstoque}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                📥 Abastecido
+                              </label>
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                name="quantidadeAdicionada"
+                                value={formData.quantidadeAdicionada}
+                                onChange={handleChange}
+                                className="input-field"
+                                placeholder={
+                                  falta > 0 ? `Falta ${falta}` : "0"
+                                }
+                                min="0"
+                              />
+                            </div>
+                          </div>
+                          {formData.quantidadeAtualMaquina && (
+                            <p className="-mt-2 text-xs font-semibold text-green-700">
+                              ✅ Fica com{" "}
+                              {parseInt(formData.quantidadeAtualMaquina || 0) +
+                                quantidadeAdicionadaNoForm -
+                                retiradaProdutoNoForm}
+                              {padrao !== null && ` de ${padrao}`} na máquina
+                            </p>
+                          )}
+
+                          {/* Mais opções */}
+                          <div className="rounded-xl border border-slate-200 bg-slate-50/60">
+                            <button
+                              type="button"
+                              onClick={() => setMostrarMaisOpcoes((v) => !v)}
+                              className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-slate-700"
+                              aria-expanded={mostrarMaisOpcoes}
+                            >
+                              <span>
+                                ⚙️ Mais opções
+                                <span className="ml-2 font-normal text-slate-500">
+                                  retirada, observação, aviso sem registrar
+                                </span>
+                              </span>
+                              <svg
+                                className={`w-4 h-4 text-slate-400 transition-transform ${mostrarMaisOpcoes ? "rotate-180" : ""}`}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 9l-7 7-7-7"
+                                />
+                              </svg>
+                            </button>
+
+                            {mostrarMaisOpcoes && (
+                              <div className="px-4 pb-4 space-y-4">
+                                <div>
+                                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                    ❌ Retirada de produto
+                                  </label>
+                                  <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    name="retiradaProduto"
+                                    value={formData.retiradaProduto}
+                                    onChange={handleChange}
+                                    className="input-field"
+                                    placeholder="0"
+                                    min="0"
+                                  />
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Produtos tirados da máquina (não conta como
+                                    saída financeira)
+                                  </p>
+                                  <label className="flex items-center mt-2 gap-2">
+                                    <input
+                                      type="checkbox"
+                                      name="retiradaProdutoDevolverEstoque"
+                                      checked={
+                                        formData.retiradaProdutoDevolverEstoque ||
+                                        false
+                                      }
+                                      onChange={handleChange}
+                                      className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                                    />
+                                    <span className="text-xs text-green-700">
+                                      Devolver retirada para o estoque da loja
+                                    </span>
+                                  </label>
+                                </div>
+
+                                <label className="flex items-start gap-3 cursor-pointer p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                                  <input
+                                    type="checkbox"
+                                    name="retiradaEstoque"
+                                    checked={formData.retiradaEstoque}
+                                    onChange={handleChange}
+                                    className="mt-0.5 w-5 h-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                                  />
+                                  <span>
+                                    <span className="block text-sm font-bold text-orange-900">
+                                      📦 Retirada de estoque (não conta como
+                                      dinheiro)
+                                    </span>
+                                    <span className="block text-xs text-orange-700 mt-1">
+                                      Produtos danificados, devolução,
+                                      transferência. As fichas são zeradas.
+                                    </span>
+                                  </span>
+                                </label>
+
+                                <div>
+                                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                    💬 Observação
+                                  </label>
+                                  <textarea
+                                    name="observacao"
+                                    value={formData.observacao}
+                                    onChange={handleChange}
+                                    className="input-field"
+                                    rows="2"
+                                    placeholder="Informações adicionais sobre a movimentação..."
+                                  />
+                                </div>
+
+                                <label className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-900">
+                                  <input
+                                    type="checkbox"
+                                    checked={naoVaiRegistrar}
+                                    onChange={(e) => {
+                                      setNaoVaiRegistrar(e.target.checked);
+                                      if (!e.target.checked) {
+                                        setMostrarObsAlerta(false);
+                                        setObsAlerta("");
+                                      }
+                                    }}
+                                    className="mt-1"
+                                  />
+                                  Não vou registrar agora — só quero avisar
+                                  pelo WhatsApp (gera um alerta pra loja
+                                  acompanhar).
+                                </label>
+
+                                {mostrarObsAlerta && (
+                                  <div className="border border-amber-300 bg-amber-50 rounded-lg p-4 space-y-2">
+                                    <label className="block text-sm font-semibold text-amber-900">
+                                      Por que você não vai registrar essa
+                                      movimentação agora?
+                                    </label>
+                                    <textarea
+                                      value={obsAlerta}
+                                      onChange={(e) =>
+                                        setObsAlerta(e.target.value)
+                                      }
+                                      className="input-field"
+                                      rows="2"
+                                      placeholder="Explique o motivo (obrigatório)"
+                                    />
+                                    <div className="flex gap-2 justify-end">
+                                      <button
+                                        type="button"
+                                        className="btn-secondary"
+                                        onClick={() =>
+                                          setMostrarObsAlerta(false)
+                                        }
+                                        disabled={enviandoAlerta}
+                                      >
+                                        Voltar
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        onClick={confirmarEnvioBypassWhatsapp}
+                                        disabled={
+                                          enviandoAlerta || !obsAlerta.trim()
+                                        }
+                                      >
+                                        {enviandoAlerta
+                                          ? "Enviando..."
+                                          : "Confirmar e enviar para WhatsApp"}
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {error && (
+                            <AlertBox
+                              type="error"
+                              message={error}
+                              onClose={() => setError("")}
+                            />
+                          )}
+
+                          <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end pt-2">
+                            <button
+                              type="button"
+                              onClick={fecharMaquina}
+                              className="btn-secondary w-full sm:w-auto"
+                              disabled={salvandoMovimentacao}
+                            >
+                              Cancelar
+                            </button>
+                            {naoVaiRegistrar && (
+                              <button
+                                type="button"
+                                onClick={handleClickEnviarWhatsapp}
+                                className="px-4 py-2 font-semibold rounded-xl bg-green-500 hover:bg-green-600 text-white shadow w-full sm:w-auto"
+                                disabled={salvandoMovimentacao}
+                              >
+                                Enviar aviso no WhatsApp
+                              </button>
+                            )}
+                            <button
+                              type="submit"
+                              className="btn-primary w-full sm:w-auto"
+                              disabled={
+                                salvandoMovimentacao ||
+                                naoVaiRegistrar ||
+                                (contadorInSuspeito && !confirmacaoContadorIn) ||
+                                (contadorOutSuspeito &&
+                                  !confirmacaoContadorOut) ||
+                                (divergenciaMachinePaySuspeita &&
+                                  !confirmacaoDivergenciaMachinePay)
+                              }
+                            >
+                              {salvandoMovimentacao
+                                ? "Salvando..."
+                                : "✓ Registrar movimentação"}
+                            </button>
+                          </div>
+                        </form>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            </form>
-          </div>
-        )}
+            </div>
+          )}
+        </div>
 
       </div>
       <ConfirmDialog
