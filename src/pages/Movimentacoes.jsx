@@ -105,6 +105,98 @@ const FORMULARIO_VAZIO = {
   ignoreInOut: false,
 };
 
+// Rascunhos: o que foi digitado em cada máquina fica salvo no aparelho, pra
+// dar pra contar as fichas de todas, depois as pelúcias de todas, na ordem
+// que quiser, e só registrar quando cada uma estiver completa. Ficam no
+// localStorage porque no celular o envio pro WhatsApp sai da página.
+const CHAVE_RASCUNHOS = "rascunhosMovimentacao";
+// Conta a partir da última alteração na máquina.
+const VALIDADE_RASCUNHO_MS = 90 * 60 * 1000;
+const CAMPOS_RASCUNHO = [
+  "produto_id",
+  "quantidadeAtualMaquina",
+  "quantidadeAdicionada",
+  "fichas",
+  "contadorIn",
+  "contadorOut",
+  "observacao",
+  "retiradaEstoque",
+  "retiradaProduto",
+  "retiradaProdutoDevolverEstoque",
+  "ignoreInOut",
+];
+
+const campoPreenchido = (valor) =>
+  valor !== "" && valor !== null && valor !== undefined;
+
+const lerRascunhos = () => {
+  try {
+    const salvos = JSON.parse(localStorage.getItem(CHAVE_RASCUNHOS) || "{}");
+    const agora = Date.now();
+    return Object.fromEntries(
+      Object.entries(salvos).filter(
+        ([, r]) => r && agora - r.atualizadoEm < VALIDADE_RASCUNHO_MS,
+      ),
+    );
+  } catch {
+    return {};
+  }
+};
+
+const gravarRascunhos = (rascunhos) => {
+  try {
+    localStorage.setItem(CHAVE_RASCUNHOS, JSON.stringify(rascunhos));
+  } catch {
+    // Sem localStorage (aba anônima etc.) o rascunho vale só até recarregar.
+  }
+};
+
+// O produto vem sugerido sozinho ao abrir a máquina, então não conta pra
+// dizer que a pessoa começou a preencher.
+const rascunhoTemDados = (campos) =>
+  CAMPOS_RASCUNHO.some(
+    (c) =>
+      c !== "produto_id" &&
+      campoPreenchido(campos[c]) &&
+      campos[c] !== false &&
+      campos[c] !== 0,
+  );
+
+const progressoRascunho = (campos = {}) => {
+  const itens = [
+    { label: "Produto", ok: !!campos.produto_id },
+    ...(campos.ignoreInOut
+      ? []
+      : [
+          { label: "Contador IN", ok: campoPreenchido(campos.contadorIn) },
+          { label: "Contador OUT", ok: campoPreenchido(campos.contadorOut) },
+        ]),
+    {
+      label: "Quantidade atual",
+      ok: campoPreenchido(campos.quantidadeAtualMaquina),
+    },
+    { label: "Fichas", ok: campoPreenchido(campos.fichas) },
+  ];
+  const feitos = itens.filter((i) => i.ok).length;
+  return {
+    feitos,
+    total: itens.length,
+    faltando: itens.filter((i) => !i.ok).map((i) => i.label),
+  };
+};
+
+function BarraProgresso({ feitos, total, className = "" }) {
+  const completo = feitos === total;
+  return (
+    <div className={`h-1.5 rounded-full bg-slate-200 overflow-hidden ${className}`}>
+      <div
+        className={`h-full rounded-full transition-all ${completo ? "bg-emerald-500" : "bg-amber-400"}`}
+        style={{ width: `${total ? (feitos / total) * 100 : 0}%` }}
+      />
+    </div>
+  );
+}
+
 // Status das máquinas de uma loja: quando cada uma foi concluída (última
 // movimentação na janela acima) e quantas manutenções pendentes tem.
 async function buscarStatusLoja(lojaId) {
@@ -183,6 +275,10 @@ export function Movimentacoes() {
     manutencoes: {},
   });
   const [carregandoStatusLoja, setCarregandoStatusLoja] = useState(false);
+  const [rascunhos, setRascunhos] = useState(lerRascunhos);
+  // Foto dos contadores de cada máquina com rascunho (só em memória: File
+  // não vai pro localStorage).
+  const fotosRascunhoRef = useRef({});
   const [salvandoMovimentacao, setSalvandoMovimentacao] = useState(false);
   const [mostrarConfirmacaoMovimentacao, setMostrarConfirmacaoMovimentacao] =
     useState(false);
@@ -364,6 +460,48 @@ export function Movimentacoes() {
     };
   }, [filtroLojaForm]);
 
+  useEffect(() => {
+    gravarRascunhos(rascunhos);
+  }, [rascunhos]);
+
+  // Com a página aberta, rascunho vencido some sem precisar recarregar. O da
+  // máquina aberta fica: ele é regravado a cada alteração.
+  useEffect(() => {
+    const intervalo = setInterval(() => {
+      const agora = Date.now();
+      setRascunhos((prev) => {
+        const validos = Object.fromEntries(
+          Object.entries(prev).filter(
+            ([id, r]) =>
+              id === formData.maquina_id ||
+              agora - r.atualizadoEm < VALIDADE_RASCUNHO_MS,
+          ),
+        );
+        return Object.keys(validos).length === Object.keys(prev).length
+          ? prev
+          : validos;
+      });
+    }, 60 * 1000);
+    return () => clearInterval(intervalo);
+  }, [formData.maquina_id]);
+
+  // Cada alteração no formulário atualiza o rascunho da máquina aberta.
+  useEffect(() => {
+    const maquinaId = formData.maquina_id;
+    if (!maquinaId) return;
+    const campos = Object.fromEntries(
+      CAMPOS_RASCUNHO.map((c) => [c, formData[c]]),
+    );
+    setRascunhos((prev) => {
+      if (!rascunhoTemDados(campos)) {
+        if (!prev[maquinaId]) return prev;
+        const { [maquinaId]: _removido, ...resto } = prev;
+        return resto;
+      }
+      return { ...prev, [maquinaId]: { ...campos, atualizadoEm: Date.now() } };
+    });
+  }, [formData]);
+
   // Ao abrir uma máquina, traz ela pro topo da tela (a que estava aberta
   // antes fecha e mudaria tudo de lugar).
   useEffect(() => {
@@ -536,10 +674,14 @@ export function Movimentacoes() {
         setSugestaoTotalPreMachinePay(dados || null);
 
         if (dados?.sugestaoDisponivel && dados.modo === "auto") {
-          setFormData((prev) => ({
-            ...prev,
-            quantidadeAtualMaquina: String(dados.sugestaoTotalPre),
-          }));
+          setFormData((prev) =>
+            prev.quantidadeAtualMaquina === ""
+              ? {
+                  ...prev,
+                  quantidadeAtualMaquina: String(dados.sugestaoTotalPre),
+                }
+              : prev,
+          );
         }
       })
       .catch(() => {
@@ -940,6 +1082,7 @@ export function Movimentacoes() {
       };
 
       await api.post("/movimentacoes", data);
+      descartarRascunho(formData.maquina_id);
 
       // Conferência manual (a cada 15 dias) confirmada mesmo com divergência
       // em relação ao esperado pela Machine Pay: avisa o admin com os
@@ -1232,16 +1375,64 @@ export function Movimentacoes() {
   // Abre a máquina clicada (com o formulário zerado) ou fecha se já estava
   // aberta. A data retroativa escolhida pelo admin vale pra loja inteira.
   const selecionarMaquina = (maquinaId) => {
-    limparFotoContadores();
+    // A leitura da foto por IA preenche a máquina aberta; não troca no meio.
+    if (lendoFotoContadores) return;
+
+    const atual = formData.maquina_id;
+    if (atual && fotoContadores) {
+      fotosRascunhoRef.current[atual] = {
+        foto: fotoContadores,
+        resultado: resultadoFotoContadores,
+      };
+    } else if (atual) {
+      delete fotosRascunhoRef.current[atual];
+    }
+
+    const abrindo = atual === maquinaId ? "" : maquinaId;
+    const { atualizadoEm: _atualizadoEm, ...campos } =
+      (abrindo && rascunhos[abrindo]) || {};
+    const fotoSalva = abrindo ? fotosRascunhoRef.current[abrindo] : null;
+
+    setFotoContadores(fotoSalva?.foto || null);
+    setFotoContadoresPreview(
+      fotoSalva ? URL.createObjectURL(fotoSalva.foto) : "",
+    );
+    setResultadoFotoContadores(fotoSalva?.resultado || "");
     resetFluxoWhatsappBypass();
     setAlertaOrigemId(null);
-    setMostrarMaisOpcoes(false);
+    setMostrarMaisOpcoes(
+      !!(campos.observacao || campos.retiradaEstoque || Number(campos.retiradaProduto) > 0),
+    );
     setEstoqueAnterior(0);
     setError("");
     setFormData((prev) => ({
       ...FORMULARIO_VAZIO,
+      ...campos,
       dataColeta: prev.dataColeta,
-      maquina_id: prev.maquina_id === maquinaId ? "" : maquinaId,
+      maquina_id: abrindo,
+    }));
+  };
+
+  const descartarRascunho = (maquinaId) => {
+    if (!maquinaId) return;
+    delete fotosRascunhoRef.current[maquinaId];
+    setRascunhos((prev) => {
+      const { [maquinaId]: _removido, ...resto } = prev;
+      return resto;
+    });
+    // Grava já: no celular o WhatsApp abre na mesma aba logo em seguida.
+    const salvos = lerRascunhos();
+    delete salvos[maquinaId];
+    gravarRascunhos(salvos);
+  };
+
+  const limparCamposMaquina = () => {
+    limparFotoContadores();
+    setMostrarMaisOpcoes(false);
+    setFormData((prev) => ({
+      ...FORMULARIO_VAZIO,
+      dataColeta: prev.dataColeta,
+      maquina_id: prev.maquina_id,
     }));
   };
 
@@ -1388,6 +1579,9 @@ export function Movimentacoes() {
     : [];
   const maquinasConcluidasLoja = maquinasDaLoja.filter(
     (m) => statusLoja.concluidas[m.id],
+  ).length;
+  const maquinasEmAndamentoLoja = maquinasDaLoja.filter(
+    (m) => rascunhos[m.id],
   ).length;
 
   const resumoConfirmacaoMovimentacao = (
@@ -1687,7 +1881,7 @@ export function Movimentacoes() {
                 <p className="text-sm font-semibold text-slate-600 tabular-nums">
                   {carregandoStatusLoja
                     ? "Atualizando..."
-                    : `${maquinasConcluidasLoja} de ${maquinasDaLoja.length} concluídas`}
+                    : `${maquinasConcluidasLoja} de ${maquinasDaLoja.length} concluídas${maquinasEmAndamentoLoja ? ` · ${maquinasEmAndamentoLoja} em andamento` : ""}`}
                 </p>
               </div>
               <div className="h-2 rounded-full bg-slate-200 overflow-hidden mb-4">
@@ -1716,6 +1910,11 @@ export function Movimentacoes() {
                   const atual = Number(maquina.estoqueAtual) || 0;
                   const falta =
                     padrao !== null ? Math.max(0, padrao - atual) : null;
+                  const rascunho = aberta ? formData : rascunhos[maquina.id];
+                  const temRascunho = aberta
+                    ? rascunhoTemDados(formData)
+                    : !!rascunhos[maquina.id];
+                  const progresso = progressoRascunho(rascunho);
 
                   return (
                     <div
@@ -1757,6 +1956,11 @@ export function Movimentacoes() {
                           </p>
                           <p className="text-xs text-slate-500 truncate">
                             {maquina.codigo}
+                            {temRascunho && (
+                              <span className="ml-1 font-semibold text-amber-700">
+                                · Rascunho {progresso.feitos}/{progresso.total}
+                              </span>
+                            )}
                             {concluidaEm && (
                               <span className="ml-1 font-semibold text-emerald-700">
                                 · Concluída às{" "}
@@ -1767,6 +1971,13 @@ export function Movimentacoes() {
                               </span>
                             )}
                           </p>
+                          {temRascunho && (
+                            <BarraProgresso
+                              feitos={progresso.feitos}
+                              total={progresso.total}
+                              className="mt-1.5 max-w-48"
+                            />
+                          )}
                         </div>
                         {manutencoesPendentes > 0 && (
                           <span
@@ -1803,6 +2014,25 @@ export function Movimentacoes() {
                           onSubmit={handleSubmit}
                           className="border-t border-slate-200 px-3 sm:px-4 py-4 space-y-4"
                         >
+                          <div className="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2">
+                            <div className="flex items-center justify-between gap-2 text-xs">
+                              <span className="font-semibold text-slate-700">
+                                {progresso.faltando.length === 0
+                                  ? "✅ Tudo preenchido, pode registrar"
+                                  : `Falta: ${progresso.faltando.join(", ")}`}
+                              </span>
+                              <span className="shrink-0 text-slate-500 tabular-nums">
+                                {progresso.feitos}/{progresso.total}
+                                {temRascunho && " · 💾 salvo"}
+                              </span>
+                            </div>
+                            <BarraProgresso
+                              feitos={progresso.feitos}
+                              total={progresso.total}
+                              className="mt-1.5"
+                            />
+                          </div>
+
                           {concluidaEm && (
                             <p className="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-800">
                               ✓ Esta máquina já teve movimentação nas últimas{" "}
@@ -2391,14 +2621,25 @@ export function Movimentacoes() {
                             />
                           )}
 
-                          <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end pt-2">
+                          <div className="flex flex-col-reverse sm:flex-row gap-3 sm:items-center sm:justify-end pt-2">
+                            {temRascunho && (
+                              <button
+                                type="button"
+                                onClick={limparCamposMaquina}
+                                className="text-sm font-semibold text-red-600 hover:text-red-700 sm:mr-auto"
+                                disabled={salvandoMovimentacao}
+                              >
+                                🗑️ Limpar campos
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={fecharMaquina}
                               className="btn-secondary w-full sm:w-auto"
                               disabled={salvandoMovimentacao}
+                              title="O que você preencheu fica salvo"
                             >
-                              Cancelar
+                              Fechar
                             </button>
                             {naoVaiRegistrar && (
                               <button
