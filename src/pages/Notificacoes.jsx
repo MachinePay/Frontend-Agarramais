@@ -547,12 +547,12 @@ export function Notificacoes() {
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               placeholder="🔎 Buscar máquina, produto ou pessoa..."
-              className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
+              className="w-full min-w-0 truncate rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
             />
             <select
               value={filtroLoja}
               onChange={(e) => setFiltroLoja(e.target.value)}
-              className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
+              className="w-full min-w-0 truncate rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
               aria-label="Loja"
             >
               <option value="">🏪 Todas as lojas</option>

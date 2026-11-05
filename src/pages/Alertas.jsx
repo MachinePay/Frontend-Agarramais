@@ -150,6 +150,14 @@ function CartaoAlerta({
 
           <Numeros numeros={alerta.numeros} />
 
+          {/* Só no WhatsApp: a observação e o motivo são o principal do
+              alerta, então ficam sempre à vista. */}
+          {alerta.categoria === "whatsapp" && alerta.detalhe && (
+            <p className="mt-3 rounded-xl border border-green-100 bg-green-50/60 px-3 py-2 text-sm text-slate-700 whitespace-pre-line">
+              {alerta.detalhe}
+            </p>
+          )}
+
           <button
             type="button"
             onClick={() => setAberto((v) => !v)}
@@ -160,7 +168,7 @@ function CartaoAlerta({
           </button>
           {aberto && (
             <div className="mt-2 space-y-2 rounded-xl bg-slate-50 p-3 text-sm">
-              {alerta.detalhe && (
+              {alerta.detalhe && alerta.categoria !== "whatsapp" && (
                 <p className="text-slate-700 whitespace-pre-line">
                   {alerta.detalhe}
                 </p>
@@ -586,20 +594,20 @@ export default function Alertas() {
         {/* Filtros (fixos no topo ao rolar) */}
         <div className="sticky top-0 z-20 -mx-4 sm:mx-0 mb-4 px-4 sm:px-0 py-2 bg-[#f2f2f2]/90 backdrop-blur-sm">
           <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm space-y-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr] gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
               <input
                 type="search"
                 value={filtro.q}
                 onChange={(e) => mudarFiltro({ q: e.target.value })}
                 placeholder="🔎 Buscar máquina, pessoa ou texto..."
-                className="rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                className="w-full min-w-0 rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
               />
               <select
                 value={filtro.loja}
                 onChange={(e) =>
                   mudarFiltro({ loja: e.target.value, maquina: "" })
                 }
-                className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
+                className="w-full min-w-0 truncate rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
                 aria-label="Loja"
               >
                 <option value="">🏪 Todas as lojas</option>
@@ -620,7 +628,7 @@ export default function Alertas() {
                     ...(m && !filtro.loja ? { loja: m.loja } : {}),
                   });
                 }}
-                className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
+                className="w-full min-w-0 truncate rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
                 aria-label="Máquina"
               >
                 <option value="">
@@ -639,7 +647,7 @@ export default function Alertas() {
               <select
                 value={filtro.pessoa}
                 onChange={(e) => mudarFiltro({ pessoa: e.target.value })}
-                className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
+                className="w-full min-w-0 truncate rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
                 aria-label="Quem lançou"
               >
                 <option value="">👤 Todas as pessoas</option>

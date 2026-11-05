@@ -1074,7 +1074,7 @@ export default function ManutencaoPage() {
           <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm space-y-2">
             <div
               className={`grid grid-cols-1 gap-2 ${
-                podeGerenciar ? "sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]" : ""
+                podeGerenciar ? "sm:grid-cols-2 lg:grid-cols-4" : ""
               }`}
             >
               <input
@@ -1082,7 +1082,7 @@ export default function ManutencaoPage() {
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
                 placeholder="🔎 Buscar título, detalhe, máquina..."
-                className="rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                className="w-full min-w-0 rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
               />
               {podeGerenciar && (
                 <>
@@ -1092,7 +1092,7 @@ export default function ManutencaoPage() {
                       setFiltroLoja(e.target.value);
                       setFiltroMaquina("");
                     }}
-                    className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
+                    className="w-full min-w-0 truncate rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
                     aria-label="Loja"
                   >
                     <option value="">🏪 Todas as lojas</option>
@@ -1105,7 +1105,7 @@ export default function ManutencaoPage() {
                   <select
                     value={filtroMaquina}
                     onChange={(e) => setFiltroMaquina(e.target.value)}
-                    className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
+                    className="w-full min-w-0 truncate rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
                     aria-label="Máquina"
                   >
                     <option value="">🎮 Todas as máquinas</option>
@@ -1118,7 +1118,7 @@ export default function ManutencaoPage() {
                   <select
                     value={filtroPessoa}
                     onChange={(e) => setFiltroPessoa(e.target.value)}
-                    className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
+                    className="w-full min-w-0 truncate rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
                     aria-label="Responsável"
                   >
                     <option value="">👷 Todos os responsáveis</option>

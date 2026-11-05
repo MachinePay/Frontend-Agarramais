@@ -397,6 +397,9 @@ export function Movimentacoes() {
       quantidadeAdicionada:
         state.quantidadeAdicionada ?? params.get("quantidadeAdicionada") ?? "",
       fichas: state.fichas ?? params.get("fichas") ?? "",
+      retiradaProduto: state.retiradaProduto ?? "",
+      retiradaProdutoDevolverEstoque: !!state.retiradaProdutoDevolverEstoque,
+      retiradaEstoque: !!state.retiradaEstoque,
       observacao: state.observacao ?? params.get("observacao") ?? "",
       alertaId: state.alertaId ?? params.get("alertaId") ?? null,
       dataColeta: state.dataColeta ?? params.get("dataColeta") ?? "",
@@ -434,7 +437,12 @@ export function Movimentacoes() {
           maquinas.find((m) => String(m.id) === maquinaId)?.lojaId ?? "",
         ),
     );
-    if (movimentacaoAssistentePendente.observacao) setMostrarMaisOpcoes(true);
+    if (
+      movimentacaoAssistentePendente.observacao ||
+      Number(movimentacaoAssistentePendente.retiradaProduto) > 0 ||
+      movimentacaoAssistentePendente.retiradaEstoque
+    )
+      setMostrarMaisOpcoes(true);
     setFormData((prev) => ({
       ...prev,
       maquina_id: maquinaId,
@@ -453,6 +461,13 @@ export function Movimentacoes() {
         padraoDaMaquina(
           maquinas.find((m) => String(m.id) === maquinaId),
         )),
+      retiradaProduto:
+        Number(movimentacaoAssistentePendente.retiradaProduto) > 0
+          ? String(movimentacaoAssistentePendente.retiradaProduto)
+          : 0,
+      retiradaProdutoDevolverEstoque:
+        !!movimentacaoAssistentePendente.retiradaProdutoDevolverEstoque,
+      retiradaEstoque: !!movimentacaoAssistentePendente.retiradaEstoque,
       observacao: campoOuVazio(movimentacaoAssistentePendente.observacao),
       // Vindo de um alerta da Manutenção, já chega com a data/hora em que
       // a movimentação aconteceu (só admin pode lançar com outra data).
@@ -462,7 +477,12 @@ export function Movimentacoes() {
           ? paraInputDataHora(movimentacaoAssistentePendente.dataColeta)
           : "",
     }));
-    setAlertaOrigemId(movimentacaoAssistentePendente.alertaId || null);
+    // Guardado com a máquina: fechar e reabrir a máquina não perde o vínculo.
+    setAlertaOrigemId(
+      movimentacaoAssistentePendente.alertaId
+        ? { id: movimentacaoAssistentePendente.alertaId, maquinaId }
+        : null,
+    );
     setMovimentacaoAssistentePendente(null);
   }, [movimentacaoAssistentePendente, loading, usuario?.role, maquinas]);
 
@@ -1207,9 +1227,14 @@ export function Movimentacoes() {
         }
       }
 
-      if (alertaOrigemId) {
+      if (
+        alertaOrigemId &&
+        String(alertaOrigemId.maquinaId) === String(formData.maquina_id)
+      ) {
         try {
-          await api.patch(`/alertas-movimentacao/${alertaOrigemId}/resolver`);
+          await api.patch(
+            `/alertas-movimentacao/${alertaOrigemId.id}/resolver`,
+          );
         } catch (erroResolverAlerta) {
           console.error(
             "Erro ao resolver alerta de movimentação de origem:",
@@ -1492,7 +1517,6 @@ export function Movimentacoes() {
     );
     setResultadoFotoContadores(fotoSalva?.resultado || "");
     resetFluxoWhatsappBypass();
-    setAlertaOrigemId(null);
     setMostrarMaisOpcoes(
       !!(campos.observacao || campos.retiradaEstoque || Number(campos.retiradaProduto) > 0),
     );
@@ -1570,6 +1594,13 @@ export function Movimentacoes() {
           fichas: formData.fichas || null,
           contadorIn: formData.contadorIn || null,
           contadorOut: formData.contadorOut || null,
+          retiradaProduto: parseInt(formData.retiradaProduto) || null,
+          retiradaProdutoDevolverEstoque:
+            !!formData.retiradaProdutoDevolverEstoque,
+          retiradaEstoque: !!formData.retiradaEstoque,
+          // A observação da movimentação; o "observacao" do alerta é o
+          // motivo de não ter registrado.
+          observacaoMovimentacao: formData.observacao?.trim() || null,
         },
       });
       await enviarParaWhatsapp(janelaWhatsapp);

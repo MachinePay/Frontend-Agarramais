@@ -750,7 +750,7 @@ export function HistoricoMovimentacoes() {
             <select
               value={filtroLoja}
               onChange={(e) => setFiltroLoja(e.target.value)}
-              className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
+              className="w-full min-w-0 truncate rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"
               aria-label="Loja"
             >
               <option value="">🏪 Todas as lojas</option>
@@ -769,7 +769,7 @@ export function HistoricoMovimentacoes() {
                   ? "🔎 Buscar máquina, produto, usuário ou observação..."
                   : "🔎 Buscar loja, produto ou responsável..."
               }
-              className="rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+              className="w-full min-w-0 rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
             />
           </div>
 

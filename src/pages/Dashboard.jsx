@@ -8,8 +8,6 @@ import { IAgarraAssistente } from "../components/IAgarraAssistente";
 import { PageLoader } from "../components/Loading";
 import { Badge } from "../components/UIComponents";
 import AlertAdmin from "../components/AlertAdmin";
-import PainelAlertas from "../components/PainelAlertas";
-import { buscarAlertas } from "../utils/alertasCentral";
 import LancarGastoVariavel from "../components/LancarGastoVariavel";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -271,24 +269,14 @@ export function Dashboard() {
       </div>
     );
   }
-  const { usuario } = useAuth();
+  const { usuario, alertasManutencaoCount, alertasCompactPayCount } =
+    useAuth();
   const [notificacoesPendentes, setNotificacoesPendentes] = useState(null);
-  // Central de alertas (card de atalho + painel). null = carregando.
-  const [alertasCentral, setAlertasCentral] = useState({
-    lista: null,
-    erros: [],
-  });
-
-  useEffect(() => {
-    if (usuario?.role !== "ADMIN") return;
-    let cancelado = false;
-    buscarAlertas().then((resultado) => {
-      if (!cancelado) setAlertasCentral(resultado);
-    });
-    return () => {
-      cancelado = true;
-    };
-  }, [usuario?.role]);
+  // Atalho da central de alertas: usa a contagem leve que o menu já busca
+  // (WhatsApp/Machine Pay + CompactPay). Carregar todos os alertas aqui
+  // (IN/OUT calculados no servidor) deixava o Dashboard lento.
+  const alertasRapidos =
+    (alertasManutencaoCount || 0) + (alertasCompactPayCount || 0);
 
   useEffect(() => {
     if (usuario?.role !== "ADMIN") return;
@@ -2906,7 +2894,7 @@ export function Dashboard() {
               {/* Alertas (atalho pra central) */}
               <div
                 className={`stat-card bg-linear-to-br from-rose-600 to-red-800 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 cursor-pointer ${
-                  alertasCentral.lista?.length > 0 ? "ring-4 ring-red-300" : ""
+                  alertasRapidos > 0 ? "ring-4 ring-red-300" : ""
                 }`}
                 onClick={() => navigate("/alertas")}
               >
@@ -2917,13 +2905,10 @@ export function Dashboard() {
                     </h3>
                     <span className="text-2xl opacity-90">🚨</span>
                   </div>
-                  <p className="text-3xl font-bold">
-                    {alertasCentral.lista === null
-                      ? "…"
-                      : alertasCentral.lista.length}
-                  </p>
+                  <p className="text-3xl font-bold">{alertasRapidos}</p>
                   <p className="text-xs opacity-75 mt-1">
-                    IN/OUT, CompactPay, Machine Pay, WhatsApp →
+                    WhatsApp, Machine Pay e CompactPay · abrir para ver
+                    IN/OUT →
                   </p>
                 </div>
               </div>
@@ -3107,14 +3092,6 @@ export function Dashboard() {
               />
             </div>
           </div>
-        )}
-
-        {/* Central de alertas - ADMIN */}
-        {usuario?.role === "ADMIN" && (
-          <PainelAlertas
-            alertas={alertasCentral.lista}
-            erros={alertasCentral.erros}
-          />
         )}
 
         {/* Estatísticas de Produtos Totais - Apenas para ADMIN */}

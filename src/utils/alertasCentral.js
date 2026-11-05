@@ -228,10 +228,31 @@ const normalizarAlertaMovimentacao = (a) => {
         ? [{ label: "Abastecido", valor: dados.quantidadeAdicionada }]
         : []),
       ...(dados.fichas ? [{ label: "Fichas", valor: dados.fichas }] : []),
+      ...(Number(dados.retiradaProduto) > 0
+        ? [
+            {
+              label: dados.retiradaProdutoDevolverEstoque
+                ? "Retirada (volta ao estoque)"
+                : "Retirada",
+              valor: dados.retiradaProduto,
+              destaque: true,
+            },
+          ]
+        : []),
+      ...(dados.retiradaEstoque
+        ? [{ label: "Retirada de estoque", valor: "Sim", destaque: true }]
+        : []),
     ],
     // Movimentação que não existe no sistema: sempre importante.
     peso: 1000,
-    detalhe: a.observacao ? `Motivo: ${a.observacao}` : null,
+    detalhe:
+      [
+        dados.observacaoMovimentacao &&
+          `📝 Observação da movimentação: ${dados.observacaoMovimentacao}`,
+        a.observacao && `❓ Motivo de não ter registrado: ${a.observacao}`,
+      ]
+        .filter(Boolean)
+        .join(String.fromCharCode(10)) || null,
   };
 };
 
@@ -352,23 +373,17 @@ export const estadoLancarMovimentacao = (alerta) => {
     quantidadeAtualMaquina: dados.quantidadeAtualMaquina,
     quantidadeAdicionada: dados.quantidadeAdicionada,
     fichas: dados.fichas,
-    observacao: o.observacao,
+    retiradaProduto: dados.retiradaProduto,
+    retiradaProdutoDevolverEstoque: dados.retiradaProdutoDevolverEstoque,
+    retiradaEstoque: dados.retiradaEstoque,
+    // Alertas antigos não têm a observação da movimentação: usa o motivo.
+    observacao:
+      dados.observacaoMovimentacao !== undefined
+        ? dados.observacaoMovimentacao || ""
+        : o.observacao,
     // A movimentação aconteceu quando o alerta foi gerado, não agora.
     dataColeta: o.createdAt,
     alertaId: o.id,
     origem: "AlertaMovimentacao",
   };
-};
-
-// Ranking de onde estão os alertas (lojas / máquinas), do maior pro menor.
-export const rankingPor = (lista, chave, rotulo) => {
-  const mapa = new Map();
-  for (const a of lista) {
-    const id = a[chave];
-    if (!id) continue;
-    const atual = mapa.get(id) || { id, nome: rotulo(a), total: 0 };
-    atual.total += 1;
-    mapa.set(id, atual);
-  }
-  return [...mapa.values()].sort((a, b) => b.total - a.total);
 };
