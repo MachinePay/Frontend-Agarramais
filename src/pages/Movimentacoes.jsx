@@ -1347,13 +1347,13 @@ export function Movimentacoes() {
   };
 
   // --- CÁLCULOS DE ESTATÍSTICAS ---
-  const entradas = movimentacoes.filter((m) => m.abastecidas > 0);
-  const saidas = movimentacoes.filter((m) => m.sairam > 0);
-  const totalEntradas = entradas.reduce(
-    (sum, m) => sum + (m.abastecidas || 0),
-    0,
-  );
-  const totalSaidas = saidas.reduce((sum, m) => sum + (m.sairam || 0), 0);
+  // const entradas = movimentacoes.filter((m) => m.abastecidas > 0);
+  // const saidas = movimentacoes.filter((m) => m.sairam > 0);
+  // const totalEntradas = entradas.reduce(
+  //   (sum, m) => sum + (m.abastecidas || 0),
+  //   0,
+  // );
+  // const totalSaidas = saidas.reduce((sum, m) => sum + (m.sairam || 0), 0);
 
   const movimentacoesFiltradas = filtroLojaListagem
     ? movimentacoes.filter((mov) => {
@@ -1362,36 +1362,36 @@ export function Movimentacoes() {
       })
     : movimentacoes;
 
-  const stats = [
-    {
-      label: "Total de Entradas",
-      value: totalEntradas,
-      icon: "📥",
-      gradient: "bg-gradient-to-br from-green-500 to-green-600",
-      subtitle: "Produtos abastecidos",
-    },
-    {
-      label: "Total de Saídas",
-      value: totalSaidas,
-      icon: "📤",
-      gradient: "bg-gradient-to-br from-red-500 to-red-600",
-      subtitle: "Produtos vendidos",
-    },
-    {
-      label: "Saldo",
-      value: totalEntradas - totalSaidas,
-      icon: "📊",
-      gradient: "bg-gradient-to-br from-blue-500 to-blue-600",
-      subtitle: "Diferença entrada/saída",
-    },
-    {
-      label: "Movimentações",
-      value: movimentacoes.length,
-      icon: "🔄",
-      gradient: "bg-gradient-to-br from-purple-500 to-purple-600",
-      subtitle: "Total de registros",
-    },
-  ];
+  // const stats = [
+  //   {
+  //     label: "Total de Entradas",
+  //     value: totalEntradas,
+  //     icon: "📥",
+  //     gradient: "bg-gradient-to-br from-green-500 to-green-600",
+  //     subtitle: "Produtos abastecidos",
+  //   },
+  //   {
+  //     label: "Total de Saídas",
+  //     value: totalSaidas,
+  //     icon: "📤",
+  //     gradient: "bg-gradient-to-br from-red-500 to-red-600",
+  //     subtitle: "Produtos vendidos",
+  //   },
+  //   {
+  //     label: "Saldo",
+  //     value: totalEntradas - totalSaidas,
+  //     icon: "📊",
+  //     gradient: "bg-gradient-to-br from-blue-500 to-blue-600",
+  //     subtitle: "Diferença entrada/saída",
+  //   },
+  //   {
+  //     label: "Movimentações",
+  //     value: movimentacoes.length,
+  //     icon: "🔄",
+  //     gradient: "bg-gradient-to-br from-purple-500 to-purple-600",
+  //     subtitle: "Total de registros",
+  //   },
+  // ];
 
   const columns = [
     {
@@ -1801,9 +1801,7 @@ export function Movimentacoes() {
             message={success}
             onClose={() => setSuccess("")}
           />
-        )}
-
-        {usuario?.role === "ADMIN" && <StatsGrid stats={stats} />}
+        )}  
 
         <AvisosMaquinasFaltam lojas={lojas} />
 
