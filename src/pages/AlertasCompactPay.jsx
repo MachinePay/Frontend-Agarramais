@@ -183,9 +183,44 @@ function Comparacao({ alerta }) {
   );
 }
 
+const temValor = (valor) => valor !== null && valor !== undefined;
+
+// Contadores IN/OUT da máquina anotados na movimentação.
+function Contadores({ mov }) {
+  if (!temValor(mov?.contadorIn) && !temValor(mov?.contadorOut)) {
+    return <p className="text-gray-400">Contador não registrado</p>;
+  }
+  return (
+    <p className="text-gray-600 tabular-nums">
+      Contador IN{" "}
+      <span className="font-semibold text-gray-800">
+        {temValor(mov.contadorIn) ? mov.contadorIn : "—"}
+      </span>
+      {" · "}OUT{" "}
+      <span className="font-semibold text-gray-800">
+        {temValor(mov.contadorOut) ? mov.contadorOut : "—"}
+      </span>
+    </p>
+  );
+}
+
+// Quanto cada contador andou entre as duas movimentações.
+const avancoContadores = (anterior, atual) =>
+  [
+    ["IN", anterior?.contadorIn, atual?.contadorIn],
+    ["OUT", anterior?.contadorOut, atual?.contadorOut],
+  ]
+    .filter(([, antes, depois]) => temValor(antes) && temValor(depois))
+    .map(([nome, antes, depois]) => {
+      const avanco = Number(depois) - Number(antes);
+      return `${nome} ${avanco >= 0 ? "+" : ""}${avanco}`;
+    })
+    .join(" · ");
+
 function Periodo({ alerta }) {
   const { periodo, movimentacaoAnterior, movimentacao } = alerta;
   const tempo = duracao(periodo?.inicio, periodo?.fim);
+  const avanco = avancoContadores(movimentacaoAnterior, movimentacao);
   return (
     <div className="flex items-stretch gap-3 text-xs">
       <div className="flex flex-col items-center pt-1">
@@ -203,10 +238,13 @@ function Periodo({ alerta }) {
               por {movimentacaoAnterior.usuario}
             </p>
           )}
+          {movimentacaoAnterior && <Contadores mov={movimentacaoAnterior} />}
         </div>
-        {tempo && (
-          <p className="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500">
-            {tempo} entre as duas
+        {(tempo || avanco) && (
+          <p className="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500 tabular-nums">
+            {[tempo && `${tempo} entre as duas`, avanco && `contador ${avanco}`]
+              .filter(Boolean)
+              .join(" · ")}
           </p>
         )}
         <div>
@@ -218,6 +256,7 @@ function Periodo({ alerta }) {
               por {movimentacao?.usuario || alerta.lancadoPor}
             </p>
           )}
+          {movimentacao && <Contadores mov={movimentacao} />}
         </div>
       </div>
     </div>
