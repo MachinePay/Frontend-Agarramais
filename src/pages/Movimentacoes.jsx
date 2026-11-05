@@ -103,6 +103,7 @@ const FORMULARIO_VAZIO = {
   retiradaProduto: 0,
   retiradaProdutoDevolverEstoque: false,
   ignoreInOut: false,
+  semFicha: false,
 };
 
 // Rascunhos: o que foi digitado em cada máquina fica salvo no aparelho, pra
@@ -124,6 +125,7 @@ const CAMPOS_RASCUNHO = [
   "retiradaProduto",
   "retiradaProdutoDevolverEstoque",
   "ignoreInOut",
+  "semFicha",
 ];
 
 const campoPreenchido = (valor) =>
@@ -152,15 +154,21 @@ const gravarRascunhos = (rascunhos) => {
 };
 
 // O produto vem sugerido sozinho ao abrir a máquina, então não conta pra
-// dizer que a pessoa começou a preencher.
+// dizer que a pessoa começou a preencher. Nem o "sem ficha" que vem da configuração da máquina (com as fichas em 0).
 const rascunhoTemDados = (campos) =>
   CAMPOS_RASCUNHO.some(
     (c) =>
       c !== "produto_id" &&
+      c !== "semFicha" &&
+      !(c === "fichas" && campos.semFicha) &&
       campoPreenchido(campos[c]) &&
       campos[c] !== false &&
       campos[c] !== 0,
   );
+
+// Máquina marcada como sem ficha já abre com o checkbox marcado.
+const padraoDaMaquina = (maquina) =>
+  maquina?.semFicha ? { semFicha: true, fichas: "0" } : {};
 
 const progressoRascunho = (campos = {}) => {
   const itens = [
@@ -175,7 +183,10 @@ const progressoRascunho = (campos = {}) => {
       label: "Quantidade atual",
       ok: campoPreenchido(campos.quantidadeAtualMaquina),
     },
-    { label: "Fichas", ok: campoPreenchido(campos.fichas) },
+    {
+      label: "Fichas",
+      ok: !!campos.semFicha || campoPreenchido(campos.fichas),
+    },
   ];
   const feitos = itens.filter((i) => i.ok).length;
   return {
@@ -428,6 +439,11 @@ export function Movimentacoes() {
         movimentacaoAssistentePendente.quantidadeAdicionada,
       ),
       fichas: campoOuVazio(movimentacaoAssistentePendente.fichas),
+      // Se o alerta não trouxe fichas, vale a configuração da máquina.
+      ...(!campoOuVazio(movimentacaoAssistentePendente.fichas) &&
+        padraoDaMaquina(
+          maquinas.find((m) => String(m.id) === maquinaId),
+        )),
       observacao: campoOuVazio(movimentacaoAssistentePendente.observacao),
       // Vindo de um alerta da Manutenção, já chega com a data/hora em que
       // a movimentação aconteceu (só admin pode lançar com outra data).
@@ -1063,6 +1079,7 @@ export function Movimentacoes() {
         contadorIn: parseInt(formData.contadorIn) || null,
         contadorOut: parseInt(formData.contadorOut) || null,
         retiradaEstoque: formData.retiradaEstoque,
+        semFicha: !!formData.semFicha,
         contadorMaquina: null,
         observacoes: observacaoFinal || null,
         origemTotalPre: sugestaoTotalPreMachinePay?.sugestaoDisponivel
@@ -1405,8 +1422,12 @@ export function Movimentacoes() {
     );
     setEstoqueAnterior(0);
     setError("");
+    const maquinaAbrindo = maquinas.find(
+      (m) => String(m.id) === String(abrindo),
+    );
     setFormData((prev) => ({
       ...FORMULARIO_VAZIO,
+      ...padraoDaMaquina(maquinaAbrindo),
       ...campos,
       dataColeta: prev.dataColeta,
       maquina_id: abrindo,
@@ -1431,6 +1452,9 @@ export function Movimentacoes() {
     setMostrarMaisOpcoes(false);
     setFormData((prev) => ({
       ...FORMULARIO_VAZIO,
+      ...padraoDaMaquina(
+        maquinas.find((m) => String(m.id) === String(prev.maquina_id)),
+      ),
       dataColeta: prev.dataColeta,
       maquina_id: prev.maquina_id,
     }));
@@ -1934,50 +1958,56 @@ export function Movimentacoes() {
                         className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 text-left"
                         aria-expanded={aberta}
                       >
-                        <span
-                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-                            concluidaEm
-                              ? "bg-emerald-500 text-white"
-                              : "bg-slate-100 text-slate-400"
-                          }`}
-                          aria-label={concluidaEm ? "Concluída" : "Pendente"}
-                        >
-                          {concluidaEm ? "✓" : "•"}
-                        </span>
                         <div className="min-w-0 flex-1">
                           <p
                             className={`font-bold truncate ${
-                              concluidaEm && !aberta
+                              concluidaEm && !aberta && !temRascunho
                                 ? "text-slate-500 line-through decoration-emerald-500/60"
                                 : "text-slate-900"
                             }`}
                           >
                             {maquina.nome}
                           </p>
-                          <p className="text-xs text-slate-500 truncate">
-                            {maquina.codigo}
-                            {temRascunho && (
-                              <span className="ml-1 font-semibold text-amber-700">
-                                · Rascunho {progresso.feitos}/{progresso.total}
-                              </span>
+                          {maquina.codigo &&
+                            maquina.codigo !== maquina.nome && (
+                              <p className="text-xs text-slate-500 truncate">
+                                {maquina.codigo}
+                              </p>
                             )}
-                            {concluidaEm && (
-                              <span className="ml-1 font-semibold text-emerald-700">
-                                · Concluída às{" "}
-                                {concluidaEm.toLocaleTimeString("pt-BR", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </span>
-                            )}
-                          </p>
-                          {temRascunho && (
+                          {/* Concluída (sem rascunho novo) = barra cheia
+                              verde; senão, quanto do rascunho já foi
+                              preenchido. */}
+                          <div className="mt-1.5 flex items-center gap-2">
                             <BarraProgresso
-                              feitos={progresso.feitos}
-                              total={progresso.total}
-                              className="mt-1.5 max-w-48"
+                              feitos={
+                                concluidaEm && !temRascunho
+                                  ? 1
+                                  : progresso.feitos
+                              }
+                              total={
+                                concluidaEm && !temRascunho
+                                  ? 1
+                                  : progresso.total
+                              }
+                              className="flex-1 max-w-56"
                             />
-                          )}
+                            <span
+                              className={`shrink-0 text-xs font-semibold tabular-nums ${
+                                concluidaEm && !temRascunho
+                                  ? "text-emerald-700"
+                                  : temRascunho
+                                    ? "text-amber-700"
+                                    : "text-slate-400"
+                              }`}
+                            >
+                              {concluidaEm && !temRascunho
+                                ? `✓ Concluída às ${concluidaEm.toLocaleTimeString(
+                                    "pt-BR",
+                                    { hour: "2-digit", minute: "2-digit" },
+                                  )}`
+                                : `${progresso.feitos}/${progresso.total}`}
+                            </span>
+                          </div>
                         </div>
                         {manutencoesPendentes > 0 && (
                           <span
@@ -2419,8 +2449,25 @@ export function Movimentacoes() {
                                 className="input-field"
                                 placeholder="0"
                                 min="0"
-                                disabled={formData.retiradaEstoque}
+                                disabled={
+                                  formData.retiradaEstoque || formData.semFicha
+                                }
                               />
+                              <label className="mt-2 flex items-center gap-2 text-sm text-gray-700">
+                                <input
+                                  type="checkbox"
+                                  checked={formData.semFicha || false}
+                                  onChange={(e) =>
+                                    setFormData((prev) => ({
+                                      ...prev,
+                                      semFicha: e.target.checked,
+                                      fichas: e.target.checked ? "0" : "",
+                                    }))
+                                  }
+                                  className="w-4 h-4"
+                                />
+                                Máquina sem ficha
+                              </label>
                             </div>
                             <div>
                               <label className="block text-sm font-semibold text-gray-700 mb-2">
