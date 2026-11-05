@@ -11,6 +11,7 @@ import {
 } from "../components/UIComponents";
 import { PageLoader, LoadingSpinner } from "../components/Loading";
 import { useAuth } from "../contexts/AuthContext";
+import { ehGestao } from "../utils/cargos";
 
 // Histórico de movimentações das máquinas e do estoque das lojas. Antes ficava
 // no fim da página de Movimentações (que agora é só pra registrar).
@@ -232,7 +233,8 @@ function Vazio({ titulo, mensagem }) {
 
 export function HistoricoMovimentacoes() {
   const { usuario } = useAuth();
-  const ehAdmin = usuario?.role === "ADMIN";
+  // Admin e operador chefe corrigem lançamentos errados.
+  const ehAdmin = ehGestao(usuario?.role);
 
   const [aba, setAba] = useState("maquinas");
   const [periodo, setPeriodo] = useState("hoje");

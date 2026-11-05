@@ -6,6 +6,7 @@ import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { PageLoader } from "../components/Loading";
 import { AlertBox, Modal, PageHeader } from "../components/UIComponents";
+import { ehGestao } from "../utils/cargos";
 
 const PRIORIDADES = {
   URGENTE: {
@@ -192,7 +193,7 @@ function Avatares({ pessoas }) {
   );
 }
 
-function CartaoManutencao({ item, isAdmin, podeResolver, onResolver, onEditar }) {
+function CartaoManutencao({ item, podeGerenciar, podeResolver, onResolver, onEditar }) {
   const [expandido, setExpandido] = useState(false);
   const prioridade = PRIORIDADES[item.prioridade] || PRIORIDADES.MEDIA;
   const prazo = situacaoPrazo(item);
@@ -301,14 +302,20 @@ function CartaoManutencao({ item, isAdmin, podeResolver, onResolver, onEditar })
 
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <div className="min-w-0 flex-1">
-            <Avatares pessoas={item.funcionariosPermitidos} />
+            {item.funcionariosPermitidos?.length ? (
+              <Avatares pessoas={item.funcionariosPermitidos} />
+            ) : (
+              <span className="text-xs font-semibold text-indigo-700">
+                👥 Toda a equipe
+              </span>
+            )}
           </div>
-          {isAdmin && item.custo !== null && item.custo !== undefined && (
+          {podeGerenciar && item.custo !== null && item.custo !== undefined && (
             <span className="text-xs font-semibold text-slate-500">
               💰 {formatarMoeda(item.custo)}
             </span>
           )}
-          {isAdmin && !resolvida && (
+          {podeGerenciar && !resolvida && (
             <button
               type="button"
               onClick={() => onEditar(item)}
@@ -372,7 +379,6 @@ function FormularioManutencao({
   const faltando = [
     !form.titulo.trim() && "título",
     !form.descricao.trim() && "descrição",
-    form.funcionariosIds.length === 0 && "quem vai resolver",
   ].filter(Boolean);
 
   return (
@@ -546,30 +552,30 @@ function FormularioManutencao({
       <div>
         <div className="mb-2 flex items-center justify-between gap-2">
           <p className="text-sm font-semibold text-slate-700">
-            👷 Quem vai resolver? *
-            {form.funcionariosIds.length > 0 && (
-              <span className="ml-2 font-normal text-slate-500">
-                {form.funcionariosIds.length} selecionado(s)
-              </span>
-            )}
+            👷 Quem vai resolver?{" "}
+            <span className="font-normal text-slate-400">(opcional)</span>
           </p>
-          <button
-            type="button"
-            onClick={() =>
-              atualizar(
-                "funcionariosIds",
-                form.funcionariosIds.length === funcionarios.length
-                  ? []
-                  : funcionarios.map((f) => f.id),
-              )
-            }
-            className="text-xs font-semibold text-blue-700 hover:text-blue-800"
-          >
-            {form.funcionariosIds.length === funcionarios.length
-              ? "Desmarcar todos"
-              : "Marcar todos"}
-          </button>
+          {form.funcionariosIds.length > 0 && (
+            <button
+              type="button"
+              onClick={() => atualizar("funcionariosIds", [])}
+              className="text-xs font-semibold text-blue-700 hover:text-blue-800"
+            >
+              Limpar ({form.funcionariosIds.length})
+            </button>
+          )}
         </div>
+        <p
+          className={`mb-2 rounded-lg px-3 py-1.5 text-xs ${
+            form.funcionariosIds.length === 0
+              ? "bg-indigo-50 text-indigo-800"
+              : "bg-slate-50 text-slate-600"
+          }`}
+        >
+          {form.funcionariosIds.length === 0
+            ? "👥 Ninguém marcado: aparece para toda a equipe e qualquer um pode concluir."
+            : `🔒 Só ${form.funcionariosIds.length === 1 ? "essa pessoa vê" : `essas ${form.funcionariosIds.length} pessoas veem`} e pode${form.funcionariosIds.length === 1 ? "" : "m"} concluir.`}
+        </p>
         {funcionarios.length > 8 && (
           <input
             type="search"
@@ -665,7 +671,8 @@ function FormularioManutencao({
 
 export default function ManutencaoPage() {
   const { usuario, loading: authLoading } = useAuth();
-  const isAdmin = usuario?.role === "ADMIN";
+  // Admin e operador chefe gerenciam todas as manutenções.
+  const podeGerenciar = ehGestao(usuario?.role);
 
   const [manutencoes, setManutencoes] = useState([]);
   const [funcionarios, setFuncionarios] = useState([]);
@@ -698,7 +705,7 @@ export default function ManutencaoPage() {
   const carregarDados = async () => {
     try {
       const requisicoes = [api.get("/manutencoes")];
-      if (isAdmin) {
+      if (podeGerenciar) {
         requisicoes.push(
           api.get("/manutencoes/funcionarios"),
           api.get("/lojas"),
@@ -707,7 +714,7 @@ export default function ManutencaoPage() {
       }
       const [manutRes, funcRes, lojasRes, maqRes] = await Promise.all(requisicoes);
       setManutencoes(Array.isArray(manutRes.data) ? manutRes.data : []);
-      if (isAdmin) {
+      if (podeGerenciar) {
         setFuncionarios(funcRes.data || []);
         setLojas((lojasRes.data || []).filter((l) => l.ativo !== false));
         setMaquinas(maqRes.data || []);
@@ -933,7 +940,7 @@ export default function ManutencaoPage() {
     try {
       const res = await api.patch(`/manutencoes/${concluindo.id}/resolver`, {
         solucao,
-        ...(isAdmin && custoConclusao !== "" && { custo: Number(custoConclusao) }),
+        ...(podeGerenciar && custoConclusao !== "" && { custo: Number(custoConclusao) }),
       });
       substituir(res.data);
       setSuccess(`✅ "${concluindo.titulo}" concluída.`);
@@ -949,8 +956,10 @@ export default function ManutencaoPage() {
 
   const podeResolver = (item) =>
     item.status === "PENDENTE" &&
-    (isAdmin ||
-      (item.funcionariosPermitidos || []).some((f) => f.id === usuario?.id));
+    (podeGerenciar ||
+      // Sem responsável marcado, é da equipe toda (o backend já filtra).
+      !item.funcionariosPermitidos?.length ||
+      item.funcionariosPermitidos.some((f) => f.id === usuario?.id));
 
   return (
     <div className="min-h-screen bg-background-light bg-pattern teddy-pattern">
@@ -960,13 +969,13 @@ export default function ManutencaoPage() {
         <PageHeader
           title="Manutenção"
           subtitle={
-            isAdmin
+            podeGerenciar
               ? "Abra, acompanhe e feche os consertos das lojas"
               : "Os consertos que estão com você"
           }
           icon="🛠️"
           action={
-            isAdmin && (
+            podeGerenciar && (
               <button type="button" onClick={abrirNova} className="btn-primary">
                 + Nova manutenção
               </button>
@@ -988,7 +997,7 @@ export default function ManutencaoPage() {
         {/* Resumo */}
         <div
           className={`mb-5 grid gap-3 ${
-            isAdmin ? "grid-cols-2 md:grid-cols-5" : "grid-cols-3"
+            podeGerenciar ? "grid-cols-2 md:grid-cols-5" : "grid-cols-3"
           }`}
         >
           <Kpi
@@ -1018,7 +1027,7 @@ export default function ManutencaoPage() {
             }}
             ativo={soAtrasadas}
           />
-          {isAdmin && (
+          {podeGerenciar && (
             <>
               <Kpi
                 icon="✅"
@@ -1065,7 +1074,7 @@ export default function ManutencaoPage() {
           <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm space-y-2">
             <div
               className={`grid grid-cols-1 gap-2 ${
-                isAdmin ? "sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]" : ""
+                podeGerenciar ? "sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]" : ""
               }`}
             >
               <input
@@ -1075,7 +1084,7 @@ export default function ManutencaoPage() {
                 placeholder="🔎 Buscar título, detalhe, máquina..."
                 className="rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
               />
-              {isAdmin && (
+              {podeGerenciar && (
                 <>
                   <select
                     value={filtroLoja}
@@ -1171,7 +1180,7 @@ export default function ManutencaoPage() {
               {filtrosAtivos
                 ? "Nenhuma manutenção com esses filtros"
                 : aba === "ABERTAS"
-                  ? isAdmin
+                  ? podeGerenciar
                     ? "Nenhuma manutenção aberta. Tudo funcionando!"
                     : "Nada com você agora. Bom trabalho!"
                   : "Nenhuma manutenção por aqui ainda."}
@@ -1185,7 +1194,7 @@ export default function ManutencaoPage() {
                 Limpar filtros
               </button>
             ) : (
-              isAdmin &&
+              podeGerenciar &&
               aba !== "RESOLVIDAS" && (
                 <button
                   type="button"
@@ -1203,7 +1212,7 @@ export default function ManutencaoPage() {
               <CartaoManutencao
                 key={item.id}
                 item={item}
-                isAdmin={isAdmin}
+                podeGerenciar={podeGerenciar}
                 podeResolver={podeResolver(item)}
                 onResolver={abrirConclusao}
                 onEditar={abrirEdicao}
@@ -1266,7 +1275,7 @@ export default function ManutencaoPage() {
                 Ajuda quem pegar um problema parecido depois.
               </p>
             </div>
-            {isAdmin &&
+            {podeGerenciar &&
               (concluindo.custo === null || concluindo.custo === undefined) && (
                 <div>
                   <label className="mb-1 block text-sm font-semibold text-slate-700">

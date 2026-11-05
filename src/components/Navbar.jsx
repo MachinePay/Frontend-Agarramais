@@ -65,6 +65,12 @@ export function Navbar() {
       links.push({ to: "/produtos", label: "🧸 Produtos" });
       links.push({ to: "/produtos-a-comprar", label: "🛒 Carrinho" });
     }
+    if (usuario?.role === "OPERADOR_CHEFE") {
+      links.push({
+        to: "/historico-movimentacoes",
+        label: "🗂️ Histórico de Movimentações",
+      });
+    }
     if (usuario?.role === "ADMIN") {
       links.push({ to: "/notificacoes", label: "🔔 Notificações" });
       links.push({

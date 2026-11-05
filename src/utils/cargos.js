@@ -67,6 +67,12 @@ export const CARGOS_COM_LOJAS = [
 // antes era a visão de "funcionário").
 export const ehEquipeOperacional = (role) => CARGOS_COM_LOJAS.includes(role);
 
+// Gestão da operação (admin e operador chefe): gerenciam todas as
+// manutenções, veem o estoque e o histórico, corrigem movimentações e podem
+// passar por cima das travas de contador / total pré (com aviso). Editar o
+// estoque manualmente continua só do admin.
+export const ehGestao = (role) => role === "ADMIN" || role === "OPERADOR_CHEFE";
+
 export const nomeCargo = (role) => CARGOS[role]?.label || role || "-";
 
 // Sessões salvas antes da troca ainda têm "FUNCIONARIO" no localStorage.

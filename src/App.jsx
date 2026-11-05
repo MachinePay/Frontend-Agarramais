@@ -301,7 +301,7 @@ function App() {
           <Route
             path="/historico-movimentacoes"
             element={
-              <PrivateRoute adminOnly>
+              <PrivateRoute roles={["ADMIN", "OPERADOR_CHEFE"]}>
                 <HistoricoMovimentacoes />
               </PrivateRoute>
             }

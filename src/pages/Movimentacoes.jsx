@@ -18,7 +18,7 @@ import {
   obterFotoUltimaMovimentacao,
   limparFotoUltimaMovimentacao,
 } from "../services/fotoUltimaMovimentacaoDb";
-import { ehEquipeOperacional } from "../utils/cargos";
+import { ehEquipeOperacional, ehGestao } from "../utils/cargos";
 
 const CHAVE_ULTIMA_MENSAGEM_WHATSAPP = "ultimaMensagemMovimentacaoWhatsapp";
 
@@ -344,9 +344,14 @@ export function Movimentacoes() {
   const [ultimoContadorMaquina, setUltimoContadorMaquina] = useState({
     contadorIn: null,
     contadorOut: null,
+    totalPos: null,
   });
   const [confirmacaoContadorIn, setConfirmacaoContadorIn] = useState(false);
   const [confirmacaoContadorOut, setConfirmacaoContadorOut] = useState(false);
+  // Contador menor que o anterior / total pré acima do total pós anterior:
+  // o backend só aceita de gestão (admin / operador chefe), e mesmo assim
+  // pedimos confirmação.
+  const [confirmacaoTravas, setConfirmacaoTravas] = useState(false);
 
   // Data escolhida pelo admin em ISO (null = lançamento no horário atual).
   const dataColetaIso = formData.dataColeta
@@ -628,7 +633,11 @@ export function Movimentacoes() {
   // suspeito (ver LIMITE_DIFERENCA_CONTADOR_IN/OUT).
   useEffect(() => {
     if (!formData.maquina_id) {
-      setUltimoContadorMaquina({ contadorIn: null, contadorOut: null });
+      setUltimoContadorMaquina({
+        contadorIn: null,
+        contadorOut: null,
+        totalPos: null,
+      });
       return;
     }
 
@@ -648,12 +657,17 @@ export function Movimentacoes() {
         setUltimoContadorMaquina({
           contadorIn: ultimaMov?.contadorIn ?? null,
           contadorOut: ultimaMov?.contadorOut ?? null,
+          totalPos: ultimaMov?.totalPos ?? null,
         });
         if (dataColetaIso) setEstoqueAnterior(ultimaMov?.totalPos || 0);
       })
       .catch(() => {
         if (!cancelado) {
-          setUltimoContadorMaquina({ contadorIn: null, contadorOut: null });
+          setUltimoContadorMaquina({
+            contadorIn: null,
+            contadorOut: null,
+            totalPos: null,
+          });
         }
       });
 
@@ -758,6 +772,16 @@ export function Movimentacoes() {
   useEffect(() => {
     setConfirmacaoContadorOut(false);
   }, [formData.contadorOut, formData.maquina_id]);
+
+  useEffect(() => {
+    setConfirmacaoTravas(false);
+  }, [
+    formData.contadorIn,
+    formData.contadorOut,
+    formData.quantidadeAtualMaquina,
+    formData.ignoreInOut,
+    formData.maquina_id,
+  ]);
 
   useEffect(() => {
     setConfirmacaoDivergenciaMachinePay(false);
@@ -983,6 +1007,20 @@ export function Movimentacoes() {
     if (contadorInSuspeito && !confirmacaoContadorIn) {
       setError(
         "A diferença do Contador IN em relação ao último registro é muito grande (provável erro de leitura). Marque a confirmação de que o valor está correto antes de registrar.",
+      );
+      return;
+    }
+
+    if (travasAtivas.length > 0 && !podePassarTravas) {
+      setError(
+        `${travasAtivas.join(". ")}. Confira os valores ou peça para o operador chefe lançar.`,
+      );
+      return;
+    }
+
+    if (travasAtivas.length > 0 && !confirmacaoTravas) {
+      setError(
+        "Confirme que os valores estão corretos mesmo fora do padrão antes de registrar.",
       );
       return;
     }
@@ -1612,6 +1650,34 @@ export function Movimentacoes() {
   const contadorOutSuspeito =
     diferencaContadorOut > LIMITE_DIFERENCA_CONTADOR_OUT;
 
+  // Travas que o backend só deixa a gestão passar (ver ehGestao).
+  const podePassarTravas = ehGestao(usuario?.role);
+  const contadorInMenor =
+    !formData.ignoreInOut &&
+    contadorInAtualNum > 0 &&
+    ultimoContadorMaquina.contadorIn !== null &&
+    contadorInAtualNum < ultimoContadorMaquina.contadorIn;
+  const contadorOutMenor =
+    !formData.ignoreInOut &&
+    contadorOutAtualNum > 0 &&
+    ultimoContadorMaquina.contadorOut !== null &&
+    contadorOutAtualNum < ultimoContadorMaquina.contadorOut;
+  const totalPreDigitado = parseInt(formData.quantidadeAtualMaquina);
+  const totalPreAcima =
+    !Number.isNaN(totalPreDigitado) &&
+    ultimoContadorMaquina.totalPos !== null &&
+    totalPreDigitado > ultimoContadorMaquina.totalPos;
+  const travasAtivas = [
+    contadorInMenor &&
+      `Contador IN (${contadorInAtualNum}) menor que o último registrado (${ultimoContadorMaquina.contadorIn})`,
+    contadorOutMenor &&
+      `Contador OUT (${contadorOutAtualNum}) menor que o último registrado (${ultimoContadorMaquina.contadorOut})`,
+    totalPreAcima &&
+      `Quantidade atual (${totalPreDigitado}) maior do que ficou na máquina na última movimentação (${ultimoContadorMaquina.totalPos})`,
+  ].filter(Boolean);
+  const travasBloqueiam =
+    travasAtivas.length > 0 && (!podePassarTravas || !confirmacaoTravas);
+
   // O valor calculado pela Machine Pay (modo "auto" ou "forcar_manual") não
   // trava o campo: o operador pode sempre ajustar. Mas se o que ele digitou
   // não bater com o valor esperado, pede recontagem e confirmação explícita.
@@ -1740,7 +1806,7 @@ export function Movimentacoes() {
             >
               Enviar Última Mensagem
             </button>
-            {usuario?.role === "ADMIN" && (
+            {ehGestao(usuario?.role) && (
               <button
                 className="px-6 py-2 bg-slate-800 text-white rounded hover:bg-slate-900 font-bold shadow text-base"
                 onClick={() => navigate("/historico-movimentacoes")}
@@ -2514,6 +2580,50 @@ export function Movimentacoes() {
                             )}
                           </div>
 
+                          {travasAtivas.length > 0 && (
+                            <div
+                              className={`rounded-xl border-l-4 p-3 ${
+                                podePassarTravas
+                                  ? "border-amber-500 bg-amber-50"
+                                  : "border-red-500 bg-red-50"
+                              }`}
+                            >
+                              <ul
+                                className={`space-y-1 text-xs font-bold ${
+                                  podePassarTravas
+                                    ? "text-amber-900"
+                                    : "text-red-800"
+                                }`}
+                              >
+                                {travasAtivas.map((t) => (
+                                  <li key={t}>⚠️ {t}.</li>
+                                ))}
+                              </ul>
+                              {podePassarTravas ? (
+                                <label className="mt-2 flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={confirmacaoTravas}
+                                    onChange={(e) =>
+                                      setConfirmacaoTravas(e.target.checked)
+                                    }
+                                    className="w-4 h-4 rounded border-gray-300"
+                                  />
+                                  <span className="text-xs font-semibold text-amber-900">
+                                    Conferi, está correto. Registrar mesmo
+                                    assim.
+                                  </span>
+                                </label>
+                              ) : (
+                                <p className="mt-1 text-xs text-red-700">
+                                  Confira os valores. Se estiverem certos, peça
+                                  para o operador chefe lançar esta
+                                  movimentação.
+                                </p>
+                              )}
+                            </div>
+                          )}
+
                           {/* Fichas + abastecido */}
                           <div className="grid grid-cols-2 gap-3">
                             <div>
@@ -2784,6 +2894,7 @@ export function Movimentacoes() {
                               disabled={
                                 salvandoMovimentacao ||
                                 naoVaiRegistrar ||
+                                travasBloqueiam ||
                                 (contadorInSuspeito && !confirmacaoContadorIn) ||
                                 (contadorOutSuspeito &&
                                   !confirmacaoContadorOut) ||

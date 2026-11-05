@@ -22,7 +22,7 @@ import {
 } from "../utils/faturamentoReconciliado";
 
 import Swal from "sweetalert2";
-import { ehEquipeOperacional } from "../utils/cargos";
+import { ehEquipeOperacional, ehGestao } from "../utils/cargos";
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -3233,7 +3233,9 @@ export function Dashboard() {
           )}
 
         {/* Estoque dos Depósitos - Apenas para ADMIN */}
-        {usuario?.role === "ADMIN" && lojasComEstoque.length > 0 && (
+        {/* Estoque das lojas: gestão vê e lança entrada/saída; só admin
+            edita manualmente */}
+        {ehGestao(usuario?.role) && lojasComEstoque.length > 0 && (
           <>
             {/* Modal de Movimentação de Estoque */}
             {mostrarModalMovimentacao && (
@@ -3561,15 +3563,17 @@ export function Dashboard() {
                               </svg>
                               Imprimir
                             </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                abrirEdicaoEstoque(loja);
-                              }}
-                              className="w-full sm:w-auto px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/90 transition-colors font-medium text-sm flex items-center justify-center gap-2"
-                            >
-                              ✏️ Editar Estoque
-                            </button>
+                            {usuario?.role === "ADMIN" && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  abrirEdicaoEstoque(loja);
+                                }}
+                                className="w-full sm:w-auto px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/90 transition-colors font-medium text-sm flex items-center justify-center gap-2"
+                              >
+                                ✏️ Editar Estoque
+                              </button>
+                            )}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
