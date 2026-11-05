@@ -58,6 +58,9 @@ const HistoricoMovimentacoes = lazy(() =>
     default: m.HistoricoMovimentacoes,
   })),
 );
+const Notificacoes = lazy(() =>
+  import("./pages/Notificacoes").then((m) => ({ default: m.Notificacoes })),
+);
 const ManutencaoPage = lazy(() => import("./pages/ManutencaoPage"));
 const Graficos = lazy(() =>
   import("./pages/Graficos").then((m) => ({ default: m.Graficos })),
@@ -284,6 +287,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Movimentacoes />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/notificacoes"
+            element={
+              <PrivateRoute adminOnly>
+                <Notificacoes />
               </PrivateRoute>
             }
           />

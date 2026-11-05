@@ -104,6 +104,7 @@ const FORMULARIO_VAZIO = {
   retiradaProdutoDevolverEstoque: false,
   ignoreInOut: false,
   semFicha: false,
+  novoPadrao: "",
 };
 
 // Rascunhos: o que foi digitado em cada máquina fica salvo no aparelho, pra
@@ -126,6 +127,7 @@ const CAMPOS_RASCUNHO = [
   "retiradaProdutoDevolverEstoque",
   "ignoreInOut",
   "semFicha",
+  "novoPadrao",
 ];
 
 const campoPreenchido = (valor) =>
@@ -281,6 +283,7 @@ export function Movimentacoes() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [mostrarMaisOpcoes, setMostrarMaisOpcoes] = useState(false);
+  const [produtoPadraoMaquinaId, setProdutoPadraoMaquinaId] = useState("");
   const [statusLoja, setStatusLoja] = useState({
     concluidas: {},
     manutencoes: {},
@@ -759,33 +762,40 @@ export function Movimentacoes() {
     setConfirmacaoDivergenciaMachinePay(false);
   }, [formData.quantidadeAtualMaquina, formData.maquina_id]);
 
-  // Sugere produto automaticamente ao escolher máquina, mas permite troca manual
-  // Sugere produto via backend ao escolher máquina
+  // Produto da última visita = produto padrão da máquina. Vem preenchido,
+  // mas pode ser trocado; se for, o operador informa o novo padrão e isso
+  // vira uma notificação de mudança pro admin (ver produtoFoiTrocado).
   useEffect(() => {
-    if (!formData.maquina_id) return;
-    if (formData.produto_id) return;
-    // Busca produto sugerido do backend
-    const fetchProdutoSugerido = async () => {
-      try {
-        const res = await api.get(
-          `/maquinas/${formData.maquina_id}/produto-sugerido`,
+    setProdutoPadraoMaquinaId("");
+    const maquinaId = formData.maquina_id;
+    if (!maquinaId) return;
+
+    let cancelado = false;
+    api
+      .get(`/maquinas/${maquinaId}/produto-sugerido`)
+      .then((res) => {
+        const produtoId = res.data?.produtoSugerido?.id;
+        if (cancelado || !produtoId) return;
+        setProdutoPadraoMaquinaId(String(produtoId));
+        setFormData((prev) =>
+          prev.maquina_id === maquinaId && !prev.produto_id
+            ? { ...prev, produto_id: produtoId }
+            : prev,
         );
-        if (
-          res.data &&
-          res.data.produtoSugerido &&
-          res.data.produtoSugerido.id
-        ) {
-          setFormData((prev) => ({
-            ...prev,
-            produto_id: res.data.produtoSugerido.id,
-          }));
-        }
-      } catch {
-        // Silencia erro, não sugere nada
-      }
+      })
+      .catch(() => {
+        // Sem sugestão: nada é pré-selecionado e não há troca a avisar.
+      });
+
+    return () => {
+      cancelado = true;
     };
-    fetchProdutoSugerido();
-  }, [formData.maquina_id, formData.produto_id]);
+  }, [formData.maquina_id]);
+
+  const produtoFoiTrocado =
+    !!produtoPadraoMaquinaId &&
+    !!formData.produto_id &&
+    String(formData.produto_id) !== produtoPadraoMaquinaId;
 
   // --- FUNÇÕES DE CARREGAMENTO ---
   const carregarDados = async () => {
@@ -962,6 +972,13 @@ export function Movimentacoes() {
       return;
     }
 
+    if (produtoFoiTrocado && !(parseInt(formData.novoPadrao) > 0)) {
+      setError(
+        "Você trocou o produto padrão da máquina: informe o novo padrão (capacidade) para enviar ao administrador.",
+      );
+      return;
+    }
+
     if (contadorInSuspeito && !confirmacaoContadorIn) {
       setError(
         "A diferença do Contador IN em relação ao último registro é muito grande (provável erro de leitura). Marque a confirmação de que o valor está correto antes de registrar.",
@@ -1100,6 +1117,23 @@ export function Movimentacoes() {
 
       await api.post("/movimentacoes", data);
       descartarRascunho(formData.maquina_id);
+
+      if (produtoFoiTrocado) {
+        try {
+          await api.post("/notificacoes-mudanca", {
+            tipo: "TROCA_PRODUTO",
+            maquinaId: formData.maquina_id,
+            produtoAnteriorId: produtoPadraoMaquinaId,
+            produtoNovoId: formData.produto_id,
+            capacidadeSugerida: parseInt(formData.novoPadrao),
+          });
+        } catch (erroNotificacao) {
+          console.error(
+            "Erro ao enviar notificação de troca de produto:",
+            erroNotificacao,
+          );
+        }
+      }
 
       // Conferência manual (a cada 15 dias) confirmada mesmo com divergência
       // em relação ao esperado pela Machine Pay: avisa o admin com os
@@ -1256,6 +1290,9 @@ export function Movimentacoes() {
     mensagem += `->  *Loja:* ${loja?.nome || "Não informada"}\n`;
     mensagem += `->  *Máquina:* ${maquina ? `${maquina.nome} - ${maquina.codigo}` : "Não informada"}\n`;
     mensagem += `->  *Produto:* ${produto ? `${produto.emoji || ""} ${produto.nome}` : "Não informado"}\n`;
+    if (produtoFoiTrocado) {
+      mensagem += `->  *Produto trocado — novo padrão sugerido:* ${formData.novoPadrao || "-"} (enviado ao admin)\n`;
+    }
     mensagem += `->  *Capacidade da máquina:* ${capacidadeMaquina ?? "Não informada"}\n`;
 
     if (!formData.ignoreInOut) {
@@ -1622,6 +1659,12 @@ export function Movimentacoes() {
       <span className="block">
         <strong>Produto:</strong> {produtoSelecionadoNoForm?.nome || "-"}
       </span>
+      {produtoFoiTrocado && (
+        <span className="block text-amber-700">
+          <strong>Novo padrão (vai para o admin):</strong>{" "}
+          {formData.novoPadrao || "-"}
+        </span>
+      )}
       {!formData.ignoreInOut && (
         <>
           <span className="block">
@@ -2114,10 +2157,46 @@ export function Movimentacoes() {
                               </p>
                             </div>
                           </div>
-                          {formData.produto_id && (
-                            <p className="-mt-2 text-[11px] text-blue-600">
-                              ✨ Produto sugerido com base na última visita
-                            </p>
+                          {produtoFoiTrocado ? (
+                            <div className="rounded-xl border-2 border-amber-300 bg-amber-50 p-3 space-y-2">
+                              <p className="text-sm font-semibold text-amber-900">
+                                🔁 Você trocou o produto padrão desta máquina
+                                {produtos.find(
+                                  (p) =>
+                                    String(p.id) === produtoPadraoMaquinaId,
+                                ) &&
+                                  ` (era ${
+                                    produtos.find(
+                                      (p) =>
+                                        String(p.id) ===
+                                        produtoPadraoMaquinaId,
+                                    ).nome
+                                  })`}
+                                . Qual vai ser o novo padrão?
+                              </p>
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                name="novoPadrao"
+                                value={formData.novoPadrao}
+                                onChange={handleChange}
+                                className="input-field bg-white"
+                                placeholder={`Novo padrão (hoje é ${padrao ?? "-"})`}
+                                min="1"
+                                required
+                              />
+                              <p className="text-xs text-amber-800">
+                                📨 Ao registrar, vamos enviar para o
+                                administrador mudar o padrão da máquina. Até
+                                ele aprovar, continua {padrao ?? "-"}.
+                              </p>
+                            </div>
+                          ) : (
+                            formData.produto_id && (
+                              <p className="-mt-2 text-[11px] text-blue-600">
+                                ✨ Produto sugerido com base na última visita
+                              </p>
+                            )
                           )}
 
                           {/* Foto dos contadores */}

@@ -269,6 +269,16 @@ export function Dashboard() {
     );
   }
   const { usuario } = useAuth();
+  const [notificacoesPendentes, setNotificacoesPendentes] = useState(null);
+
+  useEffect(() => {
+    if (usuario?.role !== "ADMIN") return;
+    api
+      .get("/notificacoes-mudanca/contagem")
+      .then((res) => setNotificacoesPendentes(res.data?.pendentes ?? 0))
+      .catch(() => setNotificacoesPendentes(null));
+  }, [usuario?.role]);
+
   const [stats, setStats] = useState({
     alertas: [],
     balanco: null,
@@ -2871,6 +2881,42 @@ export function Dashboard() {
                   </p>
                   <p className="text-xs opacity-75 mt-1">
                     ⚠️ Pelúcias fora do esperado
+                  </p>
+                </div>
+              </div>
+              {/* Notificações de mudança */}
+              <div
+                className={`stat-card bg-linear-to-br from-indigo-500 to-blue-700 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 cursor-pointer ${
+                  notificacoesPendentes > 0 ? "ring-4 ring-amber-300" : ""
+                }`}
+                onClick={() => navigate("/notificacoes")}
+              >
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-medium opacity-90">
+                      Notificações de mudança
+                    </h3>
+                    <svg
+                      className="w-8 h-8 opacity-80"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                      />
+                    </svg>
+                  </div>
+                  <p className="text-3xl font-bold">
+                    {notificacoesPendentes ?? "-"}
+                  </p>
+                  <p className="text-xs opacity-75 mt-1">
+                    {notificacoesPendentes > 0
+                      ? "🔔 Aguardando sua aprovação →"
+                      : "Nada pendente →"}
                   </p>
                 </div>
               </div>

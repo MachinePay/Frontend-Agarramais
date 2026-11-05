@@ -70,6 +70,7 @@ export function Navbar() {
       links.push({ to: "/produtos-a-comprar", label: "🛒 Carrinho" });
     }
     if (usuario?.role === "ADMIN") {
+      links.push({ to: "/notificacoes", label: "🔔 Notificações" });
       links.push({
         to: "/historico-movimentacoes",
         label: "🗂️ Histórico de Movimentações",
