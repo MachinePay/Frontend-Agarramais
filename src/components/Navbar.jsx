@@ -66,9 +66,16 @@ export function Navbar() {
       links.push({ to: "/produtos-a-comprar", label: "🛒 Carrinho" });
     }
     if (usuario?.role === "OPERADOR_CHEFE") {
+      links.push({ to: "/produtos-a-comprar", label: "🛒 Carrinho" });
       links.push({
         to: "/historico-movimentacoes",
         label: "🗂️ Histórico de Movimentações",
+      });
+      links.push({
+        to: "/alertas",
+        label: "🚨 Alertas",
+        alert: totalAlertasMenu > 0,
+        badge: totalAlertasMenu > 0 ? totalAlertasMenu : null,
       });
     }
     if (usuario?.role === "ADMIN") {

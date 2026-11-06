@@ -6,7 +6,7 @@ import {
   useEffect,
 } from "react";
 import api from "../services/api";
-import { normalizarCargo } from "../utils/cargos";
+import { ehGestao, normalizarCargo } from "../utils/cargos";
 
 export const AuthContext = createContext({});
 
@@ -30,7 +30,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const atualizarAlertasManutencaoCount = useCallback(async () => {
-    if (usuario?.role !== "ADMIN") return;
+    if (!ehGestao(usuario?.role)) return;
     try {
       const response = await api.get("/alertas-movimentacao");
       const dados = response.data;
@@ -41,7 +41,7 @@ export function AuthProvider({ children }) {
   }, [usuario?.role]);
 
   useEffect(() => {
-    if (usuario?.role !== "ADMIN") return;
+    if (!ehGestao(usuario?.role)) return;
 
     const buscar = async () => {
       try {
@@ -140,11 +140,13 @@ export function AuthProvider({ children }) {
         isAdmin,
         hasRole,
         signed: !!usuario,
-        alertasManutencaoCount:
-          usuario?.role === "ADMIN" ? alertasManutencaoCount : 0,
+        alertasManutencaoCount: ehGestao(usuario?.role)
+          ? alertasManutencaoCount
+          : 0,
         atualizarAlertasManutencaoCount,
-        alertasCompactPayCount:
-          usuario?.role === "ADMIN" ? alertasCompactPayCount : 0,
+        alertasCompactPayCount: ehGestao(usuario?.role)
+          ? alertasCompactPayCount
+          : 0,
         setAlertasCompactPayCount,
       }}
     >

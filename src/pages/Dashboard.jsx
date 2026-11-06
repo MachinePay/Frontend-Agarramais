@@ -1137,10 +1137,16 @@ export function Dashboard() {
 
     try {
       setLoadingManutencoesPendentes(true);
-      const response = await api.get("/manutencoes");
+      const response = await api.get("/manutencoes", {
+        params: { status: "PENDENTE" },
+      });
       const lista = Array.isArray(response.data) ? response.data : [];
+      // Alertas automáticos (origem ALERTA_*) ficam na página de Alertas.
       setManutencoesPendentes(
-        lista.filter((item) => item.status === "PENDENTE"),
+        lista.filter(
+          (item) =>
+            item.status === "PENDENTE" && !item.origem?.startsWith("ALERTA_"),
+        ),
       );
     } catch (error) {
       console.error("Erro ao carregar manutenções pendentes:", error);
@@ -2584,7 +2590,11 @@ export function Dashboard() {
         <IAgarraAssistente />
 
         {/* Cards de Resumo com design moderno - Apenas para ADMIN */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 md:gap-6 mb-8">
+        <div
+          className={`grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 mb-8 ${
+            usuario?.role === "ADMIN" ? "lg:grid-cols-6" : "lg:grid-cols-4"
+          }`}
+        >
           {/* Faturamento Mensal, Fichas Inseridas, Prêmios Saídos, Alertas de Estoque: só para ADMIN */}
           {usuario?.role === "ADMIN" && (
             <>
@@ -2978,7 +2988,8 @@ export function Dashboard() {
               </p>
             </div>
           </div>
-          {/* Suporte Técnico */}
+          {/* Suporte Técnico (só admin) */}
+          {usuario?.role === "ADMIN" && (
           <div
             className="stat-card bg-linear-to-br from-cyan-700 to-slate-900 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 cursor-pointer"
             onClick={() => navigate("/suporte-tecnico")}
@@ -3014,7 +3025,7 @@ export function Dashboard() {
               </p>
             </div>
           </div>
-
+          )}
           {ehEquipeOperacional(usuario?.role) && (
             <div
               className={`stat-card p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 cursor-pointer transition-all ${
@@ -3037,9 +3048,11 @@ export function Dashboard() {
                     : manutencoesPendentes.length}
                 </p>
                 <p className="text-xs opacity-75 mt-1">
-                  {manutencoesPendentes.length > 0
-                    ? "⚠️ Você possui manutenções para resolver"
-                    : "Sem pendências no momento"}
+                  {manutencoesPendentes.length === 0
+                    ? "Sem pendências no momento"
+                    : ehGestao(usuario?.role)
+                      ? "⚠️ Abertas na equipe toda →"
+                      : "⚠️ Você possui manutenções para resolver"}
                 </p>
               </div>
             </div>
@@ -3062,6 +3075,85 @@ export function Dashboard() {
                 </p>
               </div>
             </div>
+          )}
+          {usuario?.role === "OPERADOR_CHEFE" && (
+            <>
+              <div
+                className={`stat-card bg-linear-to-br from-rose-600 to-red-800 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 cursor-pointer ${
+                  alertasRapidos > 0 ? "ring-4 ring-red-300" : ""
+                }`}
+                onClick={() => navigate("/alertas")}
+              >
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-medium opacity-90">
+                      Central de alertas
+                    </h3>
+                    <span className="text-2xl opacity-90">🚨</span>
+                  </div>
+                  <p className="text-3xl font-bold">{alertasRapidos}</p>
+                  <p className="text-xs opacity-75 mt-1">
+                    WhatsApp, Machine Pay e CompactPay · abrir para ver
+                    IN/OUT →
+                  </p>
+                </div>
+              </div>
+              <div
+                className="stat-card bg-linear-to-br from-amber-500 to-orange-600 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 cursor-pointer"
+                onClick={() => navigate("/movimentacoes")}
+              >
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-medium opacity-90">
+                      Movimentações
+                    </h3>
+                    <span className="text-2xl">📦</span>
+                  </div>
+                  <p className="text-3xl font-bold">🎮</p>
+                  <p className="text-xs opacity-75 mt-1">
+                    Registrar coleta e abastecimento →
+                  </p>
+                </div>
+              </div>
+              <div
+                className="stat-card bg-linear-to-br from-indigo-500 to-indigo-700 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 cursor-pointer"
+                onClick={() => navigate("/historico-movimentacoes")}
+              >
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-medium opacity-90">
+                      Histórico
+                    </h3>
+                    <span className="text-2xl">🗂️</span>
+                  </div>
+                  <p className="text-3xl font-bold">📋</p>
+                  <p className="text-xs opacity-75 mt-1">
+                    Conferir e corrigir movimentações →
+                  </p>
+                </div>
+              </div>
+              <div
+                className="stat-card bg-linear-to-br from-teal-600 to-cyan-800 p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-between min-h-30 cursor-pointer"
+                onClick={() =>
+                  document
+                    .getElementById("estoque-depositos")
+                    ?.scrollIntoView({ behavior: "smooth" })
+                }
+              >
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-medium opacity-90">
+                      Estoque das lojas
+                    </h3>
+                    <span className="text-2xl">🏪</span>
+                  </div>
+                  <p className="text-3xl font-bold">{lojasComEstoque.length}</p>
+                  <p className="text-xs opacity-75 mt-1">
+                    Ver estoque e lançar entrada/saída ↓
+                  </p>
+                </div>
+              </div>
+            </>
           )}
         </div>
 
@@ -3420,7 +3512,7 @@ export function Dashboard() {
                 </div>
               </div>
             )}
-            <div className="card mb-8">
+            <div id="estoque-depositos" className="card mb-8 scroll-mt-4">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
@@ -3551,18 +3643,20 @@ export function Dashboard() {
                                 ✏️ Editar Estoque
                               </button>
                             )}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                darSaidaEmTodoEstoque(loja);
-                              }}
-                              disabled={enviandoSaidaTotal[loja.id]}
-                              className="w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                            >
-                              {enviandoSaidaTotal[loja.id]
-                                ? "Enviando..."
-                                : "📤 Dar Saída em Todo Estoque"}
-                            </button>
+                            {usuario?.role === "ADMIN" && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  darSaidaEmTodoEstoque(loja);
+                                }}
+                                disabled={enviandoSaidaTotal[loja.id]}
+                                className="w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                              >
+                                {enviandoSaidaTotal[loja.id]
+                                  ? "Enviando..."
+                                  : "📤 Dar Saída em Todo Estoque"}
+                              </button>
+                            )}
                           </div>
                           <svg
                             className={`w-6 h-6 text-gray-500 transition-transform ${

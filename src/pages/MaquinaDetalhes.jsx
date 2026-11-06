@@ -120,7 +120,6 @@ export function MaquinaDetalhes() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { usuario } = useAuth();
-  const ehAdmin = usuario?.role === "ADMIN";
 
   const [maquina, setMaquina] = useState(null);
   const [movimentacoes, setMovimentacoes] = useState([]);
@@ -388,7 +387,7 @@ export function MaquinaDetalhes() {
                 🗂️ Histórico
               </Link>
             )}
-            {ehAdmin && temAlerta && (
+            {ehGestao(usuario?.role) && temAlerta && (
               <button
                 type="button"
                 onClick={() => setConfirmarCorrigido(true)}

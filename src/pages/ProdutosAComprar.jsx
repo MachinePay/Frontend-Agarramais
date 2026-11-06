@@ -5,6 +5,7 @@ import { Footer } from "../components/Footer";
 import { PageHeader } from "../components/UIComponents";
 import { PageLoader } from "../components/Loading";
 import { useAuth } from "../contexts/AuthContext";
+import { ehGestao } from "../utils/cargos";
 
 const toNumber = (value) => Number(value || 0);
 
@@ -90,6 +91,11 @@ const takeCapacityForProduct = (capacidadePorProduto, produto, fallback) => {
 
 export function ProdutosAComprar() {
   const { usuario } = useAuth();
+  // Operador chefe só vê as listas prontas pra enviar (enviar ao estoque,
+  // tirar, corrigir e adicionar produto). Calcular e imprimir é do admin.
+  const somenteListas = usuario?.role === "OPERADOR_CHEFE";
+  const podeEditarListas = ehGestao(usuario?.role);
+  const [novoProduto, setNovoProduto] = useState({});
   const [lojas, setLojas] = useState([]);
   const [lojasSelecionadas, setLojasSelecionadas] = useState(new Set());
   const [estoquePorLoja, setEstoquePorLoja] = useState(new Map());
@@ -412,6 +418,56 @@ export function ProdutosAComprar() {
     [],
   );
 
+  const atualizarQuantidadePendente = async (
+    pendingId,
+    lojaId,
+    produtoKey,
+    quantidade,
+  ) => {
+    setErroConfirmar("");
+    try {
+      const res = await api.put(
+        `/lista-compras-pendentes/${pendingId}/produto/${encodeURIComponent(produtoKey)}`,
+        { quantidade },
+        { params: { lojaId } },
+      );
+      setPendentes((prev) =>
+        prev.map((p) => (p.id === pendingId ? normalizarPendente(res.data) : p)),
+      );
+    } catch (err) {
+      setErroConfirmar(getApiErrorMessage(err, "Erro ao atualizar quantidade."));
+    }
+  };
+
+  const adicionarProdutoPendente = async (pendingId, loja) => {
+    const chave = `${pendingId}-${loja.lojaId}`;
+    const escolha = novoProduto[chave] || {};
+    const produto = produtos.find(
+      (p) => String(p.id) === String(escolha.produtoId),
+    );
+    const quantidade = parseInt(escolha.quantidade, 10);
+    if (!produto || !(quantidade > 0)) return;
+    setErroConfirmar("");
+    try {
+      const res = await api.post(`/lista-compras-pendentes/${pendingId}/produto`, {
+        lojaId: loja.lojaId,
+        lojaNome: loja.lojaNome,
+        key: getProductKey(produto, produto.id),
+        produtoId: produto.id,
+        produtoNome: produto.nome,
+        produtoEmoji: produto.emoji,
+        produtoCodigo: produto.codigo,
+        quantidade,
+      });
+      setPendentes((prev) =>
+        prev.map((p) => (p.id === pendingId ? normalizarPendente(res.data) : p)),
+      );
+      setNovoProduto((prev) => ({ ...prev, [chave]: undefined }));
+    } catch (err) {
+      setErroConfirmar(getApiErrorMessage(err, "Erro ao adicionar produto."));
+    }
+  };
+
   const excluirPendente = useCallback(async (pendingId) => {
     try {
       await api.delete(`/lista-compras-pendentes/${pendingId}`);
@@ -627,8 +683,12 @@ export function ProdutosAComprar() {
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 print-area">
           <div className="no-print">
             <PageHeader
-              title="Produtos a Comprar"
-              subtitle="Selecione as lojas e imprima a lista de reposição"
+              title={somenteListas ? "Carrinho" : "Produtos a Comprar"}
+              subtitle={
+                somenteListas
+                  ? "Confira as listas, corrija se precisar e envie para o estoque"
+                  : "Selecione as lojas e imprima a lista de reposição"
+              }
               icon="🛒"
             />
 
@@ -636,6 +696,19 @@ export function ProdutosAComprar() {
               <div className="mb-6 p-4 rounded-xl border border-red-300 bg-red-50 text-red-800 font-medium">
                 {erro}
               </div>
+            )}
+
+            {somenteListas && pendentes.length === 0 && (
+              <section className="card text-center py-14">
+                <div className="text-5xl mb-3">🛒</div>
+                <h2 className="text-xl font-bold text-gray-900 mb-1">
+                  Nenhuma lista para enviar
+                </h2>
+                <p className="text-gray-600">
+                  Quando o admin gerar uma lista de compras, ela aparece aqui
+                  para você conferir e enviar ao estoque.
+                </p>
+              </section>
             )}
 
             {/* ── Pendentes ── */}
@@ -736,7 +809,42 @@ export function ProdutosAComprar() {
                                           </div>
                                         </td>
                                         <td className="px-4 py-2 text-center font-bold text-blue-700 text-base">
-                                          {prod.quantidade}
+                                          {podeEditarListas ? (
+                                            <input
+                                              key={`${prod.key}-${prod.quantidade}`}
+                                              type="number"
+                                              inputMode="numeric"
+                                              min="1"
+                                              defaultValue={prod.quantidade}
+                                              disabled={isConfirmando}
+                                              onKeyDown={(e) =>
+                                                e.key === "Enter" &&
+                                                e.currentTarget.blur()
+                                              }
+                                              onBlur={(e) => {
+                                                const q = parseInt(
+                                                  e.target.value,
+                                                  10,
+                                                );
+                                                if (!(q > 0)) {
+                                                  e.target.value =
+                                                    prod.quantidade;
+                                                  return;
+                                                }
+                                                if (q !== prod.quantidade)
+                                                  atualizarQuantidadePendente(
+                                                    pendente.id,
+                                                    loja.lojaId,
+                                                    prod.key,
+                                                    q,
+                                                  );
+                                              }}
+                                              className="w-20 rounded-lg border border-blue-200 px-2 py-1 text-center font-bold text-blue-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                                              title="Corrigir quantidade"
+                                            />
+                                          ) : (
+                                            prod.quantidade
+                                          )}
                                         </td>
                                         <td className="px-4 py-2 text-center">
                                           <button
@@ -759,6 +867,77 @@ export function ProdutosAComprar() {
                                   </tbody>
                                 </table>
                               </div>
+                              {podeEditarListas &&
+                                (() => {
+                                  const chave = `${pendente.id}-${loja.lojaId}`;
+                                  const escolha = novoProduto[chave] || {};
+                                  const mudar = (campo, valor) =>
+                                    setNovoProduto((prev) => ({
+                                      ...prev,
+                                      [chave]: {
+                                        ...(prev[chave] || {}),
+                                        [campo]: valor,
+                                      },
+                                    }));
+                                  return (
+                                    <div className="mt-2 flex flex-col sm:flex-row gap-2">
+                                      <select
+                                        value={escolha.produtoId || ""}
+                                        onChange={(e) =>
+                                          mudar("produtoId", e.target.value)
+                                        }
+                                        disabled={isConfirmando}
+                                        className="w-full min-w-0 sm:flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+                                        aria-label="Produto para adicionar"
+                                      >
+                                        <option value="">
+                                          + Adicionar produto...
+                                        </option>
+                                        {produtos.map((p) => (
+                                          <option key={p.id} value={p.id}>
+                                            {p.emoji || "📦"} {p.nome}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <input
+                                        type="number"
+                                        inputMode="numeric"
+                                        min="1"
+                                        placeholder="Qtd"
+                                        value={escolha.quantidade || ""}
+                                        onChange={(e) =>
+                                          mudar("quantidade", e.target.value)
+                                        }
+                                        onKeyDown={(e) =>
+                                          e.key === "Enter" &&
+                                          adicionarProdutoPendente(
+                                            pendente.id,
+                                            loja,
+                                          )
+                                        }
+                                        disabled={isConfirmando}
+                                        className="w-full sm:w-24 rounded-lg border border-gray-300 px-3 py-2 text-center text-sm"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          adicionarProdutoPendente(
+                                            pendente.id,
+                                            loja,
+                                          )
+                                        }
+                                        disabled={
+                                          isConfirmando ||
+                                          !escolha.produtoId ||
+                                          !(parseInt(escolha.quantidade, 10) > 0)
+                                        }
+                                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40"
+                                      >
+                                        Adicionar
+                                      </button>
+                                    </div>
+                                  );
+                                })()}
                             </div>
                           ))}
                         </div>
@@ -787,6 +966,7 @@ export function ProdutosAComprar() {
               </section>
             )}
 
+          {!somenteListas && (<>
             {/* ── Seleção de lojas ── */}
             <section className="card mb-6">
               <div className="flex items-center justify-between mb-4">
@@ -889,8 +1069,10 @@ export function ProdutosAComprar() {
                 <p className="text-gray-600">Carregando estoque das lojas...</p>
               </div>
             )}
+          </>)}
           </div>
 
+          {!somenteListas && (<>
           {/* ── Lista por loja (tela) ── */}
           {!algumCarregando &&
             listaPorLoja.map(({ loja, produtos: ps }) => (
@@ -1001,6 +1183,7 @@ export function ProdutosAComprar() {
                 )}
               </section>
             ))}
+          </>)}
         </main>
 
         <div className="no-print">

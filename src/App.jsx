@@ -146,7 +146,7 @@ function App() {
           <Route
             path="/alertas"
             element={
-              <PrivateRoute adminOnly>
+              <PrivateRoute roles={["ADMIN", "OPERADOR_CHEFE"]}>
                 <Alertas />
               </PrivateRoute>
             }
@@ -445,7 +445,7 @@ function App() {
           <Route
             path="/suporte-tecnico"
             element={
-              <PrivateRoute>
+              <PrivateRoute adminOnly>
                 <SuporteTecnico />
               </PrivateRoute>
             }
