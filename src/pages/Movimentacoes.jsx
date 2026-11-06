@@ -2072,10 +2072,19 @@ export function Movimentacoes() {
                   const manutencoesPendentes =
                     statusLoja.manutencoes[maquina.id] || 0;
                   const padrao = maquina.capacidadePadrao ?? null;
-                  const atual = Number(maquina.estoqueAtual) || 0;
+                  const rascunho = aberta ? formData : rascunhos[maquina.id];
+                  // Se a quantidade atual já foi digitada (form aberto ou
+                  // rascunho salvo), ela substitui o estoque registrado.
+                  const qtdDigitada = rascunho?.quantidadeAtualMaquina;
+                  const atual =
+                    qtdDigitada !== undefined &&
+                    qtdDigitada !== null &&
+                    String(qtdDigitada).trim() !== "" &&
+                    !Number.isNaN(Number(qtdDigitada))
+                      ? Number(qtdDigitada)
+                      : Number(maquina.estoqueAtual) || 0;
                   const falta =
                     padrao !== null ? Math.max(0, padrao - atual) : null;
-                  const rascunho = aberta ? formData : rascunhos[maquina.id];
                   const temRascunho = aberta
                     ? rascunhoTemDados(formData)
                     : !!rascunhos[maquina.id];
@@ -2096,7 +2105,9 @@ export function Movimentacoes() {
                       <button
                         type="button"
                         onClick={() => selecionarMaquina(maquina.id)}
-                        className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 text-left"
+                        // Celular: nome e progresso numa linha inteira,
+                        // números embaixo. Do sm pra cima: tudo numa linha.
+                        className="w-full grid grid-cols-[minmax(0,1fr)_auto] gap-x-2 gap-y-2 sm:flex sm:items-center sm:gap-3 px-3 sm:px-4 py-3 text-left"
                         aria-expanded={aberta}
                       >
                         <div className="min-w-0 flex-1">
@@ -2150,34 +2161,38 @@ export function Movimentacoes() {
                             </span>
                           </div>
                         </div>
-                        {manutencoesPendentes > 0 && (
-                          <span
-                            className="shrink-0 inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-1 text-xs font-bold text-orange-700"
-                            title={`${manutencoesPendentes} manutenção(ões) pendente(s)`}
+                        <div className="col-start-2 row-start-1 flex items-center gap-2 self-start sm:self-auto sm:order-last">
+                          {manutencoesPendentes > 0 && (
+                            <span
+                              className="shrink-0 inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-1 text-xs font-bold text-orange-700"
+                              title={`${manutencoesPendentes} manutenção(ões) pendente(s)`}
+                            >
+                              🔧 {manutencoesPendentes}
+                            </span>
+                          )}
+                          <svg
+                            className={`w-5 h-5 shrink-0 text-slate-400 transition-transform ${aberta ? "rotate-180" : ""}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
                           >
-                            🔧 {manutencoesPendentes}
-                          </span>
-                        )}
-                        <NumeroMaquina label="Padrão" value={padrao ?? "-"} />
-                        <NumeroMaquina
-                          label="Falta"
-                          value={falta ?? "-"}
-                          tone={falta > 0 ? "amber" : "muted"}
-                        />
-                        <NumeroMaquina label="Atual" value={atual} />
-                        <svg
-                          className={`w-5 h-5 shrink-0 text-slate-400 transition-transform ${aberta ? "rotate-180" : ""}`}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 9l-7 7-7-7"
+                            />
+                          </svg>
+                        </div>
+                        <div className="col-span-2 row-start-2 flex justify-around rounded-xl bg-slate-50 py-1 sm:col-auto sm:row-auto sm:justify-end sm:gap-1 sm:bg-transparent sm:py-0">
+                          <NumeroMaquina label="Padrão" value={padrao ?? "-"} />
+                          <NumeroMaquina
+                            label="Falta"
+                            value={falta ?? "-"}
+                            tone={falta > 0 ? "amber" : "muted"}
                           />
-                        </svg>
+                          <NumeroMaquina label="Atual" value={atual} />
+                        </div>
                       </button>
 
                       {aberta && (

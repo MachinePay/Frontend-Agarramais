@@ -16,7 +16,8 @@ export const CARGOS = {
   OPERADOR_CHEFE: {
     label: "Operador chefe",
     curto: "Operador chefe",
-    descricao: "Coordena os operadores nas lojas autorizadas",
+    descricao:
+      "Coordena os operadores em todas as lojas: manutenções, estoque, histórico e correções",
     cor: "bg-indigo-100 text-indigo-800",
   },
   SUPORTE: {
@@ -55,17 +56,21 @@ export const ORDEM_CARGOS = [
   "COMERCIAL",
 ];
 
-// Cargos que trabalham com lojas autorizadas.
-export const CARGOS_COM_LOJAS = [
+// Cargos que trabalham com lojas autorizadas. Admin e operador chefe veem
+// todas as lojas.
+export const CARGOS_COM_LOJAS = ["OPERADOR", "SUPORTE", "FINANCEIRO"];
+
+// Cargos da operação: veem o sistema como o operador (o que antes era a
+// visão de "funcionário"). O operador chefe tem a mesma visão, com os extras
+// de gestão (ver ehGestao).
+const CARGOS_OPERACIONAIS = [
   "OPERADOR",
   "OPERADOR_CHEFE",
   "SUPORTE",
   "FINANCEIRO",
 ];
-
-// Cargos da operação: por enquanto veem o sistema como o operador (o que
-// antes era a visão de "funcionário").
-export const ehEquipeOperacional = (role) => CARGOS_COM_LOJAS.includes(role);
+export const ehEquipeOperacional = (role) =>
+  CARGOS_OPERACIONAIS.includes(role);
 
 // Gestão da operação (admin e operador chefe): gerenciam todas as
 // manutenções, veem o estoque e o histórico, corrigem movimentações e podem

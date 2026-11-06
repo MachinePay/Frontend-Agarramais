@@ -185,7 +185,8 @@ export function Usuarios() {
                       {usuario.telefone || "-"}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
-                      {usuario.role === "ADMIN" ? (
+                      {usuario.role === "ADMIN" ||
+                      usuario.role === "OPERADOR_CHEFE" ? (
                         <span className="text-gray-400 italic">Todas</span>
                       ) : !CARGOS_COM_LOJAS.includes(usuario.role) ? (
                         <span className="text-gray-400 italic">-</span>
