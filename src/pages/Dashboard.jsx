@@ -3302,8 +3302,8 @@ export function Dashboard() {
           )}
 
         {/* Estoque dos Depósitos - Apenas para ADMIN */}
-        {/* Estoque das lojas: gestão vê e lança entrada/saída; só admin
-            edita manualmente */}
+        {/* Estoque das lojas: gestão (admin e operador chefe) vê, lança
+            entrada/saída e edita manualmente */}
         {ehGestao(usuario?.role) && lojasComEstoque.length > 0 && (
           <>
             {/* Modal de Movimentação de Estoque */}
@@ -3632,7 +3632,7 @@ export function Dashboard() {
                               </svg>
                               Imprimir
                             </button>
-                            {usuario?.role === "ADMIN" && (
+                            {ehGestao(usuario?.role) && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -3643,7 +3643,7 @@ export function Dashboard() {
                                 ✏️ Editar Estoque
                               </button>
                             )}
-                            {usuario?.role === "ADMIN" && (
+                            {ehGestao(usuario?.role) && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -4048,7 +4048,7 @@ export function Dashboard() {
                       {maquinaSelecionada.capacidadePadrao || 0}
                     </p>
                   </div>
-                  {usuario?.role === "ADMIN" && (
+                  {ehGestao(usuario?.role) && (
                     <div>
                       <p className="text-sm text-gray-600">Estoque Atual</p>
                       <p className="text-lg font-semibold">
@@ -4141,8 +4141,8 @@ export function Dashboard() {
                 )}
               </div>
 
-              {/* Movimentações - Apenas para ADMIN */}
-              {usuario?.role === "ADMIN" && (
+              {/* Movimentações - admin e operador chefe */}
+              {ehGestao(usuario?.role) && (
                 <div>
                   <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                     <span className="text-2xl">🔄</span>

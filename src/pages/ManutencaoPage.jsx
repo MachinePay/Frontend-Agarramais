@@ -5,7 +5,12 @@ import { useAuth } from "../contexts/AuthContext";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { PageLoader } from "../components/Loading";
-import { AlertBox, Modal, PageHeader } from "../components/UIComponents";
+import {
+  AlertBox,
+  ConfirmDialog,
+  Modal,
+  PageHeader,
+} from "../components/UIComponents";
 import { ehGestao } from "../utils/cargos";
 
 const PRIORIDADES = {
@@ -193,7 +198,135 @@ function Avatares({ pessoas }) {
   );
 }
 
-function CartaoManutencao({ item, podeGerenciar, podeResolver, onResolver, onEditar }) {
+const GRAVIDADE_IA = {
+  ALTA: { label: "Alta", classe: "bg-red-100 text-red-700", faixa: "border-l-red-500" },
+  MEDIA: { label: "Média", classe: "bg-amber-100 text-amber-800", faixa: "border-l-amber-400" },
+  BAIXA: { label: "Baixa", classe: "bg-slate-100 text-slate-600", faixa: "border-l-slate-300" },
+};
+
+const ESCOPO_IA = {
+  MAQUINA: "na mesma máquina",
+  LOJA: "na mesma loja",
+  GERAL: "em várias lojas",
+};
+
+// IAgarra: problemas que se repetem no período (backend agrupa e confere).
+function PainelRepeticoes({ analise, carregando, dias, onDias, onVer, filtroIdsAtivo }) {
+  const grupos = analise?.grupos || [];
+  return (
+    <section className="mb-5 rounded-3xl border border-indigo-200 bg-white shadow-sm overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-linear-to-r from-indigo-600 to-violet-600 px-4 sm:px-5 py-3 text-white">
+        <div>
+          <h2 className="font-bold">🤖 IAgarra: problemas que se repetem</h2>
+          <p className="text-xs opacity-80">
+            {carregando
+              ? "Analisando as manutenções..."
+              : analise
+                ? `${analise.analisadas} manutenção(ões) analisada(s) nos últimos ${analise.dias} dias`
+                : "Análise indisponível"}
+          </p>
+        </div>
+        <div className="inline-flex rounded-full bg-white/15 p-0.5">
+          {[30, 60, 90].map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => onDias(d)}
+              disabled={carregando}
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                dias === d ? "bg-white text-indigo-700" : "text-white/90"
+              }`}
+            >
+              {d} dias
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="p-4 sm:p-5">
+        {analise?.aviso && (
+          <p className="mb-3 text-xs text-amber-700">⚠️ {analise.aviso}</p>
+        )}
+        {carregando ? (
+          <div className="space-y-2">
+            {[0, 1].map((i) => (
+              <div key={i} className="h-16 rounded-2xl bg-slate-100 animate-pulse" />
+            ))}
+          </div>
+        ) : grupos.length === 0 ? (
+          <p className="text-sm text-slate-600">
+            ✅ Nenhum problema se repetiu nesse período.
+          </p>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2">
+            {grupos.map((g) => {
+              const grav = GRAVIDADE_IA[g.gravidade] || GRAVIDADE_IA.MEDIA;
+              const onde = g.maquinas.length
+                ? g.maquinas.join(", ")
+                : g.lojas.join(", ");
+              return (
+                <article
+                  key={g.ids.join("-")}
+                  className={`rounded-2xl border border-slate-200 border-l-4 ${grav.faixa} p-3`}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${grav.classe}`}>
+                      {grav.label}
+                    </span>
+                    {g.abertas > 0 && (
+                      <span className="text-[11px] font-semibold text-orange-700">
+                        {g.abertas} em aberto
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 font-bold text-slate-900">
+                    🔁 {g.problema}{" "}
+                    <span className="font-normal text-slate-600">
+                      se repetiu{" "}
+                      <strong className="text-slate-900">{g.quantidade} vezes</strong>{" "}
+                      em {g.diasEntrePrimeiraEUltima}{" "}
+                      {g.diasEntrePrimeiraEUltima === 1 ? "dia" : "dias"}
+                    </span>
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {ESCOPO_IA[g.escopo] || ""}
+                    {onde ? ` · ${onde}` : ""} · de{" "}
+                    {new Date(g.primeira).toLocaleDateString("pt-BR")} a{" "}
+                    {new Date(g.ultima).toLocaleDateString("pt-BR")}
+                  </p>
+                  {g.explicacao && (
+                    <p className="mt-2 text-sm text-slate-700">{g.explicacao}</p>
+                  )}
+                  {g.recomendacao && (
+                    <p className="mt-1 text-sm text-indigo-800">💡 {g.recomendacao}</p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onVer(g)}
+                    className="mt-2 text-xs font-semibold text-indigo-700 hover:text-indigo-900"
+                  >
+                    {filtroIdsAtivo === g.ids.join(",")
+                      ? "Mostrando na lista abaixo ↓"
+                      : `Ver as ${g.quantidade} manutenções ↓`}
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function CartaoManutencao({
+  item,
+  podeGerenciar,
+  podeResolver,
+  onResolver,
+  onEditar,
+  onExcluir,
+}) {
   const [expandido, setExpandido] = useState(false);
   const prioridade = PRIORIDADES[item.prioridade] || PRIORIDADES.MEDIA;
   const prazo = situacaoPrazo(item);
@@ -314,6 +447,16 @@ function CartaoManutencao({ item, podeGerenciar, podeResolver, onResolver, onEdi
             <span className="text-xs font-semibold text-slate-500">
               💰 {formatarMoeda(item.custo)}
             </span>
+          )}
+          {onExcluir && (
+            <button
+              type="button"
+              onClick={() => onExcluir(item)}
+              className="rounded-xl border-2 border-slate-200 px-3 py-2 text-sm font-semibold text-slate-500 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+              title="Excluir manutenção"
+            >
+              🗑️
+            </button>
           )}
           {podeGerenciar && !resolvida && (
             <button
@@ -693,6 +836,12 @@ export default function ManutencaoPage() {
   const [formAberto, setFormAberto] = useState(null); // { inicial, editandoId }
   const [salvando, setSalvando] = useState(false);
   const [concluindo, setConcluindo] = useState(null);
+  const [excluindo, setExcluindo] = useState(null);
+  const [analise, setAnalise] = useState(null);
+  const [carregandoAnalise, setCarregandoAnalise] = useState(false);
+  const [diasAnalise, setDiasAnalise] = useState(30);
+  // Filtro vindo do painel da IA: só as manutenções de um grupo.
+  const [filtroIds, setFiltroIds] = useState("");
   const [solucao, setSolucao] = useState("");
   const [custoConclusao, setCustoConclusao] = useState("");
 
@@ -701,6 +850,31 @@ export default function ManutencaoPage() {
     carregarDados();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
+
+  useEffect(() => {
+    if (authLoading || !ehGestao(usuario?.role)) return;
+    let cancelado = false;
+    api
+      .get("/manutencoes/analise-repeticao", { params: { dias: diasAnalise } })
+      .then((res) => {
+        if (!cancelado) setAnalise(res.data);
+      })
+      .catch(() => {
+        if (!cancelado)
+          setAnalise({
+            dias: diasAnalise,
+            analisadas: 0,
+            grupos: [],
+            aviso: "Não foi possível carregar a análise agora.",
+          });
+      })
+      .finally(() => {
+        if (!cancelado) setCarregandoAnalise(false);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [authLoading, usuario?.role, diasAnalise]);
 
   const carregarDados = async () => {
     try {
@@ -795,6 +969,7 @@ export default function ManutencaoPage() {
       )
       .filter((m) => !filtroPrioridade || m.prioridade === filtroPrioridade)
       .filter((m) => !soAtrasadas || situacaoPrazo(m)?.atrasada)
+      .filter((m) => !filtroIds || filtroIds.split(",").includes(m.id))
       .filter(
         (m) =>
           !termo ||
@@ -838,6 +1013,7 @@ export default function ManutencaoPage() {
     filtroPessoa,
     filtroPrioridade,
     soAtrasadas,
+    filtroIds,
   ]);
 
   const filtrosAtivos =
@@ -846,6 +1022,7 @@ export default function ManutencaoPage() {
     !!filtroMaquina ||
     !!filtroPessoa ||
     !!filtroPrioridade ||
+    !!filtroIds ||
     soAtrasadas;
 
   const limparFiltros = () => {
@@ -855,6 +1032,19 @@ export default function ManutencaoPage() {
     setFiltroPessoa("");
     setFiltroPrioridade("");
     setSoAtrasadas(false);
+    setFiltroIds("");
+  };
+
+  const excluir = async () => {
+    if (!excluindo) return;
+    setError("");
+    try {
+      await api.delete(`/manutencoes/${excluindo.id}`);
+      setManutencoes((prev) => prev.filter((m) => m.id !== excluindo.id));
+      setSuccess(`🗑️ "${excluindo.titulo}" excluída.`);
+    } catch (err) {
+      setError(err.response?.data?.error || "Erro ao excluir manutenção");
+    }
   };
 
   const substituir = (atualizada) =>
@@ -1044,6 +1234,28 @@ export default function ManutencaoPage() {
           )}
         </div>
 
+        {podeGerenciar && (
+          <PainelRepeticoes
+            analise={analise}
+            carregando={carregandoAnalise || !analise}
+            dias={diasAnalise}
+            onDias={(d) => {
+              if (d === diasAnalise) return;
+              setCarregandoAnalise(true);
+              setDiasAnalise(d);
+            }}
+            onVer={(g) => {
+              limparFiltros();
+              setFiltroIds(g.ids.join(","));
+              setAba("TODAS");
+              document
+                .getElementById("lista-manutencoes")
+                ?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+            filtroIdsAtivo={filtroIds}
+          />
+        )}
+
         {/* Abas */}
         <div className="mb-3 flex overflow-x-auto rounded-2xl bg-white p-1 shadow-sm border border-slate-200 w-full sm:w-fit">
           {ABAS.map((item) => (
@@ -1207,7 +1419,19 @@ export default function ManutencaoPage() {
             )}
           </div>
         ) : (
-          <div className="space-y-3">
+          <div id="lista-manutencoes" className="space-y-3 scroll-mt-4">
+            {filtroIds && (
+              <div className="flex items-center justify-between rounded-xl bg-indigo-50 px-3 py-2 text-sm text-indigo-800">
+                <span>🤖 Mostrando só as manutenções que se repetiram</span>
+                <button
+                  type="button"
+                  onClick={() => setFiltroIds("")}
+                  className="font-semibold hover:text-indigo-950"
+                >
+                  Ver todas ×
+                </button>
+              </div>
+            )}
             {visiveis.map((item) => (
               <CartaoManutencao
                 key={item.id}
@@ -1216,6 +1440,9 @@ export default function ManutencaoPage() {
                 podeResolver={podeResolver(item)}
                 onResolver={abrirConclusao}
                 onEditar={abrirEdicao}
+                onExcluir={
+                  usuario?.role === "ADMIN" ? setExcluindo : undefined
+                }
               />
             ))}
           </div>
@@ -1319,6 +1546,15 @@ export default function ManutencaoPage() {
           </div>
         )}
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!excluindo}
+        onClose={() => setExcluindo(null)}
+        onConfirm={excluir}
+        title="Excluir manutenção?"
+        message={`"${excluindo?.titulo || ""}" será apagada de vez. Se ela gerou gasto variável, o gasto continua lançado na loja.`}
+        confirmText="Sim, excluir"
+      />
 
       <Footer />
     </div>

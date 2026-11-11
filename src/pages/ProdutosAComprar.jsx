@@ -91,9 +91,6 @@ const takeCapacityForProduct = (capacidadePorProduto, produto, fallback) => {
 
 export function ProdutosAComprar() {
   const { usuario } = useAuth();
-  // Operador chefe só vê as listas prontas pra enviar (enviar ao estoque,
-  // tirar, corrigir e adicionar produto). Calcular e imprimir é do admin.
-  const somenteListas = usuario?.role === "OPERADOR_CHEFE";
   const podeEditarListas = ehGestao(usuario?.role);
   const [novoProduto, setNovoProduto] = useState({});
   const [lojas, setLojas] = useState([]);
@@ -683,12 +680,8 @@ export function ProdutosAComprar() {
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 print-area">
           <div className="no-print">
             <PageHeader
-              title={somenteListas ? "Carrinho" : "Produtos a Comprar"}
-              subtitle={
-                somenteListas
-                  ? "Confira as listas, corrija se precisar e envie para o estoque"
-                  : "Selecione as lojas e imprima a lista de reposição"
-              }
+              title="Produtos a Comprar"
+              subtitle="Selecione as lojas e imprima a lista de reposição"
               icon="🛒"
             />
 
@@ -698,18 +691,6 @@ export function ProdutosAComprar() {
               </div>
             )}
 
-            {somenteListas && pendentes.length === 0 && (
-              <section className="card text-center py-14">
-                <div className="text-5xl mb-3">🛒</div>
-                <h2 className="text-xl font-bold text-gray-900 mb-1">
-                  Nenhuma lista para enviar
-                </h2>
-                <p className="text-gray-600">
-                  Quando o admin gerar uma lista de compras, ela aparece aqui
-                  para você conferir e enviar ao estoque.
-                </p>
-              </section>
-            )}
 
             {/* ── Pendentes ── */}
             {pendentes.length > 0 && (
@@ -966,7 +947,7 @@ export function ProdutosAComprar() {
               </section>
             )}
 
-          {!somenteListas && (<>
+          <>
             {/* ── Seleção de lojas ── */}
             <section className="card mb-6">
               <div className="flex items-center justify-between mb-4">
@@ -1069,10 +1050,10 @@ export function ProdutosAComprar() {
                 <p className="text-gray-600">Carregando estoque das lojas...</p>
               </div>
             )}
-          </>)}
+          </>
           </div>
 
-          {!somenteListas && (<>
+          <>
           {/* ── Lista por loja (tela) ── */}
           {!algumCarregando &&
             listaPorLoja.map(({ loja, produtos: ps }) => (
@@ -1183,7 +1164,7 @@ export function ProdutosAComprar() {
                 )}
               </section>
             ))}
-          </>)}
+          </>
         </main>
 
         <div className="no-print">

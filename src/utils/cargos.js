@@ -74,8 +74,8 @@ export const ehEquipeOperacional = (role) =>
 
 // Gestão da operação (admin e operador chefe): gerenciam todas as
 // manutenções, veem o estoque e o histórico, corrigem movimentações e podem
-// passar por cima das travas de contador / total pré (com aviso). Editar o
-// estoque manualmente continua só do admin.
+// passar por cima das travas de contador / total pré (com aviso), editam o
+// estoque das lojas e têm acesso completo à lista de compras.
 export const ehGestao = (role) => role === "ADMIN" || role === "OPERADOR_CHEFE";
 
 export const nomeCargo = (role) => CARGOS[role]?.label || role || "-";
