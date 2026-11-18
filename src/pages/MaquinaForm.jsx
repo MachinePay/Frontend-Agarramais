@@ -698,25 +698,6 @@ export function MaquinaForm() {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    💪 Força Forte (%)
-                  </label>
-                  <input
-                    type="number"
-                    name="jogadasBoasPorPelucia"
-                    value={formData.jogadasBoasPorPelucia}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="Ex: 10"
-                    min="0"
-                    step="0.01"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Quantas jogadas e esperado para sair uma pelucia.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Alerta de Estoque (%)
                   </label>
                   <input
