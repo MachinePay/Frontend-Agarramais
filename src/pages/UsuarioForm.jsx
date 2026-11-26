@@ -59,7 +59,8 @@ export function UsuarioForm() {
         role: usuario.role,
         lojasPermitidas: usuario.permissoesLojas?.map((p) => p.lojaId) || [],
         machinePayPermitidos:
-          usuario.machinePayPermitidos?.map(({ posId, nome, usrId }) => ({
+          usuario.machinePayPermitidos?.map(({ sistema, posId, nome, usrId }) => ({
+            sistema,
             posId,
             nome,
             usrId,

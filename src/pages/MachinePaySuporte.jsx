@@ -4,9 +4,10 @@ import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { AlertBox, PageHeader } from "../components/UIComponents";
 import { LoadingSpinner } from "../components/Loading";
+import { SistemaBadge } from "./usuarios/MachinePayPermitidos";
 
-// Página Machine Pay do usuário SUPORTE: só os leitores que o admin liberou no
-// cadastro dele. Mostra se está online, envia crédito e mostra se o pulso das
+// Página Machine Pay do usuário SUPORTE: só as máquinas (Machine Pay ou
+// CompactPay) que o admin liberou no cadastro dele. Mostra se está online, envia crédito e mostra se o pulso das
 // transações das últimas 24h chegou na máquina.
 
 const FUSO = "America/Sao_Paulo";
@@ -60,12 +61,21 @@ function StatusLeitor({ status }) {
   );
 }
 
+const PULSO = {
+  ok: { label: "✅ Pulso chegou", className: "border-green-300 bg-green-100 text-green-800" },
+  aguardando: { label: "⏳ Aguardando pulso", className: "border-yellow-300 bg-yellow-100 text-yellow-900" },
+  teste: { label: "🧪 Teste", className: "border-blue-300 bg-blue-100 text-blue-800" },
+  falha: { label: "❌ Pulso não chegou", className: "border-red-300 bg-red-100 text-red-800" },
+};
+
 function PulsoPill({ transacao }) {
-  if (transacao.pulsoConsultado) {
-    return <Pill className="border-green-300 bg-green-100 text-green-800">✅ Pulso chegou</Pill>;
-  }
-  return <Pill className="border-red-300 bg-red-100 text-red-800">❌ Pulso não chegou</Pill>;
+  const info = PULSO[transacao.pulso] || PULSO.falha;
+  return <Pill className={info.className}>{info.label}</Pill>;
 }
+
+const urlLeitor = (leitor) =>
+  `/machine-pay/suporte/leitores/${leitor.sistema}/${encodeURIComponent(leitor.posId)}`;
+const chaveLeitor = (leitor) => `${leitor.sistema}:${leitor.posId}`;
 
 function CartaoLeitor({ leitor, status, onAtualizarStatus }) {
   const [valorCredito, setValorCredito] = useState("2,00");
@@ -80,7 +90,7 @@ function CartaoLeitor({ leitor, status, onAtualizarStatus }) {
     setBuscando(true);
     setErroTransacoes("");
     try {
-      const res = await api.get(`/machine-pay/suporte/leitores/${leitor.posId}/transacoes`);
+      const res = await api.get(`${urlLeitor(leitor)}/transacoes`);
       setTransacoes(res.data);
     } catch (error) {
       setErroTransacoes(mensagemErro(error, "Não foi possível buscar as transações."));
@@ -99,13 +109,13 @@ function CartaoLeitor({ leitor, status, onAtualizarStatus }) {
       setMensagem({ ok: false, texto: `O máximo por envio é ${formatarMoeda(CREDITO_MAXIMO)}.` });
       return;
     }
-    if (!window.confirm(`Enviar ${formatarMoeda(creditos)} de crédito para ${leitor.nome || leitor.posId}?`)) {
+    if (!window.confirm(`Enviar ${formatarMoeda(creditos)} de crédito para ${leitor.nome || `ID ${leitor.posId}`}?`)) {
       return;
     }
     setEnviando(true);
     setMensagem(null);
     try {
-      const res = await api.post(`/machine-pay/suporte/leitores/${leitor.posId}/creditos`, { creditos });
+      const res = await api.post(`${urlLeitor(leitor)}/creditos`, { creditos });
       setMensagem({
         ok: true,
         texto: res.data?.sucesso
@@ -125,9 +135,10 @@ function CartaoLeitor({ leitor, status, onAtualizarStatus }) {
     <div className="card space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h3 className="truncate text-lg font-bold text-gray-900">{leitor.nome || `POS ${leitor.posId}`}</h3>
-          <p className="text-xs text-gray-500">
-            POS ID <span className="font-mono">{leitor.posId}</span>
+          <h3 className="truncate text-lg font-bold text-gray-900">{leitor.nome || `ID ${leitor.posId}`}</h3>
+          <p className="flex flex-wrap items-center gap-1 text-xs text-gray-500">
+            <SistemaBadge sistema={leitor.sistema} />
+            ID <span className="font-mono">{leitor.posId}</span>
             {leitor.maquina &&
               ` · Máquina ${leitor.maquina.codigo}${leitor.maquina.lojaNome ? ` · ${leitor.maquina.lojaNome}` : ""}`}
           </p>
@@ -137,7 +148,7 @@ function CartaoLeitor({ leitor, status, onAtualizarStatus }) {
           <button
             type="button"
             className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-100 disabled:opacity-60"
-            onClick={() => onAtualizarStatus(leitor.posId)}
+            onClick={() => onAtualizarStatus(leitor)}
             disabled={status?.carregando}
             title="Consultar o status de novo"
           >
@@ -246,15 +257,16 @@ export function MachinePaySuporte() {
   const [statusPorPosId, setStatusPorPosId] = useState({});
   const [busca, setBusca] = useState("");
 
-  const consultarStatus = useCallback(async (posId) => {
-    setStatusPorPosId((atual) => ({ ...atual, [posId]: { carregando: true } }));
+  const consultarStatus = useCallback(async (leitor) => {
+    const chave = chaveLeitor(leitor);
+    setStatusPorPosId((atual) => ({ ...atual, [chave]: { carregando: true } }));
     try {
-      const res = await api.get(`/machine-pay/suporte/leitores/${posId}/status`);
-      setStatusPorPosId((atual) => ({ ...atual, [posId]: res.data }));
+      const res = await api.get(`${urlLeitor(leitor)}/status`);
+      setStatusPorPosId((atual) => ({ ...atual, [chave]: res.data }));
     } catch (error) {
       setStatusPorPosId((atual) => ({
         ...atual,
-        [posId]: { erro: mensagemErro(error, "Erro ao consultar status") },
+        [chave]: { erro: mensagemErro(error, "Erro ao consultar status") },
       }));
     }
   }, []);
@@ -266,7 +278,7 @@ export function MachinePaySuporte() {
       .then((res) => {
         if (cancelado) return;
         setLeitores(res.data || []);
-        (res.data || []).forEach((leitor) => consultarStatus(leitor.posId));
+        (res.data || []).forEach((leitor) => consultarStatus(leitor));
       })
       .catch((error) => {
         if (!cancelado) setErro(mensagemErro(error, "Não foi possível carregar as máquinas."));
@@ -283,13 +295,13 @@ export function MachinePaySuporte() {
     const termo = busca.trim().toLowerCase();
     if (!termo) return leitores;
     return leitores.filter((l) =>
-      [l.nome, l.posId, l.maquina?.codigo, l.maquina?.lojaNome]
+      [l.nome, l.posId, l.sistema, l.maquina?.codigo, l.maquina?.lojaNome]
         .filter(Boolean)
         .some((valor) => String(valor).toLowerCase().includes(termo)),
     );
   }, [leitores, busca]);
 
-  const atualizarTodos = () => leitores.forEach((l) => consultarStatus(l.posId));
+  const atualizarTodos = () => leitores.forEach((l) => consultarStatus(l));
 
   return (
     <div className="min-h-screen bg-background-light">
@@ -332,9 +344,9 @@ export function MachinePaySuporte() {
             )}
             {leitoresFiltrados.map((leitor) => (
               <CartaoLeitor
-                key={leitor.posId}
+                key={chaveLeitor(leitor)}
                 leitor={leitor}
-                status={statusPorPosId[leitor.posId]}
+                status={statusPorPosId[chaveLeitor(leitor)]}
                 onAtualizarStatus={consultarStatus}
               />
             ))}
