@@ -23,7 +23,8 @@ export const CARGOS = {
   SUPORTE: {
     label: "Suporte",
     curto: "Suporte",
-    descricao: "Cuida de manutenção e suporte técnico das lojas autorizadas",
+    descricao:
+      "Mesmo acesso do operador nas lojas autorizadas + Machine Pay das máquinas liberadas (status, crédito e pulso)",
     cor: "bg-cyan-100 text-cyan-800",
   },
   FINANCEIRO: {

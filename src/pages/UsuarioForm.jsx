@@ -3,6 +3,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Navbar } from "../components/Navbar";
 import api from "../services/api";
 import { CARGOS, CARGOS_COM_LOJAS, ORDEM_CARGOS, nomeCargo } from "../utils/cargos";
+import { MachinePayPermitidos } from "./usuarios/MachinePayPermitidos";
+
+// Cargo que recebe máquinas Machine Pay liberadas no cadastro.
+const CARGO_COM_MACHINE_PAY = "SUPORTE";
 
 export function UsuarioForm() {
   const { id } = useParams();
@@ -17,6 +21,7 @@ export function UsuarioForm() {
     telefone: "",
     role: "OPERADOR",
     lojasPermitidas: [],
+    machinePayPermitidos: [],
   });
 
   const [lojas, setLojas] = useState([]);
@@ -53,6 +58,12 @@ export function UsuarioForm() {
         telefone: usuario.telefone || "",
         role: usuario.role,
         lojasPermitidas: usuario.permissoesLojas?.map((p) => p.lojaId) || [],
+        machinePayPermitidos:
+          usuario.machinePayPermitidos?.map(({ posId, nome, usrId }) => ({
+            posId,
+            nome,
+            usrId,
+          })) || [],
       });
     } catch (error) {
       setError("Erro ao carregar usuário");
@@ -124,6 +135,10 @@ export function UsuarioForm() {
         lojasPermitidas:
           CARGOS_COM_LOJAS.includes(formData.role)
             ? formData.lojasPermitidas
+            : [],
+        machinePayPermitidos:
+          formData.role === CARGO_COM_MACHINE_PAY
+            ? formData.machinePayPermitidos
             : [],
       };
 
@@ -337,6 +352,16 @@ export function UsuarioForm() {
                   </p>
                 )}
               </div>
+            )}
+
+            {/* Máquinas Machine Pay liberadas (suporte) */}
+            {formData.role === CARGO_COM_MACHINE_PAY && (
+              <MachinePayPermitidos
+                value={formData.machinePayPermitidos}
+                onChange={(machinePayPermitidos) =>
+                  setFormData((atual) => ({ ...atual, machinePayPermitidos }))
+                }
+              />
             )}
 
             {/* Botões */}

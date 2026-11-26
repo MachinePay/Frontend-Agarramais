@@ -89,6 +89,9 @@ export function Navbar() {
       links.push({ to: "/relatorios", label: "📄 Relatórios" });
       links.push({ to: "/usuarios", label: "👥 Usuários" });
     }
+    if (usuario?.role === "SUPORTE") {
+      links.push({ to: "/machine-pay-suporte", label: "💳 Machine Pay" });
+    }
     if (hasRole("ADMIN", "MACHINEPAY")) {
       links.push({ to: "/machine-pay", label: "💳 Machine Pay" });
       links.push({ to: "/compact-pay", label: "📟 CompactPay" });

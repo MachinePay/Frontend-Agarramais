@@ -80,6 +80,9 @@ const CompactPay = lazy(() =>
 const AlertasCompactPay = lazy(() =>
   import("./pages/AlertasCompactPay").then((m) => ({ default: m.AlertasCompactPay })),
 );
+const MachinePaySuporte = lazy(() =>
+  import("./pages/MachinePaySuporte").then((m) => ({ default: m.MachinePaySuporte })),
+);
 const CriarCaixasMachinePay = lazy(() =>
   import("./pages/CriarCaixasMachinePay").then((m) => ({ default: m.CriarCaixasMachinePay })),
 );
@@ -359,6 +362,14 @@ function App() {
             element={
               <PrivateRoute roles={["ADMIN", "MACHINEPAY"]}>
                 <MachinePay />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/machine-pay-suporte"
+            element={
+              <PrivateRoute roles={["SUPORTE"]}>
+                <MachinePaySuporte />
               </PrivateRoute>
             }
           />
