@@ -32,6 +32,8 @@ export function SistemaBadge({ sistema }) {
 
 export function MachinePayPermitidos({ value, onChange }) {
   const [cadastradas, setCadastradas] = useState([]);
+  // IDs de máquinas desativadas: saem da seleção (e o backend não salva).
+  const [desativados, setDesativados] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erroLista, setErroLista] = useState("");
   const [busca, setBusca] = useState("");
@@ -45,7 +47,11 @@ export function MachinePayPermitidos({ value, onChange }) {
     let cancelado = false;
     api
       .get("/machine-pay/suporte/admin/maquinas-cadastradas")
-      .then((res) => !cancelado && setCadastradas(res.data || []))
+      .then((res) => {
+        if (cancelado) return;
+        setCadastradas(res.data?.maquinas || []);
+        setDesativados(res.data?.desativados || []);
+      })
       .catch((error) => !cancelado && setErroLista(mensagemErro(error, "Erro ao carregar as máquinas.")))
       .finally(() => !cancelado && setCarregando(false));
     return () => {
@@ -54,12 +60,19 @@ export function MachinePayPermitidos({ value, onChange }) {
   }, []);
 
   // Registros antigos não têm "sistema": eram todos da Machine Pay.
-  const lista = useMemo(
-    () => value.map((item) => ({ ...item, sistema: item.sistema || "MACHINE_PAY" })),
-    [value],
-  );
-  const selecionados = useMemo(() => new Set(lista.map(chave)), [lista]);
+  // Saem da seleção: IDs de máquinas desativadas e liberações que vieram de
+  // uma máquina que não está mais na lista (desativada ou excluída).
   const chavesCadastradas = useMemo(() => new Set(cadastradas.map(chave)), [cadastradas]);
+  const lista = useMemo(() => {
+    const fora = new Set(desativados);
+    return value
+      .map((item) => ({ ...item, sistema: item.sistema || "MACHINE_PAY" }))
+      .filter((item) => !fora.has(chave(item)))
+      .filter(
+        (item) => carregando || item.origem !== "MAQUINA" || chavesCadastradas.has(chave(item)),
+      );
+  }, [value, desativados, carregando, chavesCadastradas]);
+  const selecionados = useMemo(() => new Set(lista.map(chave)), [lista]);
   const extras = lista.filter((item) => !chavesCadastradas.has(chave(item)));
 
   const cadastradasFiltradas = useMemo(() => {
@@ -248,7 +261,6 @@ export function MachinePayPermitidos({ value, onChange }) {
                 <span className="flex flex-wrap items-center gap-2 text-gray-900">
                   <SistemaBadge sistema={m.sistema} />
                   {m.codigo} - {m.nomeMaquina}
-                  {!m.ativo && <span className="text-xs font-semibold text-gray-400">(inativa)</span>}
                 </span>
                 <span className="block text-xs text-gray-500">
                   {m.lojaNome || "Sem loja"} · ID <span className="font-mono">{m.posId}</span>

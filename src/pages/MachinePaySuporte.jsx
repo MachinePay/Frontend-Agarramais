@@ -13,15 +13,27 @@ import { SistemaBadge } from "./usuarios/MachinePayPermitidos";
 const FUSO = "America/Sao_Paulo";
 const VALORES_RAPIDOS_CREDITO = [1, 2, 5, 10, 20];
 const CREDITO_MAXIMO = 100;
+const STATUS_EM_PARALELO = 4;
 
 const formatarMoeda = (valor) =>
-  Number(valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  Number(valor || 0).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
 
 const formatarValorInput = (valor) =>
-  Number(valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  Number(valor || 0).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
 const parseValorCredito = (valor) => {
-  const numero = Number(String(valor || "").trim().replace(/\./g, "").replace(",", "."));
+  const numero = Number(
+    String(valor || "")
+      .trim()
+      .replace(/\./g, "")
+      .replace(",", "."),
+  );
   return Number.isFinite(numero) ? numero : 0;
 };
 
@@ -41,7 +53,9 @@ const mensagemErro = (error, padrao) =>
 
 function Pill({ className = "", children }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${className}`}>
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${className}`}
+    >
       {children}
     </span>
   );
@@ -49,23 +63,53 @@ function Pill({ className = "", children }) {
 
 function StatusLeitor({ status }) {
   if (!status || status.carregando) {
-    return <Pill className="border-gray-300 bg-gray-100 text-gray-600">⏳ Consultando...</Pill>;
+    return (
+      <Pill className="border-gray-300 bg-gray-100 text-gray-600">
+        ⏳ Consultando...
+      </Pill>
+    );
   }
   if (status.erro) {
-    return <Pill className="border-gray-300 bg-gray-100 text-gray-600">❔ Não consultado</Pill>;
+    return (
+      <Pill className="border-gray-300 bg-gray-100 text-gray-600">
+        ❔ Não consultado
+      </Pill>
+    );
+  }
+  // "desconhecido" = a Machine Pay não achou o leitor; não é o mesmo que offline.
+  if (!status.online && status.status !== "offline") {
+    return (
+      <Pill className="border-gray-300 bg-gray-100 text-gray-600">
+        ❔ Sem informação
+      </Pill>
+    );
   }
   return status.online ? (
-    <Pill className="border-green-300 bg-green-100 text-green-800">🟢 Online</Pill>
+    <Pill className="border-green-300 bg-green-100 text-green-800">
+      🟢 Online
+    </Pill>
   ) : (
     <Pill className="border-red-300 bg-red-100 text-red-800">🔴 Offline</Pill>
   );
 }
 
 const PULSO = {
-  ok: { label: "✅ Pulso chegou", className: "border-green-300 bg-green-100 text-green-800" },
-  aguardando: { label: "⏳ Aguardando pulso", className: "border-yellow-300 bg-yellow-100 text-yellow-900" },
-  teste: { label: "🧪 Teste", className: "border-blue-300 bg-blue-100 text-blue-800" },
-  falha: { label: "❌ Pulso não chegou", className: "border-red-300 bg-red-100 text-red-800" },
+  ok: {
+    label: "✅ Pulso chegou",
+    className: "border-green-300 bg-green-100 text-green-800",
+  },
+  aguardando: {
+    label: "⏳ Aguardando pulso",
+    className: "border-yellow-300 bg-yellow-100 text-yellow-900",
+  },
+  teste: {
+    label: "🧪 Teste",
+    className: "border-blue-300 bg-blue-100 text-blue-800",
+  },
+  falha: {
+    label: "❌ Pulso não chegou",
+    className: "border-red-300 bg-red-100 text-red-800",
+  },
 };
 
 function PulsoPill({ transacao }) {
@@ -77,7 +121,7 @@ const urlLeitor = (leitor) =>
   `/machine-pay/suporte/leitores/${leitor.sistema}/${encodeURIComponent(leitor.posId)}`;
 const chaveLeitor = (leitor) => `${leitor.sistema}:${leitor.posId}`;
 
-function CartaoLeitor({ leitor, status, onAtualizarStatus }) {
+function CartaoLeitor({ leitor, status, onAtualizarStatus, onFavoritar }) {
   const [valorCredito, setValorCredito] = useState("2,00");
   const [enviando, setEnviando] = useState(false);
   const [mensagem, setMensagem] = useState(null);
@@ -93,7 +137,9 @@ function CartaoLeitor({ leitor, status, onAtualizarStatus }) {
       const res = await api.get(`${urlLeitor(leitor)}/transacoes`);
       setTransacoes(res.data);
     } catch (error) {
-      setErroTransacoes(mensagemErro(error, "Não foi possível buscar as transações."));
+      setErroTransacoes(
+        mensagemErro(error, "Não foi possível buscar as transações."),
+      );
     } finally {
       setBuscando(false);
     }
@@ -106,10 +152,17 @@ function CartaoLeitor({ leitor, status, onAtualizarStatus }) {
       return;
     }
     if (creditos > CREDITO_MAXIMO) {
-      setMensagem({ ok: false, texto: `O máximo por envio é ${formatarMoeda(CREDITO_MAXIMO)}.` });
+      setMensagem({
+        ok: false,
+        texto: `O máximo por envio é ${formatarMoeda(CREDITO_MAXIMO)}.`,
+      });
       return;
     }
-    if (!window.confirm(`Enviar ${formatarMoeda(creditos)} de crédito para ${leitor.nome || `ID ${leitor.posId}`}?`)) {
+    if (
+      !window.confirm(
+        `Enviar ${formatarMoeda(creditos)} de crédito para ${leitor.nome || `ID ${leitor.posId}`}?`,
+      )
+    ) {
       return;
     }
     setEnviando(true);
@@ -125,23 +178,53 @@ function CartaoLeitor({ leitor, status, onAtualizarStatus }) {
       // Dá um tempo para a máquina consultar o pagamento antes de recarregar.
       setTimeout(buscarTransacoes, 5000);
     } catch (error) {
-      setMensagem({ ok: false, texto: mensagemErro(error, "Não foi possível enviar o crédito.") });
+      setMensagem({
+        ok: false,
+        texto: mensagemErro(error, "Não foi possível enviar o crédito."),
+      });
     } finally {
       setEnviando(false);
     }
   };
 
   return (
-    <div className="card space-y-4">
+    <div
+      className={`card space-y-4 ${
+        leitor.favorito
+          ? "border-2 border-amber-400 bg-amber-50 shadow-lg shadow-amber-200/60"
+          : ""
+      }`}
+    >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h3 className="truncate text-lg font-bold text-gray-900">{leitor.nome || `ID ${leitor.posId}`}</h3>
-          <p className="flex flex-wrap items-center gap-1 text-xs text-gray-500">
-            <SistemaBadge sistema={leitor.sistema} />
-            ID <span className="font-mono">{leitor.posId}</span>
-            {leitor.maquina &&
-              ` · Máquina ${leitor.maquina.codigo}${leitor.maquina.lojaNome ? ` · ${leitor.maquina.lojaNome}` : ""}`}
-          </p>
+        <div className="flex min-w-0 items-start gap-2">
+          <button
+            type="button"
+            className={`shrink-0 text-2xl leading-none transition-transform hover:scale-110 ${
+              leitor.favorito
+                ? "text-amber-500"
+                : "text-gray-300 hover:text-amber-400"
+            }`}
+            onClick={() => onFavoritar(leitor)}
+            title={
+              leitor.favorito
+                ? "Tirar dos favoritos"
+                : "Favoritar (fica no topo)"
+            }
+            aria-label={leitor.favorito ? "Tirar dos favoritos" : "Favoritar"}
+          >
+            {leitor.favorito ? "★" : "☆"}
+          </button>
+          <div className="min-w-0">
+            <h3 className="truncate text-lg font-bold text-gray-900">
+              {leitor.nome || `ID ${leitor.posId}`}
+            </h3>
+            <p className="flex flex-wrap items-center gap-1 text-xs text-gray-500">
+              <SistemaBadge sistema={leitor.sistema} />
+              ID <span className="font-mono">{leitor.posId}</span>
+              {leitor.maquina &&
+                ` · Máquina ${leitor.maquina.codigo}${leitor.maquina.lojaNome ? ` · ${leitor.maquina.lojaNome}` : ""}`}
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <StatusLeitor status={status} />
@@ -191,7 +274,9 @@ function CartaoLeitor({ leitor, status, onAtualizarStatus }) {
           </button>
         </div>
         {mensagem && (
-          <p className={`mt-2 text-sm font-semibold ${mensagem.ok ? "text-green-700" : "text-red-600"}`}>
+          <p
+            className={`mt-2 text-sm font-semibold ${mensagem.ok ? "text-green-700" : "text-red-600"}`}
+          >
             {mensagem.texto}
           </p>
         )}
@@ -210,11 +295,15 @@ function CartaoLeitor({ leitor, status, onAtualizarStatus }) {
           </button>
         </div>
 
-        {erroTransacoes && <p className="text-sm font-semibold text-red-600">{erroTransacoes}</p>}
+        {erroTransacoes && (
+          <p className="text-sm font-semibold text-red-600">{erroTransacoes}</p>
+        )}
 
         {transacoes &&
           (!transacoes.transacoes?.length ? (
-            <p className="text-sm text-gray-500">Nenhuma transação nas últimas 24h.</p>
+            <p className="text-sm text-gray-500">
+              Nenhuma transação nas últimas 24h.
+            </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
@@ -229,15 +318,27 @@ function CartaoLeitor({ leitor, status, onAtualizarStatus }) {
                 <tbody>
                   {transacoes.transacoes.map((t) => (
                     <tr key={t.id} className="border-b align-top">
-                      <td className="px-3 py-2 font-mono text-xs text-gray-600">{formatarDataHora(t.data)}</td>
+                      <td className="px-3 py-2 font-mono text-xs text-gray-600">
+                        {formatarDataHora(t.data)}
+                      </td>
                       <td className="px-3 py-2">
                         {t.tipo}
-                        {t.jaDevolvido && <span className="ml-1 text-xs font-semibold text-red-600">(devolvido)</span>}
+                        {t.jaDevolvido && (
+                          <span className="ml-1 text-xs font-semibold text-red-600">
+                            (devolvido)
+                          </span>
+                        )}
                       </td>
-                      <td className="px-3 py-2 text-right font-semibold">{formatarMoeda(t.valor)}</td>
+                      <td className="px-3 py-2 text-right font-semibold">
+                        {formatarMoeda(t.valor)}
+                      </td>
                       <td className="px-3 py-2">
                         <PulsoPill transacao={t} />
-                        {t.pulsoStatus && <span className="mt-1 block text-xs text-gray-500">{t.pulsoStatus}</span>}
+                        {t.pulsoStatus && (
+                          <span className="mt-1 block text-xs text-gray-500">
+                            {t.pulsoStatus}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -271,6 +372,26 @@ export function MachinePaySuporte() {
     }
   }, []);
 
+  // Consulta o status de várias máquinas, poucas por vez (favoritos primeiro)
+  // para não sobrecarregar a Machine Pay.
+  const consultarVarios = useCallback(
+    async (lista) => {
+      const fila = [...lista].sort(
+        (a, b) => Number(Boolean(b.favorito)) - Number(Boolean(a.favorito)),
+      );
+      const trabalhar = async () => {
+        while (fila.length) await consultarStatus(fila.shift());
+      };
+      await Promise.all(
+        Array.from(
+          { length: Math.min(STATUS_EM_PARALELO, fila.length) },
+          trabalhar,
+        ),
+      );
+    },
+    [consultarStatus],
+  );
+
   useEffect(() => {
     let cancelado = false;
     api
@@ -278,10 +399,13 @@ export function MachinePaySuporte() {
       .then((res) => {
         if (cancelado) return;
         setLeitores(res.data || []);
-        (res.data || []).forEach((leitor) => consultarStatus(leitor));
+        consultarVarios(res.data || []);
       })
       .catch((error) => {
-        if (!cancelado) setErro(mensagemErro(error, "Não foi possível carregar as máquinas."));
+        if (!cancelado)
+          setErro(
+            mensagemErro(error, "Não foi possível carregar as máquinas."),
+          );
       })
       .finally(() => {
         if (!cancelado) setCarregando(false);
@@ -289,19 +413,48 @@ export function MachinePaySuporte() {
     return () => {
       cancelado = true;
     };
-  }, [consultarStatus]);
+  }, [consultarVarios]);
 
+  // Favoritos primeiro; dentro de cada grupo, por nome.
   const leitoresFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
-    if (!termo) return leitores;
-    return leitores.filter((l) =>
-      [l.nome, l.posId, l.sistema, l.maquina?.codigo, l.maquina?.lojaNome]
-        .filter(Boolean)
-        .some((valor) => String(valor).toLowerCase().includes(termo)),
+    const filtrados = termo
+      ? leitores.filter((l) =>
+          [l.nome, l.posId, l.sistema, l.maquina?.codigo, l.maquina?.lojaNome]
+            .filter(Boolean)
+            .some((valor) => String(valor).toLowerCase().includes(termo)),
+        )
+      : leitores;
+    return [...filtrados].sort(
+      (a, b) =>
+        Number(Boolean(b.favorito)) - Number(Boolean(a.favorito)) ||
+        String(a.nome || a.posId).localeCompare(
+          String(b.nome || b.posId),
+          "pt-BR",
+        ),
     );
   }, [leitores, busca]);
 
-  const atualizarTodos = () => leitores.forEach((l) => consultarStatus(l));
+  const favoritar = async (leitor) => {
+    const favorito = !leitor.favorito;
+    const mudar = (valor) =>
+      setLeitores((atual) =>
+        atual.map((l) =>
+          chaveLeitor(l) === chaveLeitor(leitor)
+            ? { ...l, favorito: valor }
+            : l,
+        ),
+      );
+    mudar(favorito);
+    try {
+      await api.patch(`${urlLeitor(leitor)}/favorito`, { favorito });
+    } catch (error) {
+      mudar(!favorito);
+      setErro(mensagemErro(error, "Não foi possível favoritar."));
+    }
+  };
+
+  const atualizarTodos = () => consultarVarios(leitores);
 
   return (
     <div className="min-h-screen bg-background-light">
@@ -313,14 +466,20 @@ export function MachinePaySuporte() {
           icon="💳"
           action={
             leitores.length > 0 && (
-              <button type="button" className="btn-primary" onClick={atualizarTodos}>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={atualizarTodos}
+              >
                 🔄 Atualizar status
               </button>
             )
           }
         />
 
-        {erro && <AlertBox type="error" message={erro} onClose={() => setErro("")} />}
+        {erro && (
+          <AlertBox type="error" message={erro} onClose={() => setErro("")} />
+        )}
 
         {carregando ? (
           <LoadingSpinner message="Carregando máquinas..." />
@@ -348,10 +507,13 @@ export function MachinePaySuporte() {
                 leitor={leitor}
                 status={statusPorPosId[chaveLeitor(leitor)]}
                 onAtualizarStatus={consultarStatus}
+                onFavoritar={favoritar}
               />
             ))}
             {leitoresFiltrados.length === 0 && (
-              <p className="text-center text-sm text-gray-500">Nenhuma máquina encontrada.</p>
+              <p className="text-center text-sm text-gray-500">
+                Nenhuma máquina encontrada.
+              </p>
             )}
           </div>
         )}
